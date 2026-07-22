@@ -159,12 +159,31 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     val mood = element.attr("mood")
     val reason = element.attr("reason").ifBlank { element.text() }.trim()
     val title = element.attr("as").trim()
+    MoodletBadge(
+        mood = mood,
+        reason = reason,
+        title = title,
+        modifier = modifier,
+        initiallyExpanded = false,
+    )
+}
 
+/**
+ * Direct overload for settings preview / tests without a Jsoup element.
+ */
+@Composable
+fun MoodletBadge(
+    mood: String,
+    reason: String = "",
+    title: String = "",
+    modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
+) {
     val preset = remember(mood) { resolvePreset(mood) }
     val label = title.ifEmpty { preset.labelZh }
     val expandedText = if (reason.isNotEmpty()) "（$reason）" else preset.hintZh
     val hasExpandable = expandedText.isNotEmpty()
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
 
     Surface(
         modifier = modifier
@@ -219,5 +238,18 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Settings-page preview: a few representative moods so you can check icons/labels
+ * without waiting for the model to emit a <silent> tag.
+ */
+@Composable
+fun MoodletBadgePreviewPanel(modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        MoodletBadge(mood = "sleepy", reason = "终于编出来了", initiallyExpanded = true)
+        MoodletBadge(mood = "thinking", reason = "在组织语言")
+        MoodletBadge(mood = "shy", reason = "有点不好意思")
     }
 }

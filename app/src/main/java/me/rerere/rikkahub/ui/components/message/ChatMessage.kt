@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -768,9 +769,24 @@ private fun BubbleSurface(
         }
     } else if (glassEnabled) {
         val shape = RoundedCornerShape(cornerRadius)
-        // Keep the tint restrained: the blurred background should remain visible, while
-        // the highlight and outline separate the bubble from bright wallpapers.
-        val tintAlpha = (0.14f + bubbleAlpha * 0.18f).coerceIn(0.14f, 0.32f)
+        // Stronger iOS liquid glass: more translucency + brighter rim in light mode,
+        // cooler frost + higher contrast rim in dark mode. Both should read clearly.
+        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+        val tintAlpha = if (isDark) {
+            (0.22f + bubbleAlpha * 0.20f).coerceIn(0.22f, 0.42f)
+        } else {
+            (0.10f + bubbleAlpha * 0.14f).coerceIn(0.10f, 0.26f)
+        }
+        val rimTop = if (isDark) Color.White.copy(alpha = 0.42f) else Color.White.copy(alpha = 0.78f)
+        val rimBottom = if (isDark) {
+            Color.White.copy(alpha = 0.10f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.34f)
+        }
+        val sheenTop = if (isDark) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.34f)
+        val sheenMid = color.copy(alpha = tintAlpha)
+        val sheenBottom = if (isDark) Color.Black.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f)
+
         val glassModifier = Modifier
             .animateContentSize()
             .clip(shape)
@@ -778,33 +794,40 @@ private fun BubbleSurface(
                 if (hazeState != null) {
                     Modifier.hazeEffect(
                         state = hazeState,
-                        style = HazeMaterials.ultraThin(containerColor = color),
+                        style = HazeMaterials.thin(containerColor = color.copy(alpha = tintAlpha)),
                     )
-                } else Modifier.background(color.copy(alpha = tintAlpha))
+                } else {
+                    Modifier.background(color.copy(alpha = tintAlpha + if (isDark) 0.08f else 0.04f))
+                }
             )
             .border(
-                width = 0.8.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.52f),
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
-                    )
-                ),
+                width = 1.1.dp,
+                brush = Brush.verticalGradient(colors = listOf(rimTop, rimBottom)),
                 shape = shape,
             )
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
 
         Box(modifier = glassModifier) {
-            // iOS-like inner sheen. It is intentionally subtle so text contrast stays sane.
+            // Inner sheen: bright top, tinted body, soft bottom — glass edge catch light.
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .background(
                         Brush.verticalGradient(
+                            colors = listOf(sheenTop, sheenMid, sheenBottom)
+                        )
+                    )
+            )
+            // Second pass: subtle side highlight so bubbles don't look flat on plain bg.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.horizontalGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.16f),
-                                color.copy(alpha = tintAlpha),
-                                Color.White.copy(alpha = 0.035f),
+                                Color.White.copy(alpha = if (isDark) 0.08f else 0.14f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = if (isDark) 0.10f else 0.04f),
                             )
                         )
                     )
