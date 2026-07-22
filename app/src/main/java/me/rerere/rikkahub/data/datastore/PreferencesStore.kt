@@ -655,7 +655,7 @@ data class DisplaySetting(
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
     val showUserAvatar: Boolean = true,
-    val showAssistantBubble: Boolean = false,
+    val showAssistantBubble: Boolean = true,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
     val showDateBelowName: Boolean = false,
@@ -685,6 +685,7 @@ data class DisplaySetting(
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
     val chatBubbleTransparency: Float = 0f,
+    val enableGlassBubbles: Boolean = true,
     val thinkingChainTransparency: Float = 0f,
     // 自定义字体
     val customFontPath: String = "",

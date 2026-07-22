@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -69,6 +70,18 @@ fun SettingDisplayTransparencyPage(vm: SettingVM = koinViewModel()) {
                     modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text("透明度设置") },
                 ) {
+                    item(
+                        headlineContent = { Text("液态玻璃气泡") },
+                        supportingContent = { Text("背景模糊、透明渐变与高光描边；关闭后恢复普通气泡") },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.enableGlassBubbles,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(enableGlassBubbles = it))
+                                }
+                            )
+                        }
+                    )
                     item(
                         headlineContent = { Text("聊天气泡透明度") },
                         supportingContent = {

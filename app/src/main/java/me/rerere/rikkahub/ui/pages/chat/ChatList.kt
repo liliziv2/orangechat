@@ -339,6 +339,7 @@ private fun ChatListNormal(
                             node = node,
                             model = node.currentMessage.modelId?.let { settings.findModelById(it) },
                             assistant = settings.getAssistantById(conversation.assistantId),
+                            hazeState = hazeState,
                             loading = loading && index == displayNodes.lastIndex,
                             onRegenerate = {
                                 onRegenerate(node.currentMessage)

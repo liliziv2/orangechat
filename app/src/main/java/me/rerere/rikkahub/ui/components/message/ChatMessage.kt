@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -118,6 +120,9 @@ import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.openUrl
 import coil3.compose.AsyncImage
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.HazeMaterials
 import me.rerere.rikkahub.utils.splitIntoBubbleSegments
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
@@ -130,6 +135,7 @@ fun ChatMessage(
     loading: Boolean = false,
     model: Model? = null,
     assistant: Assistant? = null,
+    hazeState: HazeState? = null,
     lastMessage: Boolean = false,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
@@ -204,6 +210,7 @@ fun ChatMessage(
                 annotations = message.annotations,
                 loading = loading,
                 model = model,
+                hazeState = hazeState,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
@@ -301,6 +308,7 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
+    hazeState: HazeState?,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
@@ -413,6 +421,8 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
+                                                        glassEnabled = displaySettings.enableGlassBubbles,
+                                                        hazeState = hazeState,
                                                         onClick = { onUserMessageClick?.invoke() },
                                                     ) {
                                                         MarkdownBlock(
@@ -434,6 +444,8 @@ private fun MessagePartsBlock(
                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
+                                            glassEnabled = displaySettings.enableGlassBubbles,
+                                            hazeState = hazeState,
                                             onClick = { onUserMessageClick?.invoke() },
                                         ) {
                                             MarkdownBlock(
@@ -464,6 +476,8 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
+                                                        glassEnabled = displaySettings.enableGlassBubbles,
+                                                        hazeState = hazeState,
                                                     ) {
                                                         MarkdownBlock(
                                                             content = segment.replaceRegexes(
@@ -497,6 +511,8 @@ private fun MessagePartsBlock(
                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
+                                            glassEnabled = displaySettings.enableGlassBubbles,
+                                            hazeState = hazeState,
                                         ) {
                                             MarkdownBlock(
                                                 content = displayText.replaceRegexes(
@@ -722,6 +738,8 @@ private fun BubbleSurface(
     color: Color,
     overlayEnabled: Boolean,
     bubbleAlpha: Float,
+    glassEnabled: Boolean,
+    hazeState: HazeState?,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
@@ -747,6 +765,51 @@ private fun BubbleSurface(
                 )
             }
             Column(modifier = Modifier.padding(8.dp)) { content() }
+        }
+    } else if (glassEnabled) {
+        val shape = RoundedCornerShape(cornerRadius)
+        // Keep the tint restrained: the blurred background should remain visible, while
+        // the highlight and outline separate the bubble from bright wallpapers.
+        val tintAlpha = (0.14f + bubbleAlpha * 0.18f).coerceIn(0.14f, 0.32f)
+        val glassModifier = Modifier
+            .animateContentSize()
+            .clip(shape)
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeEffect(
+                        state = hazeState,
+                        style = HazeMaterials.ultraThin(containerColor = color),
+                    )
+                } else Modifier.background(color.copy(alpha = tintAlpha))
+            )
+            .border(
+                width = 0.8.dp,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.52f),
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.22f),
+                    )
+                ),
+                shape = shape,
+            )
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+
+        Box(modifier = glassModifier) {
+            // iOS-like inner sheen. It is intentionally subtle so text contrast stays sane.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.16f),
+                                color.copy(alpha = tintAlpha),
+                                Color.White.copy(alpha = 0.035f),
+                            )
+                        )
+                    )
+            )
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) { content() }
         }
     } else {
         Surface(

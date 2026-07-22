@@ -281,6 +281,8 @@ private fun HtmlBlockElement(
 
         "progress" -> HtmlProgress(element = element)
 
+        "silent" -> MoodletBadge(element = element)
+
         "div" -> HtmlStyledElement(element = element) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 element.childNodes().fastForEach { HtmlBodyNode(it, onClickCitation) }
@@ -333,8 +335,10 @@ private fun HtmlParagraphContent(
     val hasImages = element.select("img").isNotEmpty()
     // A span.math with inline != "true" is a block math element
     val hasBlockMath = element.select("span.math").any { it.attr("inline") != "true" }
+    // <silent> mood badges are composables rather than inline text.
+    val hasSilent = element.select("silent").isNotEmpty()
 
-    if (hasImages || hasBlockMath) {
+    if (hasImages || hasBlockMath || hasSilent) {
         // Mixed block content: render children individually in a FlowRow
         FlowRow(
             modifier = modifier.fillMaxWidth(),
@@ -783,6 +787,8 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                 tag == "br" -> {
                     // handled by inline text
                 }
+
+                tag == "silent" -> MoodletBadge(element = node)
 
                 else -> {
                     // Render as an inline text segment
