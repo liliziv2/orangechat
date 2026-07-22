@@ -268,7 +268,6 @@ val dataSourceModule = module {
             context = get(),
             httpClient = get(),
             pluginRepository = get(),
-            appDatabase = get()
         )
     }
 
@@ -293,7 +292,6 @@ val dataSourceModule = module {
             json = get(),
             context = get(),
             httpClient = get(),
-            appDatabase = get()
         )
     }
 

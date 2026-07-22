@@ -17,7 +17,6 @@ import me.rerere.rikkahub.data.files.SkillPaths
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
-import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.sync.s3.S3Client
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -38,7 +37,6 @@ class S3Sync(
     private val json: Json,
     private val context: Context,
     private val httpClient: HttpClient,
-    private val appDatabase: me.rerere.rikkahub.data.db.AppDatabase,
 ) {
     private fun getS3Client(config: S3Config): S3Client {
         return S3Client(config, httpClient)
@@ -212,7 +210,6 @@ class S3Sync(
 
                         "rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm" -> {
                             if (config.items.contains(S3Config.BackupItem.DATABASE)) {
-                                appDatabase.close()
                                 val dbParent = context.getDatabasePath("rikka_hub").parentFile
                                 dbParent?.let { d ->
                                     File(d, "rikka_hub-wal").delete()
