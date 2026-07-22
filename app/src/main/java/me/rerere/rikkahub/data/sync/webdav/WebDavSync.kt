@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.files.SkillPaths
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
 import me.rerere.rikkahub.plugin.repository.PluginRepository
 import me.rerere.rikkahub.plugin.repository.PluginSettingsExport
@@ -40,6 +41,7 @@ class WebDavSync(
     private val context: Context,
     private val httpClient: HttpClient,
     private val pluginRepository: PluginRepository,
+    private val appDatabase: me.rerere.rikkahub.data.db.AppDatabase,
 ) {
     private fun getClient(config: WebDavConfig): WebDavClient {
         return WebDavClient(config, httpClient)
@@ -272,6 +274,14 @@ class WebDavSync(
 
                         "rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm" -> {
                             if (config.items.contains(WebDavConfig.BackupItem.DATABASE)) {
+                                // Close Room before overwriting database files to avoid file locking
+                                appDatabase.close()
+                                // Also kill leftover WAL journal from the current session
+                                val dbParent = context.getDatabasePath("rikka_hub").parentFile
+                                dbParent?.let { d ->
+                                    File(d, "rikka_hub-wal").delete()
+                                    File(d, "rikka_hub-shm").delete()
+                                }
                                 val dbFile = when (zipEntry.name) {
                                     "rikka_hub.db" -> context.getDatabasePath("rikka_hub")
                                     "rikka_hub-wal" -> File(
