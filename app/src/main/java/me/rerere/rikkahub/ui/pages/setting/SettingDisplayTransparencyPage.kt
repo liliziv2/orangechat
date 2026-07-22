@@ -115,7 +115,7 @@ fun SettingDisplayTransparencyPage(vm: SettingVM = koinViewModel()) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 12.sp,
                                 )
-                                Spacer(Modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 MoodletBadgePreviewPanel()
                             }
                         }
