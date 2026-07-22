@@ -11,6 +11,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -184,6 +196,8 @@ fun MoodletBadge(
     val expandedText = if (reason.isNotEmpty()) "（$reason）" else preset.hintZh
     val hasExpandable = expandedText.isNotEmpty()
     var expanded by remember { mutableStateOf(initiallyExpanded) }
+    var liked by remember { mutableStateOf(false) }
+    val likeTint = if (liked) Color(0xFFE91E63)         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
 
     Surface(
         modifier = modifier
@@ -228,6 +242,20 @@ fun MoodletBadge(
                         ),
                     )
                 }
+            }
+            // Like toggle
+            Box(
+                modifier = Modifier
+                    .clickable { liked = !liked }
+                    .padding(start = 4.dp, end = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Lucide.Heart,
+                    contentDescription = null,
+                    tint = likeTint,
+                    modifier = Modifier.size(18.dp),
+                )
             }
             if (hasExpandable) {
                 Icon(
