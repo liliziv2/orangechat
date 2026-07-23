@@ -838,7 +838,8 @@ private fun BubbleSurface(
         Surface(
             modifier = Modifier.animateContentSize(),
             shape = RoundedCornerShape(cornerRadius),
-            color = color.copy(alpha = bubbleAlpha),
+            color = color,
+            tonalElevation = 0.dp,
             onClick = onClick ?: {},
         ) {
             Column(modifier = Modifier.padding(8.dp)) { content() }

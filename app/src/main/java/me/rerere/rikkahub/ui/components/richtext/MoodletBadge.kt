@@ -148,8 +148,8 @@ private fun resolvePreset(mood: String): MoodPreset {
 @Composable
 private fun MoodTint.color(): Color = when (this) {
     MoodTint.PRIMARY -> MaterialTheme.colorScheme.primary
-    MoodTint.SECONDARY -> MaterialTheme.colorScheme.secondary
-    MoodTint.TERTIARY -> MaterialTheme.colorScheme.tertiary
+    MoodTint.SECONDARY -> MaterialTheme.colorScheme.tertiary
+    MoodTint.TERTIARY -> MaterialTheme.colorScheme.secondary
     MoodTint.ERROR -> MaterialTheme.colorScheme.error
     MoodTint.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
 }
@@ -192,7 +192,8 @@ fun MoodletBadge(
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
