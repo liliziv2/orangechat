@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,12 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -120,6 +123,13 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                         colors = CustomColors.listItemColors,
                     )
                     if (!settings.dynamicColor) {
+                        // 日间主题
+                        Text(
+                            text = "日间主题",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp)
+                        )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -130,6 +140,36 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                 themeId = settings.themeId,
                                 modifier = Modifier.fillMaxWidth(),
                                 onChangeTheme = { vm.updateSettings(settings.copy(themeId = it)) }
+                            )
+                        }
+                        // 夜间主题
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "夜间主题",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 4.dp)
+                            )
+                            if (settings.darkThemeId != null) {
+                                TextButton(onClick = { vm.updateSettings(settings.copy(darkThemeId = null)) }) {
+                                    Text("重置（跟随日间）")
+                                }
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceBright)
+                        ) {
+                            PresetThemeButtonGroup(
+                                themeId = settings.darkThemeId ?: settings.themeId,
+                                modifier = Modifier.fillMaxWidth(),
+                                onChangeTheme = { vm.updateSettings(settings.copy(darkThemeId = it)) }
                             )
                         }
                     }

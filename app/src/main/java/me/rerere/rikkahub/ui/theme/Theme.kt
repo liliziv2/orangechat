@@ -67,8 +67,9 @@ fun RikkahubTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         else -> {
-            val theme = findThemeById(settings.themeId, settings.customThemes)
-                ?: findPresetTheme(settings.themeId)
+            val themeId = if (darkTheme) (settings.darkThemeId ?: settings.themeId) else settings.themeId
+            val theme = findThemeById(themeId, settings.customThemes)
+                ?: findPresetTheme(themeId)
             theme.getColorScheme(dark = darkTheme)
         }
     }
@@ -90,6 +91,8 @@ fun RikkahubTheme(
         settings.displaySetting.primaryColor,
         settings.displaySetting.globalTextColor,
         settings.themeId,
+        settings.darkThemeId,
+        darkTheme,
     ) {
         var scheme = colorSchemeConverted
         settings.displaySetting.primaryColor?.let { pc ->
@@ -109,7 +112,8 @@ fun RikkahubTheme(
                 onSurfaceVariant = textColor,
             )
         }
-        if (settings.themeId == "pearltide") {
+        val effectiveThemeId = if (darkTheme) (settings.darkThemeId ?: settings.themeId) else settings.themeId
+        if (effectiveThemeId == "pearltide") {
             // 珍珠潮汐主题专属:统一让默认读取这几个 token 的容器变透明/半透明,
             // 这样 Scaffold、Card、TopAppBar、ModalDrawerSheet、ModalBottomSheet 等
             // 全部自动生效,不需要逐个页面单独改。
