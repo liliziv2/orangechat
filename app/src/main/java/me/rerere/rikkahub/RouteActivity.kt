@@ -114,6 +114,7 @@ import me.rerere.rikkahub.ui.pages.backup.BackupPage
 import me.rerere.rikkahub.ui.pages.chat.ChatPage
 import me.rerere.rikkahub.ui.pages.debug.DebugPage
 import me.rerere.rikkahub.ui.pages.developer.DeveloperPage
+import me.rerere.rikkahub.ui.pages.disclaimer.LegalPage
 import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
 import me.rerere.rikkahub.ui.pages.extensions.ExternalMemoriesPage
 import me.rerere.rikkahub.ui.pages.extensions.PromptPage

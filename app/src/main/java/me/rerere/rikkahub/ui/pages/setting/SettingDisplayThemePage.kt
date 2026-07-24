@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +44,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
 import me.rerere.rikkahub.data.datastore.CustomThemeColors
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -156,7 +156,7 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                             )
                                     ) {
                                         Icon(
-                                            Icons.Default.Add,
+                                            HugeIcons.Add01,
                                             contentDescription = "\u81EA\u5B9A\u4E49\u989C\u8272",
                                             tint = if (settings.dayCustomColors?.hasAny() == true) MaterialTheme.colorScheme.onPrimary
                                             else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -209,7 +209,7 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                             )
                                     ) {
                                         Icon(
-                                            Icons.Default.Add,
+                                            HugeIcons.Add01,
                                             contentDescription = "\u81EA\u5B9A\u4E49\u989C\u8272",
                                             tint = if (settings.nightCustomColors?.hasAny() == true) MaterialTheme.colorScheme.onPrimary
                                             else MaterialTheme.colorScheme.onSurfaceVariant,
