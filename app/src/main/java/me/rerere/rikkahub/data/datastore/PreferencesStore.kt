@@ -86,6 +86,8 @@ class SettingsStore(
         val THEME_ID = stringPreferencesKey("theme_id")
         val DARK_THEME_ID = stringPreferencesKey("dark_theme_id")
         val CUSTOM_THEMES = stringPreferencesKey("custom_themes")
+        val DAY_CUSTOM_COLORS = stringPreferencesKey("day_custom_colors")
+        val NIGHT_CUSTOM_COLORS = stringPreferencesKey("night_custom_colors")
         val DISPLAY_SETTING = stringPreferencesKey("display_setting")
         val DEVELOPER_MODE = booleanPreferencesKey("developer_mode")
 
@@ -240,6 +242,12 @@ class SettingsStore(
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
                 darkThemeId = preferences[DARK_THEME_ID]?.ifBlank { null },
+                dayCustomColors = preferences[DAY_CUSTOM_COLORS]?.let {
+                    JsonInstant.decodeFromString(it)
+                },
+                nightCustomColors = preferences[NIGHT_CUSTOM_COLORS]?.let {
+                    JsonInstant.decodeFromString(it)
+                },
                 customThemes = preferences[CUSTOM_THEMES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -428,6 +436,8 @@ class SettingsStore(
             preferences[DYNAMIC_COLOR] = settings.dynamicColor
             preferences[THEME_ID] = settings.themeId
             preferences[DARK_THEME_ID] = settings.darkThemeId ?: ""
+            preferences[DAY_CUSTOM_COLORS] = settings.dayCustomColors?.let { JsonInstant.encodeToString(it) }
+            preferences[NIGHT_CUSTOM_COLORS] = settings.nightCustomColors?.let { JsonInstant.encodeToString(it) }
             preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
             preferences[DEVELOPER_MODE] = settings.developerMode
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
@@ -581,6 +591,8 @@ data class Settings(
     val dynamicColor: Boolean = true,
     val themeId: String = PresetThemes[0].id,
     val darkThemeId: String? = null,
+    val dayCustomColors: CustomThemeColors? = null,
+    val nightCustomColors: CustomThemeColors? = null,
     val customThemes: List<CustomTheme> = emptyList(),
     val developerMode: Boolean = false,
     val displaySetting: DisplaySetting = DisplaySetting(),
@@ -724,6 +736,15 @@ data class DisplaySetting(
     val bubbleCornerRadius: Float = 16f,
     val bubbleImageOverlayEnabled: Boolean = false, // 关=纯图片, 开=图片+主题色遮罩
 )
+
+@Serializable
+data class CustomThemeColors(
+    val primaryColorArgb: Long? = null,
+    val secondaryColorArgb: Long? = null,
+    val tertiaryColorArgb: Long? = null,
+) {
+    fun hasAny(): Boolean = primaryColorArgb != null || secondaryColorArgb != null || tertiaryColorArgb != null
+}
 
 @Serializable
 data class WebDavConfig(

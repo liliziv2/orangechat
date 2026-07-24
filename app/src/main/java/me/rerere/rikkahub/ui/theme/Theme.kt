@@ -26,9 +26,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import dynamiccolor.ColorSpecs
+import dynamiccolor.DynamicScheme
+import dynamiccolor.Variant
+import hct.Hct
 import kotlinx.serialization.Serializable
+import me.rerere.material3.toColorScheme
+import me.rerere.rikkahub.data.datastore.CustomThemeColors
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
+import palettes.TonalPalette
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
 
@@ -70,7 +77,13 @@ fun RikkahubTheme(
             val themeId = if (darkTheme) (settings.darkThemeId ?: settings.themeId) else settings.themeId
             val theme = findThemeById(themeId, settings.customThemes)
                 ?: findPresetTheme(themeId)
-            theme.getColorScheme(dark = darkTheme)
+            val baseScheme = theme.getColorScheme(dark = darkTheme)
+            val customColors = if (darkTheme) settings.nightCustomColors else settings.dayCustomColors
+            if (customColors?.hasAny() == true) {
+                applyCustomColors(baseScheme, customColors, darkTheme)
+            } else {
+                baseScheme
+            }
         }
     }
     val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
@@ -92,6 +105,8 @@ fun RikkahubTheme(
         settings.displaySetting.globalTextColor,
         settings.themeId,
         settings.darkThemeId,
+        settings.dayCustomColors,
+        settings.nightCustomColors,
         darkTheme,
     ) {
         var scheme = colorSchemeConverted
@@ -161,6 +176,45 @@ fun RikkahubTheme(
             motionScheme = MotionScheme.expressive()
         )
     }
+}
+
+private fun applyCustomColors(base: ColorScheme, colors: CustomThemeColors, dark: Boolean): ColorScheme {
+    val primaryArgb = colors.primaryColorArgb
+    val secondaryArgb = colors.secondaryColorArgb
+    val tertiaryArgb = colors.tertiaryColorArgb
+    if (primaryArgb == null && secondaryArgb == null && tertiaryArgb == null) return base
+    val sourceHct = Hct.fromInt((primaryArgb ?: 0xFF6750A4L).toInt())
+    val specVersion = DynamicScheme.DEFAULT_SPEC_VERSION
+    val platform = DynamicScheme.DEFAULT_PLATFORM
+    val contrastLevel = 0.0
+    val colorSpec = ColorSpecs.get(specVersion)
+
+    val primaryPalette = colorSpec.getPrimaryPalette(
+        Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel,
+    )
+    val secondaryPalette = if (secondaryArgb != null) {
+        TonalPalette.fromInt(secondaryArgb.toInt())
+    } else {
+        colorSpec.getSecondaryPalette(
+            Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel,
+        )
+    }
+    val tertiaryPalette = if (tertiaryArgb != null) {
+        TonalPalette.fromInt(tertiaryArgb.toInt())
+    } else {
+        colorSpec.getTertiaryPalette(
+            Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel,
+        )
+    }
+
+    val scheme = DynamicScheme(
+        sourceHct, Variant.TONAL_SPOT, dark, contrastLevel, platform, specVersion,
+        primaryPalette, secondaryPalette, tertiaryPalette,
+        colorSpec.getNeutralPalette(Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel),
+        colorSpec.getNeutralVariantPalette(Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel),
+        colorSpec.getErrorPalette(Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel),
+    )
+    return scheme.toColorScheme()
 }
 
 val MaterialTheme.extendColors
