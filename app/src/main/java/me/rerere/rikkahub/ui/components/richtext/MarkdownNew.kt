@@ -281,6 +281,8 @@ private fun HtmlBlockElement(
 
         "progress" -> HtmlProgress(element = element)
 
+        "silent" -> MoodletBadge(element = element)
+
         "div" -> HtmlStyledElement(element = element) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 element.childNodes().fastForEach { HtmlBodyNode(it, onClickCitation) }
@@ -783,6 +785,8 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
                 tag == "br" -> {
                     // handled by inline text
                 }
+
+                tag == "silent" -> MoodletBadge(element = node)
 
                 else -> {
                     // Render as an inline text segment

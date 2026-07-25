@@ -48,7 +48,7 @@ import java.util.Random
  * ```
  */
 @Composable
-fun MoodOverlay(
+fun MoodSkinOverlay(
     mode: MoodMode,
     modifier: Modifier = Modifier,
 ) {
@@ -109,7 +109,6 @@ private fun NoiseOverlay() {
         label = "noisePhase",
     )
 
-    val density = LocalDensity.current
     Canvas(Modifier.fillMaxSize()) {
         val cellSize = 4f
         val seed = phase.toInt()
@@ -158,6 +157,7 @@ private fun VignetteOverlay() {
 
 @Composable
 private fun StarsOverlay() {
+    val density = LocalDensity.current.density
     val starData = remember {
         val rng = Random(42)
         List(60) {

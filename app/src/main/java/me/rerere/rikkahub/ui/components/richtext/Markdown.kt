@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,7 +112,7 @@ private val BLOCK_LATEX_REGEX = Regex("\\\\\\[(.+?)\\\\\\]", RegexOption.DOT_MAT
 val THINKING_REGEX = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
 private val CODE_BLOCK_REGEX = Regex("```[\\s\\S]*?```|`[^`\n]*`", RegexOption.DOT_MATCHES_ALL)
 private val BREAK_LINE_REGEX = Regex("(?i)<br\\s*/?>")
-private val FX_PLACEHOLDER_REGEX = Regex("\\uE010(\\d+)\\uE011")
+private val FX_PLACEHOLDER_REGEX = Regex("\uE010(\\d+)\uE011")
 
 // 预处理markdown内容
 private fun preProcess(content: String): String {
@@ -218,7 +219,8 @@ fun MarkdownBlock(
     style: TextStyle = LocalTextStyle.current,
     onClickCitation: (String) -> Unit = {}
 ) {
-    val fxResult = remember(content) { FxTagProcessor.extract(content) }
+    var fxResultState by remember { mutableStateOf(FxTagProcessor.extract(content)) }
+    val fxResult = fxResultState
     var (data, setData) = remember { mutableStateOf(parseMarkdown(fxResult.text)) }
 
     // 监听内容变化，重新解析AST树
@@ -227,10 +229,16 @@ fun MarkdownBlock(
     LaunchedEffect(Unit) {
         snapshotFlow { updatedContent }
             .distinctUntilChanged()
-            .mapLatest { parseMarkdown(it) }
+            .mapLatest {
+                val extracted = FxTagProcessor.extract(it)
+                parseMarkdown(extracted.text) to extracted
+            }
             .catch { exception -> exception.printStackTrace() }
             .flowOn(Dispatchers.Default)
-            .collect { setData(it) }
+            .collect { (parsed, extracted) ->
+                fxResultState = extracted
+                setData(parsed)
+            }
     }
 
     if (data.hasHtml) {
@@ -303,7 +311,8 @@ private fun MarkdownNode(
         MarkdownElementTypes.MARKDOWN_FILE -> {
             node.children.fastForEach { child ->
                 MarkdownNode(
-                    node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
+                    node = child, content = content, modifier = modifier, onClickCitation = onClickCitation,
+                fxResult = fxResult,
                 )
             }
         }
@@ -418,7 +427,8 @@ private fun MarkdownNode(
                         .padding(8.dp)) {
                     node.children.fastForEach { child ->
                         MarkdownNode(
-                            node = child, content = content, onClickCitation = onClickCitation
+                            node = child, content = content, onClickCitation = onClickCitation,
+                        fxResult = fxResult,
                         )
                     }
                 }
@@ -448,7 +458,8 @@ private fun MarkdownNode(
             ProvideTextStyle(TextStyle(fontStyle = FontStyle.Italic)) {
                 node.children.fastForEach { child ->
                     MarkdownNode(
-                        node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
+                        node = child, content = content, modifier = modifier, onClickCitation = onClickCitation,
+                    fxResult = fxResult,
                     )
                 }
             }
@@ -458,7 +469,8 @@ private fun MarkdownNode(
             ProvideTextStyle(TextStyle(fontWeight = FontWeight.SemiBold)) {
                 node.children.fastForEach { child ->
                     MarkdownNode(
-                        node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
+                        node = child, content = content, modifier = modifier, onClickCitation = onClickCitation,
+                    fxResult = fxResult,
                     )
                 }
             }
@@ -603,7 +615,8 @@ private fun MarkdownNode(
             // 递归处理其他节点的子节点
             node.children.fastForEach { child ->
                 MarkdownNode(
-                    node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
+                    node = child, content = content, modifier = modifier, onClickCitation = onClickCitation,
+                fxResult = fxResult,
                 )
             }
         }
@@ -693,6 +706,7 @@ private fun ListItemNode(
                             content = content,
                             onClickCitation = onClickCitation,
                             listLevel = level,
+                        fxResult = fxResult,
                         )
                     }
                 }
@@ -701,7 +715,8 @@ private fun ListItemNode(
         // nestedLists 渲染处理
         nestedLists.fastForEach { nestedList ->
             MarkdownNode(
-                node = nestedList, content = content, onClickCitation = onClickCitation, listLevel = level + 1 // 增加层级
+                node = nestedList, content = content, onClickCitation = onClickCitation, listLevel = level + 1 // 增加层级,
+            fxResult = fxResult,
             )
         }
     }
@@ -739,7 +754,8 @@ private fun Paragraph(
         FlowRow(modifier = modifier) {
             node.children.fastForEach { child ->
                 MarkdownNode(
-                    node = child, content = content, onClickCitation = onClickCitation
+                    node = child, content = content, onClickCitation = onClickCitation,
+                fxResult = fxResult,
                 )
             }
         }

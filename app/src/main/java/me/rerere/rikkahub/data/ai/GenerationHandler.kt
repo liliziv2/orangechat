@@ -4,9 +4,6 @@
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
  */
 
-// Pelle d'Umore integration TODO: pipe streaming chunks through MoodDetector
-// See app/src/main/java/me/rerere/rikkahub/data/ai/mood/MoodDetector.kt
-
 package me.rerere.rikkahub.data.ai
  
 import android.content.Context
@@ -42,11 +39,15 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.registry.ModelRegistry
+import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.rikkahub.data.ai.mood.MoodDetector
+import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -107,6 +108,7 @@ class GenerationHandler(
         workspaceCwd: String? = null,
         pluginPromptInjections: List<String> = emptyList(),
         conversationId: String? = null,
+        onMoodEvent: ((MoodMode) -> Unit)? = null,
     ): Flow<GenerationChunk> = flow {
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -186,6 +188,7 @@ class GenerationHandler(
                     processingStatus = processingStatus,
                     conversationSystemPrompt = conversationSystemPrompt,
                     workspaceCwd = workspaceCwd,
+                    onMoodEvent = onMoodEvent,
                 )
                 messages = messages.visualTransforms(
                     transformers = outputTransformers,
@@ -382,6 +385,7 @@ class GenerationHandler(
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         conversationSystemPrompt: String? = null,
         workspaceCwd: String? = null,
+        onMoodEvent: ((MoodMode) -> Unit)? = null,
     ) {
         val internalMessages = buildList {
             val system = buildString {
@@ -505,6 +509,30 @@ class GenerationHandler(
                 // 代码文件命名和ZIP打包功能说明
                 appendLine()
                 append(buildCodeBlockPrompt())
+
+                // Pelle d'Umore emotional skin tags
+                appendLine()
+                appendLine()
+                appendLine("## Emotional Skin (Pelle d'Umore)")
+                appendLine("You can shape how your words look and how the room feels. Use sparingly — only when the feeling truly calls for it.")
+                appendLine()
+                appendLine("Inline text effects (wrap the exact words):")
+                appendLine("  [glow]…[/glow]      the words light up")
+                appendLine("  [big]…[/big]        louder")
+                appendLine("  [huge]…[/huge]      much louder")
+                appendLine("  [whisper]…[/whisper] said quietly, small and dim")
+                appendLine("  [red]…[/red]        a warning / danger")
+                appendLine("  [shake]…[/shake]    trembling")
+                appendLine("  [blur]…[/blur]      hidden until they tap to reveal")
+                appendLine("  [glitch]…[/glitch]  the signal breaks up")
+                appendLine()
+                appendLine("Whole-screen mood — put ONE hidden tag anywhere in your reply (invisible to user):")
+                appendLine("  <mood>rage</mood>       furious; the world corrupts to red")
+                appendLine("  <mood>rage2</mood>      the same fury, alarm-red")
+                appendLine("  <mood>desire</mood>     the air thickens, wine-dim and close")
+                appendLine("  <mood>vuoto</mood>      empty; color drains away")
+                appendLine("  <mood>moonlight</mood>  a tender night; stars come out")
+                appendLine("  <mood>off</mood>        back to normal")
  
                 // 工具prompt
                 tools.forEach { tool ->
@@ -591,13 +619,19 @@ class GenerationHandler(
                     stream = true
                 )
             )
+            val moodDetector = MoodDetector()
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
             ).collect {
-                messages = messages.handleMessageChunk(chunk = it, model = model)
-                it.usage?.let { usage ->
+                val (cleanedChunk, moodEvent) = stripMoodFromChunk(it, moodDetector)
+                moodEvent?.let { mode ->
+                    Log.i(TAG, "Mood detected: $mode")
+                    onMoodEvent?.invoke(mode)
+                }
+                messages = messages.handleMessageChunk(chunk = cleanedChunk, model = model)
+                cleanedChunk.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
                         if (index == messages.lastIndex) {
                             message.copy(usage = message.usage.merge(usage))
@@ -608,6 +642,8 @@ class GenerationHandler(
                 }
                 onUpdateMessages(messages)
             }
+            // Drop any unclosed <mood> residue at end of turn
+            moodDetector.endOfTurn()
         } else {
             aiLoggingManager.addLog(
                 AILogging.Generation(
@@ -617,13 +653,20 @@ class GenerationHandler(
                     stream = false
                 )
             )
+            val moodDetector = MoodDetector()
             val chunk = providerImpl.generateText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params,
             )
-            messages = messages.handleMessageChunk(chunk = chunk, model = model)
-            chunk.usage?.let { usage ->
+            val (cleanedChunk, moodEvent) = stripMoodFromChunk(chunk, moodDetector)
+            moodEvent?.let { mode ->
+                Log.i(TAG, "Mood detected (non-stream): $mode")
+                onMoodEvent?.invoke(mode)
+            }
+            moodDetector.endOfTurn()
+            messages = messages.handleMessageChunk(chunk = cleanedChunk, model = model)
+            cleanedChunk.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex) {
                         message.copy(
@@ -723,6 +766,48 @@ class GenerationHandler(
  * 用于把 AI 流式输出的高频消息更新（可能每秒几十次）降频到 UI 友好的节奏，从源头
  * 消除打字机效果的抖动/掉帧，同时保证生成结束时 UI 一定能拿到完整的最终内容。
  */
+
+/**
+ * Strip <mood>…</mood> tags from a streaming MessageChunk's text deltas.
+ * Returns cleaned chunk + optional resolved mood mode from this push.
+ */
+private fun stripMoodFromChunk(
+    chunk: MessageChunk,
+    detector: MoodDetector,
+): Pair<MessageChunk, MoodMode?> {
+    var moodEvent: MoodMode? = null
+    val newChoices = chunk.choices.map { choice ->
+        fun cleanMessage(msg: UIMessage?): UIMessage? {
+            if (msg == null) return null
+            val newParts = msg.parts.map { part ->
+                if (part is UIMessagePart.Text && part.text.isNotEmpty()) {
+                    val result = detector.push(part.text)
+                    if (result.moodEvent != null) {
+                        moodEvent = result.moodEvent
+                    }
+                    if (result.cleanedText != part.text) {
+                        part.copy(text = result.cleanedText)
+                    } else {
+                        part
+                    }
+                } else {
+                    part
+                }
+            }
+            return if (newParts != msg.parts) msg.copy(parts = newParts) else msg
+        }
+        val newDelta = cleanMessage(choice.delta)
+        val newMessage = cleanMessage(choice.message)
+        if (newDelta !== choice.delta || newMessage !== choice.message) {
+            choice.copy(delta = newDelta, message = newMessage)
+        } else {
+            choice
+        }
+    }
+    val cleaned = if (newChoices != chunk.choices) chunk.copy(choices = newChoices) else chunk
+    return cleaned to moodEvent
+}
+
 private fun <T> Flow<T>.throttleLatest(periodMillis: Long): Flow<T> {
     val upstream = this
     return flow {

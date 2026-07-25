@@ -68,6 +68,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.SystemTools
@@ -350,6 +351,11 @@ class ChatService(
     fun getProcessingStatusFlow(conversationId: Uuid): StateFlow<String?> {
         val session = sessions[conversationId] ?: return MutableStateFlow(null)
         return session.processingStatus
+    }
+
+    fun getMoodModeFlow(conversationId: Uuid): StateFlow<MoodMode> {
+        val session = sessions[conversationId] ?: return MutableStateFlow(MoodMode.OFF)
+        return session.moodMode
     }
 
     fun getConversationJobs(): Flow<Map<Uuid, Job?>> {
@@ -922,6 +928,10 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                 },
                 pluginPromptInjections = pluginToolProvider.getPluginPromptInjections(),
                 conversationId = conversationId.toString(),
+                onMoodEvent = { mode ->
+                    session.moodMode.value = mode
+                    Log.i(TAG, "Mood event for $conversationId: $mode")
+                },
             ).onCompletion {
                 // 取消 Live Update 通知
                 cancelLiveUpdateNotification(conversationId)

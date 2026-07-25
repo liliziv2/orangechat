@@ -50,6 +50,10 @@ import com.dokar.sonner.ToastType
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.ui.context.LocalMoodletActions
+import me.rerere.rikkahub.ui.context.MoodletActions
+import androidx.compose.runtime.CompositionLocalProvider
+import java.util.Locale
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
@@ -79,6 +83,9 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.base64Decode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import org.koin.androidx.compose.koinViewModel
+import me.rerere.rikkahub.data.ai.mood.MoodMode
+import me.rerere.rikkahub.ui.theme.MoodSkinOverlay
+import me.rerere.rikkahub.ui.theme.applyMood
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import kotlin.uuid.Uuid
@@ -96,6 +103,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
 
     val setting by vm.settings.collectAsStateWithLifecycle()
     val conversation by vm.conversation.collectAsStateWithLifecycle()
+    val moodMode by vm.moodMode.collectAsStateWithLifecycle()
     val loadingJob by vm.conversationJob.collectAsStateWithLifecycle()
     val processingStatus by vm.processingStatus.collectAsStateWithLifecycle()
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
@@ -184,6 +192,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
+                    moodMode = moodMode,
                     setting = setting,
                     conversation = conversation,
                     drawerState = drawerState,
@@ -217,6 +226,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
+                    moodMode = moodMode,
                     setting = setting,
                     conversation = conversation,
                     drawerState = drawerState,
@@ -244,6 +254,7 @@ private fun ChatPageContent(
     inputState: ChatInputState,
     loadingJob: Job?,
     processingStatus: String? = null,
+    moodMode: MoodMode = MoodMode.OFF,
     setting: Settings,
     bigScreen: Boolean,
     conversation: Conversation,
@@ -265,12 +276,15 @@ private fun ChatPageContent(
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
 
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxSize()
-    ) {
-        AssistantBackground(setting = setting)
-        Scaffold(
+    val moodScheme = MaterialTheme.colorScheme.applyMood(moodMode)
+    MaterialTheme(colorScheme = moodScheme) {
+        Surface(
+            color = MaterialTheme.colorScheme.background,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            AssistantBackground(setting = setting)
+            MoodSkinOverlay(mode = moodMode)
+            Scaffold(
             topBar = {
                 TopBar(
                     settings = setting,
@@ -399,6 +413,21 @@ private fun ChatPageContent(
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->
+            // Pelle moodlet actions context
+            val moodletCtx = remember(conversation.id) {
+                MoodletActions(
+                    isFavorited = { key ->
+                        vm.isMoodletFavorited(key)
+                    },
+                    setFavorited = { key, fav, label, reason ->
+                        vm.setMoodletFavorited(conversation.id, conversation.title, key, fav, label, reason)
+                    },
+                    onTripleLike = { key, label, reason ->
+                        vm.sendBonusMessage(conversation.id, "（用户对你的[${label}]情绪徽章点了三连赞）\n${reason}")
+                    },
+                )
+            }
+            CompositionLocalProvider(LocalMoodletActions provides moodletCtx) {
             ChatList(
                 innerPadding = innerPadding,
                 conversation = conversation,
@@ -474,6 +503,8 @@ private fun ChatPageContent(
                     vm.saveConversationAsync()
                 },
             )
+            }
+            }
         }
     }
 }

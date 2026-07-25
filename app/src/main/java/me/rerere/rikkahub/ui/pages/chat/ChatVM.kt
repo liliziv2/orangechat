@@ -42,6 +42,7 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FavoriteRepository
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.UiState
@@ -77,6 +78,10 @@ class ChatVM(
     val processingStatus: StateFlow<String?> =
         chatService
             .getProcessingStatusFlow(_conversationId)
+
+    val moodMode: StateFlow<MoodMode> =
+        chatService
+            .getMoodModeFlow(_conversationId)
 
     val conversationJobs = chatService
         .getConversationJobs()
@@ -349,4 +354,33 @@ class ChatVM(
         }
     }
 
+
+
+    // --- Moodlet favorites & bonus reply ---
+    private val _moodletFavorites = mutableSetOf<String>()
+
+    fun isMoodletFavorited(moodKey: String): Boolean = _moodletFavorites.contains(moodKey)
+
+    fun setMoodletFavorited(
+        conversationId: Uuid,
+        conversationTitle: String,
+        moodKey: String,
+        favorited: Boolean,
+        label: String,
+        reason: String,
+    ) {
+        viewModelScope.launch {
+            if (favorited) _moodletFavorites.add(moodKey) else _moodletFavorites.remove(moodKey)
+            favoriteRepository.setMoodletFavorited(conversationId, conversationTitle, moodKey, favorited, label, reason)
+        }
+    }
+
+    fun sendBonusMessage(conversationId: Uuid, text: String) {
+        if (text.isBlank()) return
+        chatService.sendMessage(
+            conversationId,
+            content = listOf(UIMessagePart.Text(text)),
+            answer = true,
+        )
+    }
 }
