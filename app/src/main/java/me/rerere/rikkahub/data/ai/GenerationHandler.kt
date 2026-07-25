@@ -4,6 +4,9 @@
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
  */
 
+// Pelle d'Umore integration TODO: pipe streaming chunks through MoodDetector
+// See app/src/main/java/me/rerere/rikkahub/data/ai/mood/MoodDetector.kt
+
 package me.rerere.rikkahub.data.ai
  
 import android.content.Context

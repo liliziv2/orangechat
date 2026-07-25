@@ -80,6 +80,9 @@ import kotlinx.coroutines.flow.mapLatest
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
+import me.rerere.rikkahub.data.ai.mood.FxTagProcessor
+import me.rerere.rikkahub.data.ai.mood.FxTag
+import me.rerere.rikkahub.data.ai.mood.FxExtractionResult
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.toDp
@@ -108,6 +111,7 @@ private val BLOCK_LATEX_REGEX = Regex("\\\\\\[(.+?)\\\\\\]", RegexOption.DOT_MAT
 val THINKING_REGEX = Regex("<think>([\\s\\S]*?)(?:</think>|$)", RegexOption.DOT_MATCHES_ALL)
 private val CODE_BLOCK_REGEX = Regex("```[\\s\\S]*?```|`[^`\n]*`", RegexOption.DOT_MATCHES_ALL)
 private val BREAK_LINE_REGEX = Regex("(?i)<br\\s*/?>")
+private val FX_PLACEHOLDER_REGEX = Regex("\\uE010(\\d+)\\uE011")
 
 // 预处理markdown内容
 private fun preProcess(content: String): String {
@@ -122,7 +126,7 @@ private fun preProcess(content: String): String {
         return codeBlocks.any { range -> position in range }
     }
 
-    // 替换行内公式 \( ... \) 到 $ ... $，但跳过代码块内的内容
+    // 替换行内公式 \\( ... \\) 到 $ ... $，但跳过代码块内的内容
     var result = INLINE_LATEX_REGEX.replace(content) { matchResult ->
         if (isInCodeBlock(matchResult.range.first)) {
             matchResult.value // 保持原样
@@ -131,7 +135,7 @@ private fun preProcess(content: String): String {
         }
     }
 
-    // 替换块级公式 \[ ... \] 到 $$ ... $$，但跳过代码块内的内容
+    // 替换块级公式 \\[ ... \\] 到 $$ ... $$，但跳过代码块内的内容
     result = BLOCK_LATEX_REGEX.replace(result) { matchResult ->
         if (isInCodeBlock(matchResult.range.first)) {
             matchResult.value // 保持原样
@@ -214,7 +218,8 @@ fun MarkdownBlock(
     style: TextStyle = LocalTextStyle.current,
     onClickCitation: (String) -> Unit = {}
 ) {
-    var (data, setData) = remember { mutableStateOf(parseMarkdown(content)) }
+    val fxResult = remember(content) { FxTagProcessor.extract(content) }
+    var (data, setData) = remember { mutableStateOf(parseMarkdown(fxResult.text)) }
 
     // 监听内容变化，重新解析AST树
     // 这里在后台线程解析AST树, 防止频繁更新的时候掉帧
@@ -242,7 +247,7 @@ fun MarkdownBlock(
             ) {
                 data.astTree.children.fastForEach { child ->
                     MarkdownNode(
-                        node = child, content = data.preprocessed, onClickCitation = onClickCitation
+                        node = child, content = data.preprocessed, onClickCitation = onClickCitation, fxResult = fxResult
                     )
                 }
             }
@@ -286,6 +291,7 @@ object HeaderStyle {
 
 @Composable
 private fun MarkdownNode(
+    fxResult: FxExtractionResult = FxExtractionResult("", emptyList()),
     node: ASTNode,
     content: String,
     modifier: Modifier = Modifier,
@@ -305,7 +311,7 @@ private fun MarkdownNode(
         // 段落
         MarkdownElementTypes.PARAGRAPH -> {
             Paragraph(
-                node = node, content = content, modifier = modifier, onClickCitation = onClickCitation
+                node = node, content = content, modifier = modifier, onClickCitation = onClickCitation, fxResult = fxResult
             )
         }
 
@@ -339,6 +345,7 @@ private fun MarkdownNode(
                                 onClickCitation = onClickCitation,
                                 modifier = modifier.padding(vertical = headingPadding),
                                 trim = true,
+                                fxResult = fxResult,
                             )
                         }
                     }
@@ -725,6 +732,7 @@ private fun Paragraph(
     trim: Boolean = false,
     onClickCitation: (String) -> Unit = {},
     modifier: Modifier,
+    fxResult: FxExtractionResult = FxExtractionResult("", emptyList()),
 ) {
     // dumpAst(node, content)
     if (node.findChildOfTypeRecursive(MarkdownElementTypes.IMAGE, GFMElementTypes.BLOCK_MATH) != null) {
@@ -768,6 +776,7 @@ private fun Paragraph(
                         density = density,
                         trim = trim,
                         enableLatexRendering = enableLatexRendering,
+                        fxResult = fxResult,
                     )
                 }
             }
@@ -847,6 +856,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
     style: TextStyle,
     enableLatexRendering: Boolean = true,
     onClickCitation: (String) -> Unit = {},
+    fxResult: FxExtractionResult = FxExtractionResult("", emptyList()),
 ) {
     when {
         node.type == MarkdownTokenTypes.BLOCK_QUOTE -> {}
@@ -861,16 +871,50 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
         }
 
         node is LeafASTNode -> {
-            val text = node.getTextInNode(content).let {
+            val raw = node.getTextInNode(content).let {
                 if (trim) {
                     it.trim()
                 } else {
                     it
                 }.replace(BREAK_LINE_REGEX, "\n")
             }
-            append(
-                text = text,
-            )
+
+            // Check for FX placeholders (PUA codepoints that survived markdown parse)
+            val fxPlaceholder = FX_PLACEHOLDER_REGEX.find(raw)
+            if (fxPlaceholder != null) {
+                var remaining = raw
+                while (remaining.isNotEmpty()) {
+                    val match = FX_PLACEHOLDER_REGEX.find(remaining)
+                    if (match != null) {
+                        // Append plain text before placeholder
+                        if (match.range.first > 0) {
+                            append(remaining.substring(0, match.range.first))
+                        }
+                        // Look up FX tag and apply SpanStyle
+                        val idx = match.groupValues[1].toIntOrNull()
+                        if (idx != null && idx < fxResult.tags.size) {
+                            val tag = fxResult.tags[idx]
+                            withStyle(spanStyleForFxTag(
+                                tag = tag,
+                                accent = colorScheme.primary,
+                                danger = colorScheme.error,
+                                textColor = colorScheme.onSurface,
+                                textDim = colorScheme.onSurfaceVariant,
+                            )) {
+                                append(tag.inner)
+                            }
+                        }
+                        remaining = remaining.substring(match.range.last + 1)
+                    } else {
+                        append(remaining)
+                        break
+                    }
+                }
+            } else {
+                append(
+                    text = raw,
+                )
+            }
         }
 
         node.type == MarkdownElementTypes.EMPH -> {
@@ -884,7 +928,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                         density = density,
                         style = style,
                         enableLatexRendering = enableLatexRendering,
-                        onClickCitation = onClickCitation
+                        onClickCitation = onClickCitation,
+                        fxResult = fxResult,
                     )
                 }
             }
@@ -901,7 +946,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                         density = density,
                         style = style,
                         enableLatexRendering = enableLatexRendering,
-                        onClickCitation = onClickCitation
+                        onClickCitation = onClickCitation,
+                        fxResult = fxResult,
                     )
                 }
             }
@@ -918,7 +964,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                         density = density,
                         style = style,
                         enableLatexRendering = enableLatexRendering,
-                        onClickCitation = onClickCitation
+                        onClickCitation = onClickCitation,
+                        fxResult = fxResult,
                     )
                 }
             }
@@ -1052,7 +1099,8 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
                     density = density,
                     style = style,
                     enableLatexRendering = enableLatexRendering,
-                    onClickCitation = onClickCitation
+                    onClickCitation = onClickCitation,
+                    fxResult = fxResult,
                 )
             }
         }
