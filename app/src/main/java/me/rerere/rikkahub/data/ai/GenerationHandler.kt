@@ -754,6 +754,47 @@ class GenerationHandler(
 }
  
 /**
+ * Strip <mood>…</mood> tags from a streaming MessageChunk's text deltas.
+ * Returns cleaned chunk + optional resolved mood mode from this push.
+ */
+private fun stripMoodFromChunk(
+    chunk: MessageChunk,
+    detector: MoodDetector,
+): Pair<MessageChunk, MoodMode?> {
+    var moodEvent: MoodMode? = null
+    val newChoices = chunk.choices.map { choice ->
+        fun cleanMessage(msg: UIMessage?): UIMessage? {
+            if (msg == null) return null
+            val newParts = msg.parts.map { part ->
+                if (part is UIMessagePart.Text && part.text.isNotEmpty()) {
+                    val result = detector.push(part.text)
+                    if (result.moodEvent != null) {
+                        moodEvent = result.moodEvent
+                    }
+                    if (result.cleanedText != part.text) {
+                        part.copy(text = result.cleanedText)
+                    } else {
+                        part
+                    }
+                } else {
+                    part
+                }
+            }
+            return if (newParts != msg.parts) msg.copy(parts = newParts) else msg
+        }
+        val newDelta = cleanMessage(choice.delta)
+        val newMessage = cleanMessage(choice.message)
+        if (newDelta !== choice.delta || newMessage !== choice.message) {
+            choice.copy(delta = newDelta, message = newMessage)
+        } else {
+            choice
+        }
+    }
+    val cleaned = if (newChoices != chunk.choices) chunk.copy(choices = newChoices) else chunk
+    return cleaned to moodEvent
+}
+
+/**
  * 把原始 Flow 的高频发射节流成"每 periodMillis 毫秒最多发一次最新值"。
  *
  * 实现方式：对上游调用 conflate()（只保留未被消费的最新一个值，中间值会被丢弃），
