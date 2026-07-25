@@ -113,7 +113,7 @@ private fun NoiseOverlay() {
     Canvas(Modifier.fillMaxSize()) {
         val cellSize = 4f
         val seed = phase.toInt()
-        val rng = Random(seed)
+        val rng = Random(seed.toLong())
 
         var x = 0f
         while (x < size.width) {
@@ -130,7 +130,7 @@ private fun NoiseOverlay() {
                 y += cellSize
             }
             x += cellSize
-            rng.setSeed(seed + x.toInt())
+            rng.setSeed((seed + x.toInt()).toLong())
         }
     }
 }
