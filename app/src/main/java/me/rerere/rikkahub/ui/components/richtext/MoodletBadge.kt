@@ -13,6 +13,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.context.LocalMoodletActions
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -184,8 +189,19 @@ fun MoodletBadge(
     val expandedText = if (reason.isNotEmpty()) "（$reason）" else preset.hintZh
     val hasExpandable = expandedText.isNotEmpty()
     var expanded by remember { mutableStateOf(initiallyExpanded) }
-    var liked by remember { mutableStateOf(false) }
-    val likeTint = if (liked) Color(0xFFE91E63)         else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+    val moodletActions = LocalMoodletActions.current
+    val scope = rememberCoroutineScope()
+    val toaster = LocalToaster.current
+    val moodKey = remember(mood, reason, title) {
+        "moodlet:${mood.trim().lowercase()}:${title.trim()}:${reason.trim()}".take(200)
+    }
+    var liked by remember(moodKey) { mutableStateOf(false) }
+    var likeBurstCount by remember(moodKey) { mutableStateOf(0) }
+    var lastLikeAt by remember(moodKey) { mutableStateOf(0L) }
+    LaunchedEffect(moodKey) {
+        liked = moodletActions.isFavorited(moodKey)
+    }
+    val likeTint = if (liked) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
 
     Surface(
         modifier = modifier
@@ -238,7 +254,25 @@ fun MoodletBadge(
                 contentDescription = null,
                 tint = likeTint,
                 modifier = Modifier
-                    .clickable { liked = !liked }
+                    .clickable {
+                        val now = System.currentTimeMillis()
+                        if (now - lastLikeAt <= 900L) {
+                            likeBurstCount += 1
+                        } else {
+                            likeBurstCount = 1
+                        }
+                        lastLikeAt = now
+                        val next = !liked
+                        liked = next
+                        scope.launch {
+                            moodletActions.setFavorited(moodKey, next, label, reason)
+                        }
+                        if (next && likeBurstCount >= 3) {
+                            likeBurstCount = 0
+                            toaster.show("三连赞！对方决定开口了…")
+                            moodletActions.onTripleLike(moodKey, label, reason)
+                        }
+                    }
                     .size(18.dp)
                     .padding(start = 4.dp, end = 4.dp),
             )
