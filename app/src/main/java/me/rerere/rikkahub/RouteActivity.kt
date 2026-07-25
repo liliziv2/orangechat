@@ -334,8 +334,6 @@ class RouteActivity : ComponentActivity() {
         val scope = rememberCoroutineScope()
         val tts = rememberCustomTtsState()
 
-        // 首次启动：未同意免责声明时强制展示
-        }
         val asr = rememberCustomAsrState()
         val eventBus = koinInject<AppEventBus>()
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
