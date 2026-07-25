@@ -436,8 +436,16 @@ class SettingsStore(
             preferences[DYNAMIC_COLOR] = settings.dynamicColor
             preferences[THEME_ID] = settings.themeId
             preferences[DARK_THEME_ID] = settings.darkThemeId ?: ""
-            preferences[DAY_CUSTOM_COLORS] = settings.dayCustomColors?.let { JsonInstant.encodeToString(it) }
-            preferences[NIGHT_CUSTOM_COLORS] = settings.nightCustomColors?.let { JsonInstant.encodeToString(it) }
+            if (settings.dayCustomColors != null) {
+                preferences[DAY_CUSTOM_COLORS] = JsonInstant.encodeToString(settings.dayCustomColors)
+            } else {
+                preferences.remove(DAY_CUSTOM_COLORS)
+            }
+            if (settings.nightCustomColors != null) {
+                preferences[NIGHT_CUSTOM_COLORS] = JsonInstant.encodeToString(settings.nightCustomColors)
+            } else {
+                preferences.remove(NIGHT_CUSTOM_COLORS)
+            }
             preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
             preferences[DEVELOPER_MODE] = settings.developerMode
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
