@@ -369,7 +369,8 @@ private fun MarkdownNode(
                 content = content,
                 modifier = modifier.padding(vertical = 4.dp),
                 onClickCitation = onClickCitation,
-                level = listLevel
+                level = listLevel,
+                fxResult = fxResult,
             )
         }
 
@@ -379,7 +380,8 @@ private fun MarkdownNode(
                 content = content,
                 modifier = modifier.padding(vertical = 4.dp),
                 onClickCitation = onClickCitation,
-                level = listLevel
+                level = listLevel,
+                fxResult = fxResult,
             )
         }
 
@@ -629,7 +631,8 @@ private fun UnorderedListNode(
     content: String,
     modifier: Modifier = Modifier,
     onClickCitation: (String) -> Unit = {},
-    level: Int = 0
+    level: Int = 0,
+    fxResult: FxExtractionResult = FxExtractionResult("", emptyList()),
 ) {
     val bulletStyle = when (level % 3) {
         0 -> "• "
@@ -647,7 +650,8 @@ private fun UnorderedListNode(
                     content = content,
                     bulletText = bulletStyle,
                     onClickCitation = onClickCitation,
-                    level = level
+                    level = level,
+                    fxResult = fxResult,
                 )
             }
         }
@@ -660,7 +664,8 @@ private fun OrderedListNode(
     content: String,
     modifier: Modifier = Modifier,
     onClickCitation: (String) -> Unit = {},
-    level: Int = 0
+    level: Int = 0,
+    fxResult: FxExtractionResult = FxExtractionResult("", emptyList()),
 ) {
     Column(modifier.padding(start = (level * 8).dp)) {
         var index = 1
@@ -673,7 +678,8 @@ private fun OrderedListNode(
                     content = content,
                     bulletText = numberText,
                     onClickCitation = onClickCitation,
-                    level = level
+                    level = level,
+                    fxResult = fxResult,
                 )
                 index++
             }
@@ -683,7 +689,12 @@ private fun OrderedListNode(
 
 @Composable
 private fun ListItemNode(
-    node: ASTNode, content: String, bulletText: String, onClickCitation: (String) -> Unit = {}, level: Int
+    node: ASTNode,
+    content: String,
+    bulletText: String,
+    onClickCitation: (String) -> Unit = {},
+    level: Int,
+    fxResult: FxExtractionResult = FxExtractionResult("", emptyList()),
 ) {
     Column {
         // 分离列表项的直接内容和嵌套列表
@@ -706,7 +717,7 @@ private fun ListItemNode(
                             content = content,
                             onClickCitation = onClickCitation,
                             listLevel = level,
-                        fxResult = fxResult,
+                            fxResult = fxResult,
                         )
                     }
                 }
@@ -715,8 +726,11 @@ private fun ListItemNode(
         // nestedLists 渲染处理
         nestedLists.fastForEach { nestedList ->
             MarkdownNode(
-                node = nestedList, content = content, onClickCitation = onClickCitation, listLevel = level + 1 // 增加层级,
-            fxResult = fxResult,
+                node = nestedList,
+                content = content,
+                onClickCitation = onClickCitation,
+                listLevel = level + 1, // 增加层级
+                fxResult = fxResult,
             )
         }
     }
