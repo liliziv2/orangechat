@@ -8,7 +8,7 @@ package me.rerere.rikkahub.plugin.scanner
 
 import android.content.Context
 import android.net.Uri
-import android.os.Environment
+import android.util.Log
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.security.SecurityAuditRepository
 import me.rerere.rikkahub.plugin.model.PluginInfo
@@ -26,6 +26,7 @@ class PluginScanner(
     private val auditRepo: SecurityAuditRepository? = null,
 ) {
     companion object {
+        private const val TAG = "PluginScanner"
         const val PLUGINS_DIR = "Orangechat/plugins"
         const val MANIFEST_FILE = "manifest.json"
     }
@@ -37,10 +38,15 @@ class PluginScanner(
 
     /**
      * 获取插件根目录
-     * 使用内部存储根目录 /storage/emulated/0/Orangechat/plugins/
+     * 使用应用专属外部存储，避免 Android 11+ 的 EACCES 权限问题
+     * 路径: /storage/emulated/0/Android/data/me.rerere.orangechat/files/plugins/
      */
     val pluginsDir: File
-        get() = File(Environment.getExternalStorageDirectory(), PLUGINS_DIR).apply { mkdirs() }
+        get() {
+            val dir = context.getExternalFilesDir("plugins")
+            dir?.mkdirs()
+            return dir ?: File(context.filesDir, "plugins").apply { mkdirs() }
+        }
 
     /**
      * 确保插件目录存在
@@ -48,9 +54,60 @@ class PluginScanner(
     fun ensurePluginsDir(): File = pluginsDir
 
     /**
+     * 一次性迁移：将旧路径 /storage/emulated/0/Orangechat/plugins/ 下的插件
+     * 复制到新路径。仅在首次发现旧路径有插件且新路径还没有时执行。
+     */
+    private fun migrateFromOldPathIfNeeded() {
+        val oldDir = File("/storage/emulated/0/Orangechat/plugins")
+        if (!oldDir.isDirectory) return
+
+        val newDir = pluginsDir
+        if (!newDir.isDirectory) {
+            newDir.mkdirs()
+        }
+
+        // 检查新路径是否已有内容（避免重复迁移）
+        val newHasContent = newDir.listFiles()?.any { it.isDirectory } == true
+        if (newHasContent) return
+
+        // 标记文件，确保只迁移一次
+        val migrationFlag = File(newDir, ".migrated_from_old")
+        if (migrationFlag.exists()) return
+
+        val plugins = oldDir.listFiles { file -> file.isDirectory } ?: return
+        if (plugins.isEmpty()) return
+
+        Log.i(TAG, "Migrating ${plugins.size} plugin(s) from old path: ${oldDir.absolutePath}")
+        var migrated = 0
+
+        plugins.forEach { pluginDir ->
+            try {
+                val targetDir = File(newDir, pluginDir.name)
+                if (!targetDir.exists()) {
+                    pluginDir.copyRecursively(targetDir, overwrite = false)
+                    migrated++
+                    Log.i(TAG, "Migrated plugin: ${pluginDir.name}")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to migrate plugin ${pluginDir.name}", e)
+            }
+        }
+
+        // 写标记文件
+        try {
+            migrationFlag.writeText("migrated_at_${System.currentTimeMillis()}")
+        } catch (_: Exception) {}
+
+        Log.i(TAG, "Migration complete: $migrated plugins moved to ${newDir.absolutePath}")
+    }
+
+    /**
      * 扫描所有插件
+     * 首次扫描时自动将旧路径的插件迁移到新路径
      */
     fun scanPlugins(): List<PluginInfo> {
+        migrateFromOldPathIfNeeded()
+
         val dir = ensurePluginsDir()
         if (!dir.exists() || !dir.isDirectory) {
             return emptyList()
