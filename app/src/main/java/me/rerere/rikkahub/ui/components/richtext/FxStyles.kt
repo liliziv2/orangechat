@@ -50,15 +50,15 @@ fun spanStyleForFxTag(
         )
 
         "big" -> SpanStyle(
-            fontSize = 1.4.sp * 16f / 1.sp  // relative to base 16sp
+            fontSize = 22.sp
         )
 
         "huge" -> SpanStyle(
-            fontSize = 1.8.sp * 16f / 1.sp
+            fontSize = 30.sp
         )
 
         "whisper" -> SpanStyle(
-            fontSize = 0.85.sp * 16f / 1.sp,
+            fontSize = 13.sp,
             color = textDim,
         )
 

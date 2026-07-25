@@ -32,7 +32,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.random.Random
+import me.rerere.rikkahub.data.ai.mood.MoodMode
+import java.util.Random
 
 /**
  * Draws mood-driven overlays on top of the chat background.
