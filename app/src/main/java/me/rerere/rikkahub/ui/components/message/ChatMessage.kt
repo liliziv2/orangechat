@@ -99,6 +99,7 @@ import me.rerere.hugeicons.stroke.PauseCircle
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.ai.mood.FxTagProcessor
 import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
@@ -325,9 +326,11 @@ private fun MessagePartsBlock(
     val hapticFeedback = LocalHapticFeedback.current
     val displaySettings = LocalDisplaySettings.current
     val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
-    // Active full-screen skins and frosted bubbles fight for the same visual
-    // layer. This is runtime-only; the person's glass preference stays intact.
-    val glassBubblesEnabled = displaySettings.enableGlassBubbles && moodMode == MoodMode.OFF
+    // Full-screen skins and inline FX both want bare text on the page
+    // background. This is runtime-only; the person's bubble preference is
+    // never written back.
+    val moodBareText = moodMode != MoodMode.OFF
+    val glassBubblesEnabled = displaySettings.enableGlassBubbles && !moodBareText
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -407,7 +410,15 @@ private fun MessagePartsBlock(
                         val displayText = remember(part.text) {
                             part.text.replace(Regex("\\[zip:[^\\]]+\\]", RegexOption.IGNORE_CASE), "")
                         }
-                        
+                        // Bare text when a full-screen skin is active, or when this
+                        // message itself carries inline Pelle FX tags.
+                        val hasInlineFx = remember(displayText) {
+                            FxTagProcessor.extract(displayText).tags.isNotEmpty()
+                        }
+                        val forceBareText = moodBareText || hasInlineFx
+                        val showUserBubble = !forceBareText
+                        val showAssistantBubble = !forceBareText && displaySettings.showAssistantBubble
+
                         SelectionContainer {
                             Column {
                                 if (role == MessageRole.USER) {
@@ -423,46 +434,80 @@ private fun MessagePartsBlock(
                                         ) {
                                             bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                                 key(segIndex) {
-                                                    BubbleSurface(
-                                                        imagePath = displaySettings.userBubbleImagePath,
-                                                        cornerRadius = displaySettings.bubbleCornerRadius.dp,
-                                                        color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
-                                                        overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
-                                                        bubbleAlpha = bubbleAlpha,
-                                                        glassEnabled = glassBubblesEnabled,
-                                                        hazeState = hazeState,
-                                                        onClick = { onUserMessageClick?.invoke() },
-                                                    ) {
+                                                    val content = segment.replaceRegexes(
+                                                        assistant = assistant,
+                                                        scope = AssistantAffectScope.USER,
+                                                        visual = true,
+                                                    )
+                                                    if (showUserBubble) {
+                                                        BubbleSurface(
+                                                            imagePath = displaySettings.userBubbleImagePath,
+                                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                            color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
+                                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                            bubbleAlpha = bubbleAlpha,
+                                                            glassEnabled = glassBubblesEnabled,
+                                                            hazeState = hazeState,
+                                                            onClick = { onUserMessageClick?.invoke() },
+                                                        ) {
+                                                            MarkdownBlock(
+                                                                content = content,
+                                                                onClickCitation = handleClickCitation
+                                                            )
+                                                        }
+                                                    } else {
                                                         MarkdownBlock(
-                                                            content = segment.replaceRegexes(
-                                                                assistant = assistant,
-                                                                scope = AssistantAffectScope.USER,
-                                                                visual = true,
-                                                            ),
-                                                            onClickCitation = handleClickCitation
+                                                            content = content,
+                                                            onClickCitation = handleClickCitation,
+                                                            modifier = Modifier
+                                                                .animateContentSize()
+                                                                .then(
+                                                                    if (onUserMessageClick != null) {
+                                                                        Modifier.clickable { onUserMessageClick.invoke() }
+                                                                    } else {
+                                                                        Modifier
+                                                                    }
+                                                                ),
                                                         )
                                                     }
                                                 }
                                             }
                                         }
                                     } else {
-                                        BubbleSurface(
-                                            imagePath = displaySettings.userBubbleImagePath,
-                                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
-                                            color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
-                                            overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
-                                            bubbleAlpha = bubbleAlpha,
-                                            glassEnabled = glassBubblesEnabled,
-                                            hazeState = hazeState,
-                                            onClick = { onUserMessageClick?.invoke() },
-                                        ) {
+                                        val content = displayText.replaceRegexes(
+                                            assistant = assistant,
+                                            scope = AssistantAffectScope.USER,
+                                            visual = true,
+                                        )
+                                        if (showUserBubble) {
+                                            BubbleSurface(
+                                                imagePath = displaySettings.userBubbleImagePath,
+                                                cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                                                color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
+                                                overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
+                                                bubbleAlpha = bubbleAlpha,
+                                                glassEnabled = glassBubblesEnabled,
+                                                hazeState = hazeState,
+                                                onClick = { onUserMessageClick?.invoke() },
+                                            ) {
+                                                MarkdownBlock(
+                                                    content = content,
+                                                    onClickCitation = handleClickCitation
+                                                )
+                                            }
+                                        } else {
                                             MarkdownBlock(
-                                                content = displayText.replaceRegexes(
-                                                    assistant = assistant,
-                                                    scope = AssistantAffectScope.USER,
-                                                    visual = true,
-                                                ),
-                                                onClickCitation = handleClickCitation
+                                                content = content,
+                                                onClickCitation = handleClickCitation,
+                                                modifier = Modifier
+                                                    .animateContentSize()
+                                                    .then(
+                                                        if (onUserMessageClick != null) {
+                                                            Modifier.clickable { onUserMessageClick.invoke() }
+                                                        } else {
+                                                            Modifier
+                                                        }
+                                                    ),
                                             )
                                         }
                                     }
@@ -477,7 +522,12 @@ private fun MessagePartsBlock(
                                     ) {
                                         bubbleSegments.fastForEachIndexed { segIndex, segment ->
                                             key(segIndex) {
-                                                if (displaySettings.showAssistantBubble) {
+                                                val content = segment.replaceRegexes(
+                                                    assistant = assistant,
+                                                    scope = AssistantAffectScope.ASSISTANT,
+                                                    visual = true,
+                                                )
+                                                if (showAssistantBubble) {
                                                     BubbleSurface(
                                                         imagePath = displaySettings.assistantBubbleImagePath,
                                                         cornerRadius = displaySettings.bubbleCornerRadius.dp,
@@ -488,21 +538,13 @@ private fun MessagePartsBlock(
                                                         hazeState = hazeState,
                                                     ) {
                                                         MarkdownBlock(
-                                                            content = segment.replaceRegexes(
-                                                                assistant = assistant,
-                                                                scope = AssistantAffectScope.ASSISTANT,
-                                                                visual = true,
-                                                            ),
+                                                            content = content,
                                                             onClickCitation = handleClickCitation,
                                                         )
                                                     }
                                                 } else {
                                                     MarkdownBlock(
-                                                        content = segment.replaceRegexes(
-                                                            assistant = assistant,
-                                                            scope = AssistantAffectScope.ASSISTANT,
-                                                            visual = true,
-                                                        ),
+                                                        content = content,
                                                         onClickCitation = handleClickCitation,
                                                         modifier = Modifier
                                                             .animateContentSize()
@@ -512,7 +554,12 @@ private fun MessagePartsBlock(
                                         }
                                     }
                                 } else {
-                                    if (displaySettings.showAssistantBubble) {
+                                    val content = displayText.replaceRegexes(
+                                        assistant = assistant,
+                                        scope = AssistantAffectScope.ASSISTANT,
+                                        visual = true,
+                                    )
+                                    if (showAssistantBubble) {
                                         BubbleSurface(
                                             imagePath = displaySettings.assistantBubbleImagePath,
                                             cornerRadius = displaySettings.bubbleCornerRadius.dp,
@@ -523,21 +570,13 @@ private fun MessagePartsBlock(
                                             hazeState = hazeState,
                                         ) {
                                             MarkdownBlock(
-                                                content = displayText.replaceRegexes(
-                                                    assistant = assistant,
-                                                    scope = AssistantAffectScope.ASSISTANT,
-                                                    visual = true,
-                                                ),
+                                                content = content,
                                                 onClickCitation = handleClickCitation,
                                             )
                                         }
                                     } else {
                                         MarkdownBlock(
-                                            content = displayText.replaceRegexes(
-                                                assistant = assistant,
-                                                scope = AssistantAffectScope.ASSISTANT,
-                                                visual = true,
-                                            ),
+                                            content = content,
                                             onClickCitation = handleClickCitation,
                                             modifier = Modifier
                                                 .animateContentSize()
