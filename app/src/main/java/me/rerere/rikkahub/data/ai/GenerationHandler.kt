@@ -509,11 +509,11 @@ class GenerationHandler(
                 appendLine()
                 append(buildCodeBlockPrompt())
 
-                // Pelle d'Umore emotional skin tags
+                // Pelle d'Umore inline text effects only (full-screen mood skins are disabled in this build)
                 appendLine()
                 appendLine()
-                appendLine("## Emotional Skin (Pelle d'Umore)")
-                appendLine("You can shape how your words look and how the room feels. Use sparingly — only when the feeling truly calls for it.")
+                appendLine("## Inline Text Effects (Pelle d'Umore)")
+                appendLine("You can shape how individual words look. Use sparingly — only when the feeling truly calls for it.")
                 appendLine()
                 appendLine("Inline text effects (wrap the exact words):")
                 appendLine("  [glow]…[/glow]      the words light up")
@@ -524,14 +524,6 @@ class GenerationHandler(
                 appendLine("  [shake]…[/shake]    trembling")
                 appendLine("  [blur]…[/blur]      hidden until they tap to reveal")
                 appendLine("  [glitch]…[/glitch]  the signal breaks up")
-                appendLine()
-                appendLine("Whole-screen mood — put ONE hidden tag anywhere in your reply (invisible to user):")
-                appendLine("  <mood>rage</mood>       furious; the world corrupts to red")
-                appendLine("  <mood>rage2</mood>      the same fury, alarm-red")
-                appendLine("  <mood>desire</mood>     the air thickens, wine-dim and close")
-                appendLine("  <mood>vuoto</mood>      empty; color drains away")
-                appendLine("  <mood>moonlight</mood>  a tender night; stars come out")
-                appendLine("  <mood>off</mood>        back to normal")
  
                 // 工具prompt
                 tools.forEach { tool ->
@@ -625,10 +617,8 @@ class GenerationHandler(
                 params = params
             ).collect {
                 val (cleanedChunk, moodEvent) = stripMoodFromChunk(it, moodDetector)
-                moodEvent?.let { mode ->
-                    Log.i(TAG, "Mood detected: $mode")
-                    onMoodEvent?.invoke(mode)
-                }
+                // Full-screen mood skins are stripped in this build. Tags are still
+                // removed from the stream so they never appear as plain text.
                 messages = messages.handleMessageChunk(chunk = cleanedChunk, model = model)
                 cleanedChunk.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
@@ -659,10 +649,7 @@ class GenerationHandler(
                 params = params,
             )
             val (cleanedChunk, moodEvent) = stripMoodFromChunk(chunk, moodDetector)
-            moodEvent?.let { mode ->
-                Log.i(TAG, "Mood detected (non-stream): $mode")
-                onMoodEvent?.invoke(mode)
-            }
+            // Full-screen mood skins are stripped in this build.
             moodDetector.endOfTurn()
             messages = messages.handleMessageChunk(chunk = cleanedChunk, model = model)
             cleanedChunk.usage?.let { usage ->

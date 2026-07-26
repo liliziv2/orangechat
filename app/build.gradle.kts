@@ -16,11 +16,11 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "me.rerere.orangechat.glass"
+        applicationId = "me.rerere.orangechat.fx"
         minSdk = 26
         targetSdk = 37
-        versionCode = 160
-        versionName = "2.2.3-glass1"
+        versionCode = 161
+        versionName = "2.2.3-fx1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

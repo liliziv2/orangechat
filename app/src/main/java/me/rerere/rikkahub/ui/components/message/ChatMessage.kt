@@ -326,11 +326,10 @@ private fun MessagePartsBlock(
     val hapticFeedback = LocalHapticFeedback.current
     val displaySettings = LocalDisplaySettings.current
     val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
-    // Full-screen skins and inline FX both want bare text on the page
-    // background. This is runtime-only; the person's bubble preference is
-    // never written back.
-    val moodBareText = moodMode != MoodMode.OFF
-    val glassBubblesEnabled = displaySettings.enableGlassBubbles && !moodBareText
+    // Inline FX prefers bare text so glow/big/red are not boxed in a bubble.
+    // Full-screen mood skins are disabled in this build, so moodMode never
+    // forces bare text. Bubble settings are never written back.
+    val glassBubblesEnabled = displaySettings.enableGlassBubbles
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -410,12 +409,11 @@ private fun MessagePartsBlock(
                         val displayText = remember(part.text) {
                             part.text.replace(Regex("\\[zip:[^\\]]+\\]", RegexOption.IGNORE_CASE), "")
                         }
-                        // Bare text when a full-screen skin is active, or when this
-                        // message itself carries inline Pelle FX tags.
+                        // Bare text only when this message carries inline Pelle FX tags.
                         val hasInlineFx = remember(displayText) {
                             FxTagProcessor.extract(displayText).tags.isNotEmpty()
                         }
-                        val forceBareText = moodBareText || hasInlineFx
+                        val forceBareText = hasInlineFx
                         val showUserBubble = !forceBareText
                         val showAssistantBubble = !forceBareText && displaySettings.showAssistantBubble
 

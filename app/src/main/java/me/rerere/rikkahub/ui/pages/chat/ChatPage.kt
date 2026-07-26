@@ -54,8 +54,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.CompositionLocalProvider
 import me.rerere.rikkahub.ui.context.MoodletActions
 import me.rerere.rikkahub.ui.context.LocalMoodletActions
-import me.rerere.rikkahub.ui.theme.applyMood
-import me.rerere.rikkahub.ui.theme.MoodSkinOverlay
 import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessagePart
@@ -276,14 +274,13 @@ private fun ChatPageContent(
 
     TTSAutoPlay(vm = vm, setting = setting, conversation = conversation)
 
-    val moodScheme = MaterialTheme.colorScheme.applyMood(moodMode)
-    MaterialTheme(colorScheme = moodScheme) {
+    // Full-screen emotional skins are disabled in this build.
+    MaterialTheme(colorScheme = MaterialTheme.colorScheme) {
         Surface(
             color = MaterialTheme.colorScheme.background,
             modifier = Modifier.fillMaxSize()
         ) {
             AssistantBackground(setting = setting)
-            MoodSkinOverlay(mode = moodMode)
             Scaffold(
             topBar = {
                 TopBar(
