@@ -5,112 +5,111 @@
  *
  * MoodDetector — buffers the streaming token stream to detect <mood>…</mood>
  * tags that may arrive fragmented across chunk boundaries.
- *
- * Protocol (from PROTOCOL.md):
- *   - Tag format: <mood>value</mood>
- *   - Valid values: rage, rage2, desire, vuoto, moonlight, off
- *   - Invalid/unknown value → ignore silently, strip tag only
- *   - Tag opened but never closed by end-of-turn → drop silently
- *   - Emit mood event once per turn at point of resolution
  */
 
 package me.rerere.rikkahub.data.ai.mood
 
-private const val TAG = "MoodDetector"
-
 /**
- * Simple stream processor that detects `<mood>…</mood>` tags
- * across arbitrary chunk boundaries.
+ * Removes hidden mood tags from a streaming reply without ever emitting a
+ * partially received tag into the chat bubble.
  *
- * Usage:
- * ```kotlin
- * val detector = MoodDetector()
- * detector.push(chunk1)   // -> (cleanedText, moodEvent?)
- * detector.push(chunk2)   // -> (cleanedText, moodEvent?)
- * detector.endOfTurn()    // drop any unclosed tag residue
- * ```
+ * A provider is free to split `<mood>moonlight</mood>` at any byte boundary.
+ * Until a complete tag is available, its prefix and body stay in [buffer].
+ * The returned text is therefore always new, user-visible text only.
  */
 class MoodDetector {
-
     private val buffer = StringBuilder()
 
     /**
-     * Push a chunk of streaming text. Returns:
-     * - `cleanedText`: text with `<mood>…</mood>` stripped
-     * - `moodEvent`: non-null exactly once when a complete mood tag resolves
+     * Adds one text delta and returns the safe visible text plus the most recent
+     * valid mood event resolved by this delta.
      */
     fun push(chunk: String): Result {
         buffer.append(chunk)
-        val result = processBuffer()
-        return Result(result.first, result.second)
+        val visible = StringBuilder()
+        var moodEvent: MoodMode? = null
+
+        while (buffer.isNotEmpty()) {
+            val tagStart = buffer.toString().indexOf(OPEN_PREFIX, ignoreCase = true)
+            if (tagStart < 0) {
+                val protectedSuffix = partialOpenTagSuffix(buffer.toString())
+                val flushLength = buffer.length - protectedSuffix.length
+                if (flushLength > 0) {
+                    visible.append(buffer.substring(0, flushLength))
+                    buffer.delete(0, flushLength)
+                }
+                break
+            }
+
+            // Normal prose before a possible tag can be emitted immediately.
+            if (tagStart > 0) {
+                visible.append(buffer.substring(0, tagStart))
+                buffer.delete(0, tagStart)
+                continue
+            }
+
+            // `<mood` is not yet enough to decide whether this is a tag.
+            if (buffer.length < OPEN_TAG.length) break
+
+            // `<moodful>` and similar prose/HTML are not Pelle tags. Release
+            // the leading '<' and let the next loop flush the remaining text.
+            if (!buffer.substring(0, OPEN_TAG.length).equals(OPEN_TAG, ignoreCase = true)) {
+                visible.append(buffer[0])
+                buffer.deleteCharAt(0)
+                continue
+            }
+
+            val completeTag = completeTagRegex.find(buffer)
+            if (completeTag == null) {
+                // A real opening tag is present, but the closing tag has not
+                // arrived yet. Keep the whole tag body hidden until it does.
+                break
+            }
+
+            val value = completeTag.groupValues[1].trim().lowercase()
+            val resolved = MoodMode.fromTag(value)
+            if (resolved != MoodMode.OFF || value == MoodMode.OFF.tag) {
+                moodEvent = resolved
+            }
+            // Unknown values are intentionally stripped but do not change the
+            // currently active skin.
+            buffer.delete(0, completeTag.range.last + 1)
+        }
+
+        return Result(cleanedText = visible.toString(), moodEvent = moodEvent)
     }
 
     /**
-     * Process the accumulated buffer looking for complete <mood> tags.
-     * Any text before/after/between tags is kept; only the mood tag itself
-     * is stripped.
-     */
-    private fun processBuffer(): Pair<String, MoodMode?> {
-        val text = buffer.toString()
-        val regex = Regex("<mood>\\s*(\\w+)\\s*</mood>", RegexOption.DOT_MATCHES_ALL)
-        val match = regex.find(text)
-
-        if (match != null) {
-            val value = match.groupValues[1].trim().lowercase()
-            val mode = MoodMode.fromTag(value)
-
-            // Remove the matched tag from the buffer
-            val cleaned = text.removeRange(match.range)
-            buffer.clear()
-            buffer.append(cleaned)
-
-            return Pair(cleaned, mode)
-        }
-
-        // No complete tag found — check if we have a partial tag that
-        // might complete in a future chunk. If so, don't flush text
-        // that could be part of a pending tag.
-
-        // If the buffer ends with a prefix of "<mood>..." or "</mood>",
-        // hold it back. Otherwise flush everything.
-        val incompleteTagPrefixes = listOf(
-            "<", "<m", "<mo", "<moo", "<mood",
-            "<", "</", "</m", "</mo", "</moo", "</mood"
-        )
-        val pendingPrefix = incompleteTagPrefixes.firstOrNull { text.endsWith(it) }
-
-        return if (pendingPrefix != null) {
-            // Hold the incomplete tag prefix back
-            val flushLen = text.length - pendingPrefix.length
-            val flushed = text.substring(0, flushLen)
-            buffer.clear()
-            buffer.append(pendingPrefix)
-            Pair(flushed, null)
-        } else {
-            // No pending tag — flush everything
-            buffer.clear()
-            Pair(text, null)
-        }
-    }
-
-    /**
-     * Call at end of turn. Drops any unclosed `<mood>` silently.
-     * Returns any remaining non-tag text that was being buffered.
+     * Drops an unfinished tag at the end of generation. [push] never leaves
+     * ordinary visible text in the buffer, so no text is lost here.
      */
     fun endOfTurn(): String {
         val remaining = buffer.toString()
         buffer.clear()
-        // If the residual looks like a partial mood tag, drop it silently
-        val partialTag = Regex("<m?o?o?d?/?>?$")
-        return if (remaining.contains("<mood") || remaining.contains("</mood")) {
-            "" // drop silently — open tag never closed
-        } else {
-            remaining // non-tag residual that was held back
-        }
+        return if (remaining.isPotentialMoodFragment()) "" else remaining
     }
 
     data class Result(
         val cleanedText: String,
-        val moodEvent: MoodMode?
+        val moodEvent: MoodMode?,
     )
+
+    private fun partialOpenTagSuffix(text: String): String {
+        return OPEN_PREFIXES.firstOrNull { text.endsWith(it, ignoreCase = true) }.orEmpty()
+    }
+
+    private fun String.isPotentialMoodFragment(): Boolean {
+        return startsWith(OPEN_PREFIX, ignoreCase = true) ||
+            OPEN_PREFIXES.any { equals(it, ignoreCase = true) }
+    }
+
+    private companion object {
+        const val OPEN_PREFIX = "<mood"
+        const val OPEN_TAG = "<mood>"
+        val OPEN_PREFIXES = listOf("<mood", "<moo", "<mo", "<m", "<")
+        val completeTagRegex = Regex(
+            "^<mood>\\s*([^<\\s]+)\\s*</mood>",
+            setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
+        )
+    }
 }
