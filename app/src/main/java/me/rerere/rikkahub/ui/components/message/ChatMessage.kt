@@ -99,6 +99,7 @@ import me.rerere.hugeicons.stroke.PauseCircle
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
@@ -137,6 +138,7 @@ fun ChatMessage(
     model: Model? = null,
     assistant: Assistant? = null,
     hazeState: HazeState? = null,
+    moodMode: MoodMode = MoodMode.OFF,
     lastMessage: Boolean = false,
     onFork: () -> Unit,
     onRegenerate: () -> Unit,
@@ -212,6 +214,7 @@ fun ChatMessage(
                 loading = loading,
                 model = model,
                 hazeState = hazeState,
+                moodMode = moodMode,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
@@ -310,6 +313,7 @@ private fun MessagePartsBlock(
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
     hazeState: HazeState?,
+    moodMode: MoodMode,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
@@ -321,6 +325,9 @@ private fun MessagePartsBlock(
     val hapticFeedback = LocalHapticFeedback.current
     val displaySettings = LocalDisplaySettings.current
     val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
+    // Active full-screen skins and frosted bubbles fight for the same visual
+    // layer. This is runtime-only; the person's glass preference stays intact.
+    val glassBubblesEnabled = displaySettings.enableGlassBubbles && moodMode == MoodMode.OFF
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -422,7 +429,7 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
-                                                        glassEnabled = displaySettings.enableGlassBubbles,
+                                                        glassEnabled = glassBubblesEnabled,
                                                         hazeState = hazeState,
                                                         onClick = { onUserMessageClick?.invoke() },
                                                     ) {
@@ -445,7 +452,7 @@ private fun MessagePartsBlock(
                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
-                                            glassEnabled = displaySettings.enableGlassBubbles,
+                                            glassEnabled = glassBubblesEnabled,
                                             hazeState = hazeState,
                                             onClick = { onUserMessageClick?.invoke() },
                                         ) {
@@ -477,7 +484,7 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
-                                                        glassEnabled = displaySettings.enableGlassBubbles,
+                                                        glassEnabled = glassBubblesEnabled,
                                                         hazeState = hazeState,
                                                     ) {
                                                         MarkdownBlock(
@@ -512,7 +519,7 @@ private fun MessagePartsBlock(
                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
-                                            glassEnabled = displaySettings.enableGlassBubbles,
+                                            glassEnabled = glassBubblesEnabled,
                                             hazeState = hazeState,
                                         ) {
                                             MarkdownBlock(

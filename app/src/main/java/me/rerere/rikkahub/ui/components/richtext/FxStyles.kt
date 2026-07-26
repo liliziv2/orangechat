@@ -24,9 +24,53 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import me.rerere.rikkahub.data.ai.mood.FxTag
+
+/**
+ * Appends ordinary text while restoring any Pelle FX placeholders as spans.
+ * This runs after Markdown tokenization, so Markdown remains responsible for
+ * its own syntax and only the protected effect body receives the FX style.
+ */
+fun androidx.compose.ui.text.AnnotatedString.Builder.appendFxText(
+    text: String,
+    tags: List<FxTag>,
+    accent: Color,
+    danger: Color,
+    textColor: Color,
+    textDim: Color,
+) {
+    if (tags.isEmpty()) {
+        append(text)
+        return
+    }
+
+    var cursor = 0
+    val placeholder = Regex("\\uE010(\\d+)\\uE011")
+    placeholder.findAll(text).forEach { match ->
+        append(text, cursor, match.range.first)
+        val tag = match.groupValues[1].toIntOrNull()?.let(tags::getOrNull)
+        if (tag == null) {
+            append(match.value)
+        } else {
+            withStyle(
+                spanStyleForFxTag(
+                    tag = tag,
+                    accent = accent,
+                    danger = danger,
+                    textColor = textColor,
+                    textDim = textDim,
+                )
+            ) {
+                append(tag.inner)
+            }
+        }
+        cursor = match.range.last + 1
+    }
+    append(text, cursor, text.length)
+}
 
 /**
  * Build a SpanStyle for an FX tag.

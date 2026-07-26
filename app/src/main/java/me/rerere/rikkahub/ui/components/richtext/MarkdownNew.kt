@@ -78,6 +78,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.rikkahub.data.ai.mood.FxTag
+import me.rerere.rikkahub.data.ai.mood.FxTagProcessor
 import me.rerere.rikkahub.ui.components.table.DataTable
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -119,9 +121,14 @@ private val flavour by lazy {
 private val parser by lazy { MarkdownParser(flavour) }
 
 private fun generateMarkdownHtml(content: String): String {
-    val preprocessed = preProcess(content)
+    // This renderer is still native Compose: Markdown becomes an in-memory
+    // Jsoup tree, not a WebView. Restore Pelle placeholders only after the
+    // Markdown parser has finished so [glow] never becomes a Markdown link.
+    val fx = FxTagProcessor.extract(content)
+    val preprocessed = preProcess(fx.text)
     val tree = parser.buildMarkdownTreeFromString(preprocessed)
-    return HtmlGenerator(preprocessed, tree, flavour).generateHtml()
+    val html = HtmlGenerator(preprocessed, tree, flavour).generateHtml()
+    return FxTagProcessor.restoreAsHtml(html, fx.tags)
 }
 
 // ---- Main composable ----
@@ -282,6 +289,8 @@ private fun HtmlBlockElement(
         "progress" -> HtmlProgress(element = element)
 
         "silent" -> MoodletBadge(element = element)
+
+        "pelle-fx" -> PelleFxText(element = element)
 
         "div" -> HtmlStyledElement(element = element) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -790,6 +799,8 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
 
                 tag == "silent" -> MoodletBadge(element = node)
 
+                tag == "pelle-fx" -> PelleFxText(element = node)
+
                 else -> {
                     // Render as an inline text segment
                     val colorScheme = MaterialTheme.colorScheme
@@ -823,6 +834,26 @@ private fun HtmlInlineAsComposable(node: Node, onClickCitation: (String) -> Unit
             }
         }
     }
+}
+
+@Composable
+private fun PelleFxText(element: Element) {
+    val tag = FxTag(name = element.attr("name"), inner = element.text())
+    Text(
+        text = buildAnnotatedString {
+            withStyle(
+                spanStyleForFxTag(
+                    tag = tag,
+                    accent = MaterialTheme.colorScheme.primary,
+                    danger = MaterialTheme.colorScheme.error,
+                    textColor = MaterialTheme.colorScheme.onSurface,
+                    textDim = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                )
+            ) {
+                append(tag.inner)
+            }
+        }
+    )
 }
 
 // ---- Inline AnnotatedString building ----
@@ -893,6 +924,18 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
     }
 
     when (element.tagName().lowercase()) {
+        "pelle-fx" -> withStyle(
+            spanStyleForFxTag(
+                tag = FxTag(name = element.attr("name"), inner = element.text()),
+                accent = colorScheme.primary,
+                danger = colorScheme.error,
+                textColor = colorScheme.onSurface,
+                textDim = colorScheme.onSurface.copy(alpha = 0.55f),
+            )
+        ) {
+            append(element.text())
+        }
+
         "b", "strong" -> appendElementChildren(SpanStyle(fontWeight = FontWeight.SemiBold))
 
         "i", "em" -> appendElementChildren(SpanStyle(fontStyle = FontStyle.Italic))
