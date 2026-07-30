@@ -51,8 +51,7 @@ private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
 @Serializable
 enum class ColorMode {
     SYSTEM,
-    LIGHT,
-    DARK
+    LIGHT
 }
 
 @Composable
@@ -63,9 +62,8 @@ fun RikkahubTheme(
 
     val colorMode by rememberColorMode()
     val darkTheme = when (colorMode) {
-        ColorMode.SYSTEM -> isSystemInDarkTheme()
+        ColorMode.SYSTEM -> false
         ColorMode.LIGHT -> false
-        ColorMode.DARK -> true
     }
     val amoledDarkMode by rememberAmoledDarkMode()
 
