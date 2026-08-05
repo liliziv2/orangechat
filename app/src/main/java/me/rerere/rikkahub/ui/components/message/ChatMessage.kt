@@ -142,6 +142,8 @@ import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.openUrl
 import coil3.compose.AsyncImage
+import me.rerere.rikkahub.data.ai.mood.FxTagProcessor
+import me.rerere.rikkahub.data.ai.mood.MoodMode
 import me.rerere.rikkahub.utils.splitIntoBubbleSegments
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
