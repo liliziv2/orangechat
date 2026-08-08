@@ -345,13 +345,23 @@ private fun ChatPageContent(
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
-                            // 发送音效
-                            try {
-                                val soundEffect = android.media.MediaPlayer.create(context, R.raw.send_sound)
-                                soundEffect?.setOnCompletionListener { mp -> mp.release() }
-                                soundEffect?.start()
-                            } catch (e: Exception) {
-                                // ignore sound error
+                            // Play custom send sound if configured
+                            val soundPath = setting.displaySetting.sendSoundPath
+                            if (soundPath.isNotBlank()) {
+                                try {
+                                    val soundFile = java.io.File(soundPath)
+                                    if (soundFile.exists()) {
+                                        val mediaPlayer = android.media.MediaPlayer()
+                                        mediaPlayer.setDataSource(soundPath)
+                                        mediaPlayer.setOnPreparedListener { mp -> mp.start() }
+                                        mediaPlayer.setOnCompletionListener { mp ->
+                                            mp.release()
+                                        }
+                                        mediaPlayer.prepareAsync()
+                                    }
+                                } catch (e: Exception) {
+                                    // ignore sound errors
+                                }
                             }
                         }
                         inputState.clearInput()
