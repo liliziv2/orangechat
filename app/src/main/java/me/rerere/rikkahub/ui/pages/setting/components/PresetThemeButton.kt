@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Tick01
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.contentColorFor
@@ -101,7 +103,7 @@ fun PresetThemeButton(
             )
             if (selected) {
                 Icon(
-                    androidx.compose.material.icons.Icons.Default.Check,
+                    HugeIcons.Tick01,
                     contentDescription = null,
                     tint = scheme.contentColorFor(scheme.onPrimary),
                     modifier = Modifier.size(16.dp)
