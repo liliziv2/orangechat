@@ -22,7 +22,6 @@ val PearlTideThemePreset by lazy {
         },
         standardLight = lightScheme,
         standardDark = darkScheme,
-        wallpaperRes = R.drawable.wall_pearltide,
     )
 }
 
