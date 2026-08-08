@@ -852,11 +852,14 @@ private fun BubbleSurface(
 ) {
     val materialMode = LocalMaterialMode.current
     val liveContext = LocalLiveBubbleBlur.current
+    // FLAT = 磨砂（frosted），GLASS = 通透玻璃；两者都需要实时背景模糊
+    val wantsLiveBlurMode =
+        materialMode == DisplayMaterialMode.GLASS || materialMode == DisplayMaterialMode.FLAT
     val liveEnabled =
         enableLiveBubbleBlur &&
             liveContext.enabled &&
             liveContext.imageBitmap != null &&
-            materialMode == DisplayMaterialMode.GLASS &&
+            wantsLiveBlurMode &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             liveContext.radiusPx > 0f
     val cachedBlurEffect = remember(liveEnabled, liveContext.radiusPx) {
@@ -923,6 +926,11 @@ private fun BubbleSurface(
         onDrawBehind {
             drawRect(glassFillBrush)
         }
+    }
+    // 磨砂（FLAT）填充：均匀半透明纯色，不做径向渐变，靠背景模糊出质感
+    val frostedFillModifier = Modifier.drawWithCache {
+        val frostedColor = color.copy(alpha = FROSTED_BUBBLE_FILL_ALPHA * bubbleAlpha)
+        onDrawBehind { drawRect(color = frostedColor) }
     }
     val glassHighlightModifier = Modifier.drawWithCache {
         val topHighlightDepth = 6.dp.toPx()
@@ -1058,7 +1066,37 @@ private fun BubbleSurface(
     }
     val shape = RoundedCornerShape(cornerRadius)
     val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
-    if (materialMode == DisplayMaterialMode.GLASS) {
+    val frostedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = FROSTED_BUBBLE_BORDER_ALPHA)
+    if (materialMode == DisplayMaterialMode.FLAT && finalLiveBubbleBlurEnabled && !hasImage) {
+        // ── 磨砂模式（iOS frosted）──
+        // 背景实时模糊 + 均匀半透明填充 + 极细边，不加玻璃高光/镜面反光
+        Box(
+            modifier = Modifier
+                .animateContentSize()
+                .clip(shape)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .border(1.dp, frostedBorderColor, shape)
+        ) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(liveFragmentModifier)
+            )
+            if (isDarkTheme) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleNightReadabilityModifier)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(frostedFillModifier)
+            )
+            Column(modifier = Modifier.padding(8.dp)) { content() }
+        }
+    } else if (materialMode == DisplayMaterialMode.GLASS) {
         Box(
             modifier = Modifier
                 .animateContentSize()
@@ -1168,6 +1206,8 @@ private fun BubbleSurface(
     }
 }
 
+private const val FROSTED_BUBBLE_FILL_ALPHA = 0.62f
+private const val FROSTED_BUBBLE_BORDER_ALPHA = 0.10f
 private const val TRANSLUCENT_BUBBLE_BASE_ALPHA = 0.72f
 private const val TRANSLUCENT_BUBBLE_BORDER_ALPHA = 0.18f
 private const val GLASS_BUBBLE_BORDER_ALPHA = 0.24f
