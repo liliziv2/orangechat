@@ -35,6 +35,11 @@ jobs:
           echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
 
+      - name: Install pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
       - name: Gradle Build
         run: |
           chmod +x gradlew
