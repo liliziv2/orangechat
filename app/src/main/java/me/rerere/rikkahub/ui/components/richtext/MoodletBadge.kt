@@ -13,11 +13,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.context.LocalMoodletActions
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -153,8 +148,8 @@ private fun resolvePreset(mood: String): MoodPreset {
 @Composable
 private fun MoodTint.color(): Color = when (this) {
     MoodTint.PRIMARY -> MaterialTheme.colorScheme.primary
-    MoodTint.SECONDARY -> MaterialTheme.colorScheme.tertiary
-    MoodTint.TERTIARY -> MaterialTheme.colorScheme.secondary
+    MoodTint.SECONDARY -> MaterialTheme.colorScheme.secondary
+    MoodTint.TERTIARY -> MaterialTheme.colorScheme.tertiary
     MoodTint.ERROR -> MaterialTheme.colorScheme.error
     MoodTint.NEUTRAL -> MaterialTheme.colorScheme.onSurfaceVariant
 }
@@ -164,52 +159,19 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     val mood = element.attr("mood")
     val reason = element.attr("reason").ifBlank { element.text() }.trim()
     val title = element.attr("as").trim()
-    MoodletBadge(
-        mood = mood,
-        reason = reason,
-        title = title,
-        modifier = modifier,
-        initiallyExpanded = false,
-    )
-}
 
-/**
- * Direct overload for settings preview / tests without a Jsoup element.
- */
-@Composable
-fun MoodletBadge(
-    mood: String,
-    reason: String = "",
-    title: String = "",
-    modifier: Modifier = Modifier,
-    initiallyExpanded: Boolean = false,
-) {
     val preset = remember(mood) { resolvePreset(mood) }
     val label = title.ifEmpty { preset.labelZh }
     val expandedText = if (reason.isNotEmpty()) "（$reason）" else preset.hintZh
     val hasExpandable = expandedText.isNotEmpty()
-    var expanded by remember { mutableStateOf(initiallyExpanded) }
-    val moodletActions = LocalMoodletActions.current
-    val scope = rememberCoroutineScope()
-    val toaster = LocalToaster.current
-    val moodKey = remember(mood, reason, title) {
-        "moodlet:${mood.trim().lowercase()}:${title.trim()}:${reason.trim()}".take(200)
-    }
-    var liked by remember(moodKey) { mutableStateOf(false) }
-    var likeBurstCount by remember(moodKey) { mutableStateOf(0) }
-    var lastLikeAt by remember(moodKey) { mutableStateOf(0L) }
-    LaunchedEffect(moodKey) {
-        liked = moodletActions.isFavorited(moodKey)
-    }
-    val likeTint = if (liked) Color(0xFFE91E63) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+    var expanded by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 0.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
     ) {
         Row(
             modifier = Modifier
@@ -248,34 +210,6 @@ fun MoodletBadge(
                     )
                 }
             }
-            // Like toggle
-            Icon(
-                imageVector = Lucide.Heart,
-                contentDescription = null,
-                tint = likeTint,
-                modifier = Modifier
-                    .clickable {
-                        val now = System.currentTimeMillis()
-                        if (now - lastLikeAt <= 900L) {
-                            likeBurstCount += 1
-                        } else {
-                            likeBurstCount = 1
-                        }
-                        lastLikeAt = now
-                        val next = !liked
-                        liked = next
-                        scope.launch {
-                            moodletActions.setFavorited(moodKey, next, label, reason)
-                        }
-                        if (next && likeBurstCount >= 3) {
-                            likeBurstCount = 0
-                            toaster.show("三连赞！对方决定开口了…")
-                            moodletActions.onTripleLike(moodKey, label, reason)
-                        }
-                    }
-                    .size(18.dp)
-                    .padding(start = 4.dp, end = 4.dp),
-            )
             if (hasExpandable) {
                 Icon(
                     imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
@@ -285,18 +219,5 @@ fun MoodletBadge(
                 )
             }
         }
-    }
-}
-
-/**
- * Settings-page preview: a few representative moods so you can check icons/labels
- * without waiting for the model to emit a <silent> tag.
- */
-@Composable
-fun MoodletBadgePreviewPanel(modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        MoodletBadge(mood = "sleepy", reason = "终于编出来了", initiallyExpanded = true)
-        MoodletBadge(mood = "thinking", reason = "在组织语言")
-        MoodletBadge(mood = "shy", reason = "有点不好意思")
     }
 }
