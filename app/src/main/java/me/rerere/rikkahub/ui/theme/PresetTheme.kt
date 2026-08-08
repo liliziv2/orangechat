@@ -22,6 +22,7 @@ data class PresetTheme(
     val name: @Composable () -> Unit,
     val standardLight: ColorScheme,
     val standardDark: ColorScheme,
+    val wallpaperRes: Int? = null,
 ) {
     fun getColorScheme(dark: Boolean): ColorScheme {
         return if (dark) standardDark else standardLight
@@ -54,4 +55,3 @@ fun findThemeById(id: String, customThemes: List<CustomTheme>): PresetTheme? {
         standardDark = custom.generateColorScheme(dark = true),
     )
 }
-
