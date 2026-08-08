@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,6 +48,12 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    var sendSoundPath by remember(settings) { mutableStateOf(settings.displaySetting.sendSoundPath) }
+    fun updateSendSoundPath(value: String) {
+        sendSoundPath = value
+        vm.updateSettings(settings.copy(displaySetting = settings.displaySetting.copy(sendSoundPath = value)))
+    }
 
     var createNewConversationOnStart by rememberSharedPreferenceBoolean(
         "create_new_conversation_on_start",
@@ -82,6 +90,23 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
                                 checked = createNewConversationOnStart,
                                 onCheckedChange = { createNewConversationOnStart = it }
                             )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text("\u53D1\u9001\u97F3\u6548") },
+                        supportingContent = { Text(if (sendSoundPath.isNotBlank()) "\u5DF2\u8BBE\u7F6E\u81EA\u5B9A\u4E49\u97F3\u6548" else "\u672A\u8BBE\u7F6E\uFF0C\u70B9\u51FB\u5BFC\u5165 MP3") },
+                        trailingContent = {
+                            if (sendSoundPath.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(onClick = { updateSendSoundPath("") }) { Text("\u79FB\u9664", color = MaterialTheme.colorScheme.error) }
+                                }
+                            } else {
+                                TextButton(onClick = {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_GET_CONTENT).apply { type = "audio/mpeg" }
+                                    val activity = context as androidx.activity.ComponentActivity
+                                    activity.startActivityForResult(intent, 1001)
+                                }) { Text("\u5BFC\u5165 MP3") }
+                            }
                         },
                     )
                     item(
