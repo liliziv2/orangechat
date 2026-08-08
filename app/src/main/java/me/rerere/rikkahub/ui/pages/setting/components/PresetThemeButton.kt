@@ -1,4 +1,4 @@
-/*
+﻿/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -6,25 +6,24 @@
 
 package me.rerere.rikkahub.ui.pages.setting.components
 
-import androidx.compose.foundation.background
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Tick01
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Tick01
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.contentColorFor
@@ -38,7 +37,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -73,55 +71,55 @@ fun PresetThemeButton(
         Box(
             contentAlignment = Alignment.Center,
         ) {
-            // 主题预览卡片：顶部色条 + 主色圆点
-            Box(
+            Canvas(
                 modifier = Modifier
+                    .clip(CircleShape)
                     .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(scheme.primaryContainer)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .background(scheme.primary)
+                drawRect(
+                    color = scheme.primaryContainer,
+                    size = size
                 )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(scheme.secondaryContainer)
+                drawRect(
+                    color = scheme.secondaryContainer,
+                    size = size,
+                    topLeft = Offset(
+                        x = size.width / 2,
+                        y = 0f
+                    ),
                 )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(scheme.tertiary)
+                drawRect(
+                    color = scheme.tertiaryContainer,
+                    size = size,
+                    topLeft = Offset(
+                        x = size.width / 2,
+                        y = size.height / 2
+                    ),
                 )
-            )
+                drawCircle(
+                    color = scheme.primary,
+                    radius = if (selected) 12.dp.toPx() else 8.dp.toPx(),
+                    center = Offset(
+                        x = size.width / 2,
+                        y = size.height / 2
+                    )
+                )
+            }
             if (selected) {
                 Icon(
                     HugeIcons.Tick01,
                     contentDescription = null,
-                    tint = scheme.contentColorFor(scheme.onPrimary),
-                    modifier = Modifier.size(16.dp)
+                    tint = scheme.contentColorFor(scheme.onPrimary)
                 )
             }
         }
         ProvideTextStyle(
-            value = MaterialTheme.typography.labelMedium.copy(
-                color = scheme.primary,
-                textAlign = TextAlign.Center,
-            )
+            value = MaterialTheme.typography.labelMedium.copy(color = scheme.primary)
         ) {
             theme.name()
         }
     }
 }
-
-private const val THEME_GRID_COLUMNS = 4
 
 @Composable
 fun PresetThemeButtonGroup(
@@ -129,29 +127,28 @@ fun PresetThemeButtonGroup(
     modifier: Modifier = Modifier,
     onChangeTheme: (String) -> Unit,
 ) {
-    FlowRow(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    Column(
+        modifier = modifier.padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxItemsInEachRow = THEME_GRID_COLUMNS,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PresetThemes.fastForEach { theme ->
-            key(theme.id) {
-                PresetThemeButton(
-                    theme = theme,
-                    selected = theme.id == themeId,
-                    modifier = Modifier.weight(1f),
-                    onClick = {
-                        onChangeTheme(theme.id)
-                    },
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.SpaceAround,
+        ) {
+            PresetThemes.fastForEach { theme ->
+                key(theme.id) {
+                    PresetThemeButton(
+                        theme = theme,
+                        selected = theme.id == themeId,
+                        onClick = {
+                            onChangeTheme(theme.id)
+                        },
+                    )
+                }
             }
-        }
-        // 补齐最后一行的空位, 让每列宽度保持一致
-        repeat((THEME_GRID_COLUMNS - PresetThemes.size % THEME_GRID_COLUMNS) % THEME_GRID_COLUMNS) {
-            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
