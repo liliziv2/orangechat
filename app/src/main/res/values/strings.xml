@@ -1109,6 +1109,7 @@
   <string name="theme_name_black">Neutral Black</string>
     <string name="theme_name_ocean">Ocean Blue</string>
     <string name="theme_name_pearltide">Pearl Tide</string>
+    <string name="theme_name_harbor">Harbor</string>
     <string name="theme_name_minimal">Minimal White</string>
   <string name="theme_name_sakura">Sakura Pink</string>
   <string name="theme_name_spring">Meadow Green</string>
@@ -1235,3 +1236,4 @@
   <string name="plugin_security_banner">⚠ Plugins can make network requests and access system data you have authorized. Only install plugins from trusted sources.</string>
   <string name="web_server_security_warning_no_jwt">⚠ JWT authentication is not enabled or the password is empty. Anyone who can access this address can read your conversation records. It is strongly recommended to set a password and enable JWT immediately.</string>
 </resources>
+
