@@ -394,11 +394,15 @@ private fun ChatPageContent(
     val density = LocalDensity.current
 
     // ===== 普通聊天气泡实时背景模糊 =====
-    // 由设置页"聊天气泡实时模糊"开关控制；必须与界面实时渲染、GLASS、API 31+ 同时成立
+    // 由设置页"聊天气泡实时模糊"开关控制；需要界面实时渲染 + API 31+
+    // 材质模式：GLASS = 通透玻璃气泡，FLAT = iOS 磨砂气泡，两者都依赖实时背景模糊
+    val bubbleBlurCapableMode =
+        actualMaterialMode == DisplayMaterialMode.GLASS ||
+            actualMaterialMode == DisplayMaterialMode.FLAT
     val enableLiveBubbleBlur =
         setting.displaySetting.interfaceRealtimeRendering &&
             setting.displaySetting.chatBubbleRealtimeBlur &&
-            actualMaterialMode == DisplayMaterialMode.GLASS &&
+            bubbleBlurCapableMode &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     // 共享聊天背景 Painter（仅图片背景时非空；与 AssistantBackground 共用同一实例，不重复加载）
     val chatBackgroundPainter = rememberChatBackgroundPainter(setting)
