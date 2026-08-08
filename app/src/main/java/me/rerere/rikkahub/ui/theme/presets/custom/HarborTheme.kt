@@ -22,6 +22,7 @@ val HarborThemePreset by lazy {
         },
         standardLight = lightScheme,
         standardDark = darkScheme,
+        wallpaperRes = R.drawable.wall_harbor,
     )
 }
 
