@@ -742,6 +742,8 @@ data class DisplaySetting(
     val assistantBubbleImagePath: String = "",
     val bubbleCornerRadius: Float = 16f,
     val bubbleImageOverlayEnabled: Boolean = false, // 关=纯图片, 开=图片+主题色遮罩
+    // 发送音效（自定义 mp3 路径，空 = 不播放）
+    val sendSoundPath: String = "",
 )
 
 @Serializable
