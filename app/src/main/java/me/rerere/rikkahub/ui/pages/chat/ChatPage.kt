@@ -630,6 +630,18 @@ private fun ChatPageContent(
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
+                            val sendSound = setting.displaySetting.sendSoundPath
+                            if (sendSound.isNotBlank() && java.io.File(sendSound).exists()) {
+                                runCatching {
+                                    android.media.MediaPlayer().apply {
+                                        setDataSource(sendSound)
+                                        setOnPreparedListener { it.start() }
+                                        setOnCompletionListener { it.release() }
+                                        setOnErrorListener { mp, _, _ -> mp.release(); true }
+                                        prepareAsync()
+                                    }
+                                }
+                            }
                         }
                         inputState.clearInput()
                     },
