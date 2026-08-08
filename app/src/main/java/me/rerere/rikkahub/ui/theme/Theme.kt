@@ -49,6 +49,8 @@ fun popupContainerColor(baseContainerColor: Color): Color {
     return baseContainerColor.copy(alpha = popupAlpha)
 }
 
+internal val GLASS_BACKGROUND_THEMES = setOf("pearltide", "harbor", "harbor2")
+
 private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
 
 @Serializable
@@ -136,8 +138,8 @@ fun RikkahubTheme(
             surfaceContainerHighest = scheme.surfaceContainerHighest.copy(alpha = interfaceSurfaceAlpha),
             surfaceVariant = scheme.surfaceVariant.copy(alpha = interfaceSurfaceAlpha),
         )
-        if (settings.themeId == "pearltide") {
-            // Pearl Tide 原有根背景由 RouteActivity 绘制，继续允许该背景透出。
+        if (settings.themeId in GLASS_BACKGROUND_THEMES) {
+            // 这些主题的根背景由 RouteActivity 绘制底图，允许背景透出形成玻璃质感。
             scheme = scheme.copy(background = scheme.background.copy(alpha = 0f))
         }
         scheme
