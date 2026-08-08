@@ -9,6 +9,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +17,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.TextButton
@@ -134,5 +136,29 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         }
+    }
+}
+
+private fun getPathFromUri(context: android.content.Context, uri: android.net.Uri): String? {
+    return try {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            val idx = it.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
+            if (idx >= 0 && it.moveToFirst()) {
+                it.getString(idx)
+            } else {
+                // For newer Android versions, copy to app private storage
+                val input = context.contentResolver.openInputStream(uri) ?: return null
+                val file = java.io.File(context.filesDir, "send_sound_${System.currentTimeMillis()}.mp3")
+                input.use { inputStream ->
+                    java.io.FileOutputStream(file).use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                file.absolutePath
+            }
+        }
+    } catch (e: Exception) {
+        null
     }
 }
