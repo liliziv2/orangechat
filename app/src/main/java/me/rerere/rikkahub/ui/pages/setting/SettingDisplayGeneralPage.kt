@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -103,6 +106,28 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
                                 } else {
                                     Text("\u672A\u8BBE\u7F6E", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
+                            }
+                        },
+                    )
+                    item(
+                        headlineContent = { Text("\u53D1\u9001\u97F3\u6548") },
+                        supportingContent = { Text(if (sendSoundPath.isNotBlank()) "\u5DF2\u8BBE\u7F6E\u81EA\u5B9A\u4E49\u97F3\u6548" else "\u672A\u8BBE\u7F6E") },
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                val soundPickerLauncher = rememberLauncherForActivityResult(
+                                    contract = ActivityResultContracts.GetContent()
+                                ) { uri ->
+                                    uri?.let {
+                                        val context = LocalContext.current
+                                        val path = getPathFromUri(context, it)
+                                        if (path != null) updateSendSoundPath(path)
+                                    }
+                                }
+                                if (sendSoundPath.isNotBlank()) {
+                                    Text(sendSoundPath, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    TextButton(onClick = { updateSendSoundPath("") }) { Text("\u79FB\u9664", color = MaterialTheme.colorScheme.error) }
+                                }
+                                TextButton(onClick = { soundPickerLauncher.launch("audio/mpeg") }) { Text(if (sendSoundPath.isNotBlank()) "\u66F4\u6362" else "\u5BFC\u5165 MP3") }
                             }
                         },
                     )
