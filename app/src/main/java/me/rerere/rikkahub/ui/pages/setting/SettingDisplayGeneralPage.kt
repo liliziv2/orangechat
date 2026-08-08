@@ -97,20 +97,6 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         headlineContent = { Text("\u53D1\u9001\u97F3\u6548") },
-                        supportingContent = { Text(if (sendSoundPath.isNotBlank()) "\u5DF2\u8BBE\u7F6E\u81EA\u5B9A\u4E49\u97F3\u6548" else "\u672A\u8BBE\u7F6E\uFF0C\u70B9\u51FB\u5BFC\u5165 MP3") },
-                        trailingContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (sendSoundPath.isNotBlank()) {
-                                    Text(sendSoundPath, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                                    TextButton(onClick = { updateSendSoundPath("") }) { Text("\u79FB\u9664", color = MaterialTheme.colorScheme.error) }
-                                } else {
-                                    Text("\u672A\u8BBE\u7F6E", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        },
-                    )
-                    item(
-                        headlineContent = { Text("\u53D1\u9001\u97F3\u6548") },
                         supportingContent = { Text(if (sendSoundPath.isNotBlank()) "\u5DF2\u8BBE\u7F6E\u81EA\u5B9A\u4E49\u97F3\u6548" else "\u672A\u8BBE\u7F6E") },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
