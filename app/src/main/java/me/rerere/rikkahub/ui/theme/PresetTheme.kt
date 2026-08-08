@@ -14,6 +14,7 @@ import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
 import me.rerere.rikkahub.ui.theme.presets.OceanThemePreset
 import me.rerere.rikkahub.ui.theme.presets.SakuraThemePreset
 import me.rerere.rikkahub.ui.theme.presets.SpringThemePreset
+import me.rerere.rikkahub.ui.theme.presets.custom.HarborThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.PearlTideThemePreset
 
 data class PresetTheme(
@@ -32,6 +33,7 @@ val PresetThemes by lazy {
         SakuraThemePreset,
         OceanThemePreset,
         PearlTideThemePreset,
+        HarborThemePreset,
         SpringThemePreset,
         AutumnThemePreset,
         ClaudeThemePreset,
@@ -52,3 +54,4 @@ fun findThemeById(id: String, customThemes: List<CustomTheme>): PresetTheme? {
         standardDark = custom.generateColorScheme(dark = true),
     )
 }
+
