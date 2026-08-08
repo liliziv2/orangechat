@@ -6,6 +6,8 @@
 
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -23,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,6 +55,25 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
         "create_new_conversation_on_start",
         true
     )
+
+    val context = LocalContext.current
+    val sendSoundPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val saved = runCatching {
+                val dir = java.io.File(context.filesDir, "sounds").apply { mkdirs() }
+                val target = java.io.File(dir, "send_sound.mp3")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    java.io.FileOutputStream(target).use { output -> input.copyTo(output) }
+                }
+                target.absolutePath
+            }.getOrNull()
+            if (saved != null) {
+                updateDisplaySetting(displaySetting.copy(sendSoundPath = saved))
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -94,6 +117,24 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
                                     updateDisplaySetting(displaySetting.copy(showUpdates = it))
                                 }
                             )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text("发送音效") },
+                        supportingContent = {
+                            Text(
+                                if (displaySetting.sendSoundPath.isNotBlank()) "已导入自定义音效"
+                                else "未设置，导入 MP3 后发送消息时播放"
+                            )
+                        },
+                        trailingContent = {
+                            if (displaySetting.sendSoundPath.isNotBlank()) {
+                                TextButton(onClick = {
+                                    updateDisplaySetting(displaySetting.copy(sendSoundPath = ""))
+                                }) { Text("移除") }
+                            } else {
+                                TextButton(onClick = { sendSoundPicker.launch("audio/*") }) { Text("导入") }
+                            }
                         },
                     )
                 }
