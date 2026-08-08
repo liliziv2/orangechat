@@ -6,8 +6,7 @@
 
 package me.rerere.rikkahub.ui.pages.setting.components
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Tick01
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -71,45 +71,40 @@ fun PresetThemeButton(
         Box(
             contentAlignment = Alignment.Center,
         ) {
-            Canvas(
+            // 主题预览卡片：顶部色条 + 主色圆点
+            Box(
                 modifier = Modifier
-                    .clip(CircleShape)
                     .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.primaryContainer)
             ) {
-                drawRect(
-                    color = scheme.primaryContainer,
-                    size = size
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .background(scheme.primary)
                 )
-                drawRect(
-                    color = scheme.secondaryContainer,
-                    size = size,
-                    topLeft = Offset(
-                        x = size.width / 2,
-                        y = 0f
-                    ),
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(scheme.secondaryContainer)
                 )
-                drawRect(
-                    color = scheme.tertiaryContainer,
-                    size = size,
-                    topLeft = Offset(
-                        x = size.width / 2,
-                        y = size.height / 2
-                    ),
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(scheme.tertiary)
                 )
-                drawCircle(
-                    color = scheme.primary,
-                    radius = if (selected) 12.dp.toPx() else 8.dp.toPx(),
-                    center = Offset(
-                        x = size.width / 2,
-                        y = size.height / 2
-                    )
-                )
-            }
+            )
             if (selected) {
                 Icon(
-                    HugeIcons.Tick01,
+                    androidx.compose.material.icons.Icons.Default.Check,
                     contentDescription = null,
-                    tint = scheme.contentColorFor(scheme.onPrimary)
+                    tint = scheme.contentColorFor(scheme.onPrimary),
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
