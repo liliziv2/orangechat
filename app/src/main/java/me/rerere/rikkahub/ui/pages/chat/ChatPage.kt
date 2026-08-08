@@ -345,6 +345,14 @@ private fun ChatPageContent(
                             scope.launch {
                                 chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
                             }
+                            // 发送音效
+                            try {
+                                val soundEffect = android.media.MediaPlayer.create(context, R.raw.send_sound)
+                                soundEffect?.setOnCompletionListener { mp -> mp.release() }
+                                soundEffect?.start()
+                            } catch (e: Exception) {
+                                // ignore sound error
+                            }
                         }
                         inputState.clearInput()
                     },
