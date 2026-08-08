@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -47,6 +48,12 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
+    var togetherSince by remember(settings) { mutableStateOf(settings.togetherSince) }
+    fun updateTogetherSince(value: String) {
+        togetherSince = value
+        vm.updateSettings(settings.copy(togetherSince = value))
+    }
+
     var createNewConversationOnStart by rememberSharedPreferenceBoolean(
         "create_new_conversation_on_start",
         true
@@ -81,6 +88,19 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
                             Switch(
                                 checked = createNewConversationOnStart,
                                 onCheckedChange = { createNewConversationOnStart = it }
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text("\u5728\u4E00\u8D77\u591A\u4E45\uFF08\u65E5\u671F\uFF09") },
+                        supportingContent = { Text("\u586B\u5199\u8D77\u6E90\u65E5\u671F\uFF0C\u683C\u5F0F\uFF1AYYYY/MM/DD\uFF0C\u4E3A\u7A7A\u5219\u4E0D\u663E\u793A") },
+                        trailingContent = {
+                            OutlinedTextField(
+                                value = togetherSince,
+                                onValueChange = { updateTogetherSince(it) },
+                                modifier = Modifier.width(140.dp),
+                                singleLine = true,
+                                placeholder = { Text("YYYY/MM/DD") }
                             )
                         },
                     )
