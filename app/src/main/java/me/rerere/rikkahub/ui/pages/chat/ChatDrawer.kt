@@ -268,6 +268,17 @@ fun ChatDrawerContent(
                     Greeting(
                         style = MaterialTheme.typography.labelMedium,
                     )
+                    if (settings.togetherSince.isNotBlank()) {
+                        val sinceDate = try { java.time.LocalDate.parse(settings.togetherSince) } catch (e: Exception) { null }
+                        val days = sinceDate?.let { java.time.temporal.ChronoUnit.DAYS.between(it, java.time.LocalDate.now()) }
+                        if (days != null && days >= 0) {
+                            Text(
+                                text = "\u5728\u4E00\u8D77 $days \u5929",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                            )
+                        }
+                    }
                 }
             }
 
