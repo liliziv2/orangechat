@@ -11,14 +11,12 @@ import android.os.Build
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
@@ -28,16 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import dynamiccolor.ColorSpecs
-import dynamiccolor.DynamicScheme
-import dynamiccolor.Variant
-import hct.Hct
 import kotlinx.serialization.Serializable
-import me.rerere.material3.toColorScheme
-import me.rerere.rikkahub.data.datastore.CustomThemeColors
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
-import palettes.TonalPalette
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.hooks.rememberUserSettingsState
 
@@ -52,7 +43,8 @@ private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
 @Serializable
 enum class ColorMode {
     SYSTEM,
-    LIGHT
+    LIGHT,
+    DARK
 }
 
 @Composable
@@ -63,34 +55,23 @@ fun RikkahubTheme(
 
     val colorMode by rememberColorMode()
     val darkTheme = when (colorMode) {
-        ColorMode.SYSTEM -> false
+        ColorMode.SYSTEM -> isSystemInDarkTheme()
         ColorMode.LIGHT -> false
+        ColorMode.DARK -> true
     }
     val amoledDarkMode by rememberAmoledDarkMode()
 
-    val rawColorScheme = when {
+    val colorScheme = when {
         settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         else -> {
-            val themeId = if (darkTheme) (settings.darkThemeId ?: settings.themeId) else settings.themeId
-            val theme = findThemeById(themeId, settings.customThemes)
-                ?: findPresetTheme(themeId)
-            val baseScheme = theme.getColorScheme(dark = darkTheme)
-            val customColors = if (darkTheme) settings.nightCustomColors else settings.dayCustomColors
-            if (customColors?.hasAny() == true) {
-                applyCustomColors(baseScheme, customColors, darkTheme)
-            } else {
-                baseScheme
-            }
+            val theme = findThemeById(settings.themeId, settings.customThemes)
+                ?: findPresetTheme(settings.themeId)
+            theme.getColorScheme(dark = darkTheme)
         }
     }
-    val colorScheme by animateColorAsState(
-        targetValue = rawColorScheme,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 300),
-        label = "theme_color_animation"
-    )
     val colorSchemeConverted = remember(darkTheme, amoledDarkMode, colorScheme) {
         if (darkTheme && amoledDarkMode) {
             colorScheme.copy(
@@ -109,10 +90,6 @@ fun RikkahubTheme(
         settings.displaySetting.primaryColor,
         settings.displaySetting.globalTextColor,
         settings.themeId,
-        settings.darkThemeId,
-        settings.dayCustomColors,
-        settings.nightCustomColors,
-        darkTheme,
     ) {
         var scheme = colorSchemeConverted
         settings.displaySetting.primaryColor?.let { pc ->
@@ -132,8 +109,7 @@ fun RikkahubTheme(
                 onSurfaceVariant = textColor,
             )
         }
-        val effectiveThemeId = if (darkTheme) (settings.darkThemeId ?: settings.themeId) else settings.themeId
-        if (effectiveThemeId == "pearltide") {
+        if (settings.themeId == "pearltide") {
             // 珍珠潮汐主题专属:统一让默认读取这几个 token 的容器变透明/半透明,
             // 这样 Scaffold、Card、TopAppBar、ModalDrawerSheet、ModalBottomSheet 等
             // 全部自动生效,不需要逐个页面单独改。
@@ -181,45 +157,6 @@ fun RikkahubTheme(
             motionScheme = MotionScheme.expressive()
         )
     }
-}
-
-private fun applyCustomColors(base: ColorScheme, colors: CustomThemeColors, dark: Boolean): ColorScheme {
-    val primaryArgb = colors.primaryColorArgb
-    val secondaryArgb = colors.secondaryColorArgb
-    val tertiaryArgb = colors.tertiaryColorArgb
-    if (primaryArgb == null && secondaryArgb == null && tertiaryArgb == null) return base
-    val sourceHct = Hct.fromInt((primaryArgb ?: 0xFF6750A4L).toInt())
-    val specVersion = DynamicScheme.DEFAULT_SPEC_VERSION
-    val platform = DynamicScheme.DEFAULT_PLATFORM
-    val contrastLevel = 0.0
-    val colorSpec = ColorSpecs.get(specVersion)
-
-    val primaryPalette = colorSpec.getPrimaryPalette(
-        Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel,
-    )
-    val secondaryPalette = if (secondaryArgb != null) {
-        TonalPalette.fromInt(secondaryArgb.toInt())
-    } else {
-        colorSpec.getSecondaryPalette(
-            Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel,
-        )
-    }
-    val tertiaryPalette = if (tertiaryArgb != null) {
-        TonalPalette.fromInt(tertiaryArgb.toInt())
-    } else {
-        colorSpec.getTertiaryPalette(
-            Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel,
-        )
-    }
-
-    val scheme = DynamicScheme(
-        sourceHct, Variant.TONAL_SPOT, dark, contrastLevel, platform, specVersion,
-        primaryPalette, secondaryPalette, tertiaryPalette,
-        colorSpec.getNeutralPalette(Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel),
-        colorSpec.getNeutralVariantPalette(Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel),
-        colorSpec.getErrorPalette(Variant.TONAL_SPOT, sourceHct, dark, platform, contrastLevel),
-    )
-    return scheme.toColorScheme()
 }
 
 val MaterialTheme.extendColors
