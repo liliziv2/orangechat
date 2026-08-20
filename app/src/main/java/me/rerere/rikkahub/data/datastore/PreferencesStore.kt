@@ -577,12 +577,23 @@ enum class ChatFontFamily {
 }
 
 @Serializable
+enum class ChatBubbleStyle {
+    /** 原生 Rikka：AI 正文不包气泡，用户消息沿用默认消息卡。 */
+    RIKKA,
+
+    /** Telegram：双侧消息气泡，时间落在气泡底部；我方显示本地送达双勾。 */
+    TELEGRAM,
+}
+
+@Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
+    /** Telegram 模式会强制双侧消息都使用气泡；RIKKA 保持旧版行为。 */
+    val chatBubbleStyle: ChatBubbleStyle = ChatBubbleStyle.RIKKA,
     val bubbleOpacity: Float = 1.0f,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,

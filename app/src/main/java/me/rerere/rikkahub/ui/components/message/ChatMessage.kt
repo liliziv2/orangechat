@@ -59,6 +59,7 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import kotlinx.coroutines.FlowPreview
+import kotlinx.datetime.toJavaLocalDateTime
 import kotlinx.coroutines.flow.debounce
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -76,6 +77,7 @@ import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.datastore.ChatBubbleStyle
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
@@ -92,6 +94,7 @@ import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
@@ -162,6 +165,7 @@ fun ChatMessage(
             MessagePartsBlock(
                 assistant = assistant,
                 role = message.role,
+                messageCreatedAt = message.createdAt.toJavaLocalDateTime(),
                 parts = message.parts,
                 annotations = message.annotations,
                 loading = loading,
@@ -266,6 +270,7 @@ fun ChatMessage(
 private fun MessagePartsBlock(
     assistant: Assistant?,
     role: MessageRole,
+    messageCreatedAt: java.time.LocalDateTime,
     model: Model?,
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
@@ -280,6 +285,7 @@ private fun MessagePartsBlock(
     // 消息输出HapticFeedback
     val hapticFeedback = LocalHapticFeedback.current
     val settings = LocalSettings.current
+    val telegramStyle = settings.displaySetting.chatBubbleStyle == ChatBubbleStyle.TELEGRAM
     val partsState by rememberUpdatedState(parts)
 
     val handleClickCitation: (String) -> Unit = remember {
@@ -367,7 +373,11 @@ private fun MessagePartsBlock(
                             if (role == MessageRole.USER) {
                                 Surface(
                                     modifier = Modifier.animateContentSize(),
-                                    shape = RoundedCornerShape(16.dp),
+                                    shape = if (telegramStyle) {
+                                        RoundedCornerShape(18.dp, 18.dp, 5.dp, 18.dp)
+                                    } else {
+                                        RoundedCornerShape(16.dp)
+                                    },
                                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = settings.displaySetting.bubbleOpacity),
                                     onClick = { onUserMessageClick?.invoke() },
                                 ) {
@@ -380,13 +390,18 @@ private fun MessagePartsBlock(
                                             ),
                                             onClickCitation = handleClickCitation
                                         )
+                                        if (telegramStyle) TelegramMeta(messageCreatedAt.toMessageTimeString(), true)
                                     }
                                 }
                             } else {
-                                if (settings.displaySetting.showAssistantBubble) {
+                                if (settings.displaySetting.showAssistantBubble || telegramStyle) {
                                     Surface(
                                         modifier = Modifier.animateContentSize(),
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = if (telegramStyle) {
+                                            RoundedCornerShape(18.dp, 18.dp, 18.dp, 5.dp)
+                                        } else {
+                                            RoundedCornerShape(16.dp)
+                                        },
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = settings.displaySetting.bubbleOpacity),
                                     ) {
                                         Column(modifier = Modifier.padding(8.dp)) {
@@ -398,6 +413,7 @@ private fun MessagePartsBlock(
                                                 ),
                                                 onClickCitation = handleClickCitation,
                                             )
+                                            if (telegramStyle) TelegramMeta(messageCreatedAt.toMessageTimeString(), false)
                                         }
                                     }
                                 } else {
@@ -631,5 +647,23 @@ private fun MessagePartsBlock(
                 Text(stringResource(R.string.citations_count, annotations.size))
             }
         }
+    }
+}
+
+
+@Composable
+private fun TelegramMeta(time: String, showChecks: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (showChecks) "$time  ✓✓" else time,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+        )
     }
 }
