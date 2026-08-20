@@ -653,17 +653,13 @@ private fun MessagePartsBlock(
 
 @Composable
 private fun TelegramMeta(time: String, showChecks: Boolean) {
-    Row(
+    // 不使用 fillMaxWidth：否则一行时间会把整个 Telegram 气泡撑满聊天列。
+    Text(
+        text = if (showChecks) "$time  ✓✓" else time,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
         modifier = Modifier
-            .fillMaxWidth()
+            .align(Alignment.End)
             .padding(top = 2.dp),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = if (showChecks) "$time  ✓✓" else time,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-        )
-    }
+    )
 }
