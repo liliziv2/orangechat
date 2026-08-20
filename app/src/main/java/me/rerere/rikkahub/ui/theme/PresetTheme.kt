@@ -6,6 +6,7 @@ import me.rerere.rikkahub.ui.theme.presets.AutumnThemePreset
 import me.rerere.rikkahub.ui.theme.presets.BlackThemePreset
 import me.rerere.rikkahub.ui.theme.presets.ClaudeThemePreset
 import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
+import me.rerere.rikkahub.ui.theme.presets.InternalThemePreset
 import me.rerere.rikkahub.ui.theme.presets.OceanThemePreset
 import me.rerere.rikkahub.ui.theme.presets.SakuraThemePreset
 import me.rerere.rikkahub.ui.theme.presets.SpringThemePreset
@@ -25,6 +26,7 @@ val PresetThemes by lazy {
     listOf(
         SakuraThemePreset,
         OceanThemePreset,
+        InternalThemePreset,
         SpringThemePreset,
         AutumnThemePreset,
         BlackThemePreset,
