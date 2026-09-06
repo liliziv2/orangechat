@@ -313,7 +313,12 @@ private fun SideAvatarSlot(
             modifier = Modifier.padding(top = 2.dp),
         )
     } else {
-        Spacer(modifier = Modifier.size(32.dp))
+        // 关掉头像不留空洞：自己是实心四角星，对方是描边菱形
+        ChatMessageSideMark(
+            mine = role == MessageRole.USER,
+            size = 32.dp,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }
 

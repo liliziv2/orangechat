@@ -255,6 +255,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
                     )
+                }
+            }
+
+            // 接入渠道与自动化：条目多且低频，默认收起
+            item("integrations") {
+                CollapsibleCardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("接入与自动化") },
+                    summary = { Text("7 项") },
+                ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingMcp) },
                         leadingContent = { Icon(HugeIcons.McpServer, null) },
@@ -352,9 +362,10 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val shareText = stringResource(R.string.setting_page_share_text)
                 val share = stringResource(R.string.setting_page_share)
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
-                CardGroup(
+                CollapsibleCardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_page_about)) },
+                    summary = { Text("关于・日志・赞助") },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingAbout) },

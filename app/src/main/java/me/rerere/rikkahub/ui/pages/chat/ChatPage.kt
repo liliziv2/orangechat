@@ -75,9 +75,12 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
@@ -859,6 +862,19 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
+    // 顶栏摆了双头像就不再重复标题与「助手 / 模型」副标题——两者挤一行会双双被截断。
+    // 改名入口挪到头像上：点头像即弹出改标题对话框。
+    val topBarDualAvatar = settings.displaySetting.chatAvatarMode == ChatAvatarMode.SIDE &&
+        settings.displaySetting.showTopBarDualAvatar
+    val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
+    val editTitleLabel = stringResource(R.string.chat_page_edit_title)
+    val openTitleEdit: () -> Unit = {
+        if (conversation.messageNodes.isNotEmpty()) {
+            titleState.open(conversation.title)
+        } else {
+            toaster.show(editTitleWarning, type = ToastType.Warning)
+        }
+    }
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -874,27 +890,22 @@ private fun TopBar(
                     }
                 }
                 // 侧边头像版式下顺带在顶栏摆一对叠压头像，跟消息里的头像同一套素材
-                if (settings.displaySetting.chatAvatarMode == ChatAvatarMode.SIDE &&
-                    settings.displaySetting.showTopBarDualAvatar
-                ) {
+                if (topBarDualAvatar) {
                     ChatTopBarDualAvatar(
                         model = settings.getCurrentChatModel(),
                         assistant = settings.getCurrentAssistant(),
-                        modifier = Modifier.padding(start = if (bigScreen) 12.dp else 0.dp, end = 4.dp),
+                        modifier = Modifier
+                            .padding(start = if (bigScreen) 12.dp else 0.dp, end = 4.dp)
+                            .clip(RoundedCornerShape(50))
+                            .clickable(onClickLabel = editTitleLabel, onClick = openTitleEdit),
                     )
                 }
             }
         },
         title = {
-            val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
+            if (!topBarDualAvatar) {
             Surface(
-                onClick = {
-                    if (conversation.messageNodes.isNotEmpty()) {
-                        titleState.open(conversation.title)
-                    } else {
-                        toaster.show(editTitleWarning, type = ToastType.Warning)
-                    }
-                },
+                onClick = openTitleEdit,
                 color = Color.Transparent,
             ) {
                 Column {
@@ -919,6 +930,7 @@ private fun TopBar(
                         )
                     }
                 }
+            }
             }
         },
         actions = {

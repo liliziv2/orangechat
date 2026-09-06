@@ -8,6 +8,7 @@ package me.rerere.rikkahub.ui.components.message
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -319,6 +323,53 @@ fun ChatTopBarDualAvatar(
                 assistant = assistant,
                 size = size - 2.dp,
             )
+        }
+    }
+}
+
+/**
+ * 头像位的兜底记号。关掉头像时槽位不留空洞，画一枚小图形代替：
+ * 自己是实心四角星，对方是描边菱形——形状本身就分得出这一段是谁说的。
+ * 路径取自 14x14 视区，按槽位尺寸等比缩放。
+ */
+@Composable
+fun ChatMessageSideMark(
+    mine: Boolean,
+    size: Dp = 32.dp,
+    modifier: Modifier = Modifier,
+) {
+    val color = if (mine) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+    } else {
+        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
+    }
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        Canvas(modifier = Modifier.size(size * 0.42f)) {
+            val u = this.size.minDimension / 14f
+            fun p(x: Float, y: Float) = Offset(x * u, y * u)
+            if (mine) {
+                val star = Path().apply {
+                    moveTo(p(7f, 0.8f).x, p(7f, 0.8f).y)
+                    lineTo(p(8.2f, 5.4f).x, p(8.2f, 5.4f).y)
+                    lineTo(p(12.6f, 7f).x, p(12.6f, 7f).y)
+                    lineTo(p(8.2f, 8.6f).x, p(8.2f, 8.6f).y)
+                    lineTo(p(7f, 13.2f).x, p(7f, 13.2f).y)
+                    lineTo(p(5.8f, 8.6f).x, p(5.8f, 8.6f).y)
+                    lineTo(p(1.4f, 7f).x, p(1.4f, 7f).y)
+                    lineTo(p(5.8f, 5.4f).x, p(5.8f, 5.4f).y)
+                    close()
+                }
+                drawPath(star, color = color)
+            } else {
+                val diamond = Path().apply {
+                    moveTo(p(7f, 1f).x, p(7f, 1f).y)
+                    lineTo(p(12.4f, 7f).x, p(12.4f, 7f).y)
+                    lineTo(p(7f, 13f).x, p(7f, 13f).y)
+                    lineTo(p(1.6f, 7f).x, p(1.6f, 7f).y)
+                    close()
+                }
+                drawPath(diamond, color = color, style = Stroke(width = u))
+            }
         }
     }
 }
