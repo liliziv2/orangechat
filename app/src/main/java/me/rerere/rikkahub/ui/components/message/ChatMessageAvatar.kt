@@ -8,6 +8,7 @@ package me.rerere.rikkahub.ui.components.message
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,9 +24,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.MessageRole
@@ -211,6 +214,111 @@ fun ChatMessageAssistantAvatar(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * 侧边头像：贴在气泡左/右的一枚圆头像，用于 ChatAvatarMode.SIDE 版式。
+ * 助手侧优先用助手头像，其次是模型图标；用户侧用用户头像。
+ * 头像框（挂件）沿用与署名行相同的偏移与缩放配置，只是基准尺寸不同。
+ */
+@Composable
+fun ChatMessageSideAvatar(
+    role: MessageRole,
+    model: Model?,
+    assistant: Assistant?,
+    loading: Boolean = false,
+    size: Dp = 32.dp,
+    modifier: Modifier = Modifier,
+) {
+    val settings = LocalSettings.current
+    val display = settings.displaySetting
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        if (role == MessageRole.USER) {
+            UIAvatar(
+                name = display.userNickname,
+                modifier = Modifier.size(size),
+                value = display.userAvatar,
+                loading = false,
+            )
+            AvatarFrameOverlay(
+                framePath = display.userAvatarFramePath,
+                offsetX = display.userAvatarFrameOffsetX,
+                offsetY = display.userAvatarFrameOffsetY,
+                scale = display.userAvatarFrameScale,
+                baseSize = size.value,
+            )
+        } else {
+            if (assistant?.useAssistantAvatar == true) {
+                UIAvatar(
+                    name = assistant.name,
+                    modifier = Modifier.size(size),
+                    value = assistant.avatar,
+                    loading = loading,
+                )
+            } else {
+                AutoAIIcon(
+                    name = model?.modelId ?: assistant?.name.orEmpty(),
+                    modifier = Modifier.size(size),
+                    loading = loading,
+                )
+            }
+            AvatarFrameOverlay(
+                framePath = display.aiAvatarFramePath,
+                offsetX = display.aiAvatarFrameOffsetX,
+                offsetY = display.aiAvatarFrameOffsetY,
+                scale = display.aiAvatarFrameScale,
+                baseSize = size.value,
+            )
+        }
+    }
+}
+
+/**
+ * 顶栏双头像：对方在左、自己在右，右边那枚用负偏移叠压在左边那枚上面。
+ * 左侧（对方）留在上层，所以先画右侧再画左侧。
+ */
+@Composable
+fun ChatTopBarDualAvatar(
+    model: Model?,
+    assistant: Assistant?,
+    size: Dp = 28.dp,
+    overlap: Dp = 8.dp,
+    modifier: Modifier = Modifier,
+) {
+    val ringColor = MaterialTheme.colorScheme.outlineVariant
+    Box(
+        modifier = modifier.size(width = size * 2 - overlap, height = size),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        // 自己：下层，靠右
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .border(1.dp, ringColor, CircleShape)
+                .padding(1.dp)
+        ) {
+            ChatMessageSideAvatar(
+                role = MessageRole.USER,
+                model = null,
+                assistant = null,
+                size = size - 2.dp,
+            )
+        }
+        // 对方：上层，靠左
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .border(1.dp, ringColor, CircleShape)
+                .padding(1.dp)
+        ) {
+            ChatMessageSideAvatar(
+                role = MessageRole.ASSISTANT,
+                model = model,
+                assistant = assistant,
+                size = size - 2.dp,
+            )
         }
     }
 }

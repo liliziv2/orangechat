@@ -139,6 +139,7 @@ import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.LocalMaterialMode
 import me.rerere.rikkahub.ui.theme.extendColors
+import me.rerere.rikkahub.data.datastore.ChatAvatarMode
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import androidx.compose.ui.text.font.Font
@@ -251,6 +252,71 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLiveBackgroundF
     }
 }
 
+/**
+ * 气泡侧边头像的容器。
+ * enabled=false 时原样透传内容，不额外包 Row，免得动到原版式的对齐与宽度。
+ * enabled=true 时按「对方左、自己右」摆一枚头像，内容列吃掉剩下的宽度；
+ * 头像与内容顶端对齐，长回复时头像不会飘到中间。
+ */
+@Composable
+private fun SideAvatarRow(
+    enabled: Boolean,
+    showAvatar: Boolean,
+    mine: Boolean,
+    role: MessageRole,
+    model: Model?,
+    assistant: Assistant?,
+    loading: Boolean,
+    content: @Composable () -> Unit,
+) {
+    if (!enabled) {
+        content()
+        return
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        if (!mine) {
+            SideAvatarSlot(showAvatar, role, model, assistant, loading)
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            content()
+        }
+        if (mine) {
+            SideAvatarSlot(showAvatar, role, model, assistant, loading)
+        }
+    }
+}
+
+/** 头像槽：关掉头像时仍占位，两侧气泡的起始线才不会左右错开。 */
+@Composable
+private fun SideAvatarSlot(
+    showAvatar: Boolean,
+    role: MessageRole,
+    model: Model?,
+    assistant: Assistant?,
+    loading: Boolean,
+) {
+    if (showAvatar) {
+        ChatMessageSideAvatar(
+            role = role,
+            model = model,
+            assistant = assistant,
+            loading = loading,
+            size = 32.dp,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    } else {
+        Spacer(modifier = Modifier.size(32.dp))
+    }
+}
+
 @Composable
 fun ChatMessage(
     node: MessageNode,
@@ -274,6 +340,13 @@ fun ChatMessage(
 ) {
     val message = node.messages[node.selectIndex]
     val settings = LocalDisplaySettings.current
+    // 侧边头像版式：头像贴气泡边，署名行让位。用户侧还要服从「显示用户头像」开关。
+    val sideAvatar = settings.chatAvatarMode == ChatAvatarMode.SIDE
+    val showSideSlot = sideAvatar && when (message.role) {
+        MessageRole.USER -> settings.showUserAvatar
+        MessageRole.ASSISTANT -> settings.showModelIcon
+        else -> false
+    }
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         color = settings.chatTextColor?.let { it.toComposeColor() } ?: Color.Unspecified,
@@ -302,7 +375,7 @@ fun ChatMessage(
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        if (!message.parts.isEmptyUIMessage()) {
+        if (!message.parts.isEmptyUIMessage() && !sideAvatar) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -325,25 +398,37 @@ fun ChatMessage(
             }
         }
         ProvideTextStyle(textStyle) {
-            MessagePartsBlock(
-                assistant = assistant,
+            // SIDE 版式下内容缩进一列，旁边留出头像槽；
+            // 用 Row + weight 而不是把头像塞进外层 Column，气泡才不会被压成一竖列汉字。
+            SideAvatarRow(
+                enabled = sideAvatar,
+                showAvatar = showSideSlot,
+                mine = message.role == MessageRole.USER,
                 role = message.role,
-                showMessageTime = settings.showDateTimeInMessage,
-                messageTime = message.createdAt.toJavaLocalDateTime().toMessageTimeString(),
-                parts = message.parts,
-                annotations = message.annotations,
-                loading = loading,
                 model = model,
-                onToolApproval = onToolApproval,
-                onToolAnswer = onToolAnswer,
-                onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-            )
- 
-            message.translation?.let { translation ->
-                CollapsibleTranslationText(
-                    content = translation,
-                    onClickCitation = {}
+                assistant = assistant,
+                loading = loading,
+            ) {
+                MessagePartsBlock(
+                    assistant = assistant,
+                    role = message.role,
+                    showMessageTime = settings.showDateTimeInMessage,
+                    messageTime = message.createdAt.toJavaLocalDateTime().toMessageTimeString(),
+                    parts = message.parts,
+                    annotations = message.annotations,
+                    loading = loading,
+                    model = model,
+                    onToolApproval = onToolApproval,
+                    onToolAnswer = onToolAnswer,
+                    onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
                 )
+ 
+                message.translation?.let { translation ->
+                    CollapsibleTranslationText(
+                        content = translation,
+                        onClickCitation = {}
+                    )
+                }
             }
         }
  

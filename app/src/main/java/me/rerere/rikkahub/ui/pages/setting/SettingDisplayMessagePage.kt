@@ -44,11 +44,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.ChatAvatarMode
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CollapsibleCardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -65,6 +67,26 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val sideMode = displaySetting.chatAvatarMode == ChatAvatarMode.SIDE
+    val nameTimeOn = listOf(
+        displaySetting.showModelName,
+        displaySetting.showDateBelowName,
+        displaySetting.showDateTimeInMessage,
+        displaySetting.showTokenUsage,
+    ).count { it }
+    val thinkingOn = listOf(
+        displaySetting.showThinkingContent,
+        displaySetting.autoCloseThinking,
+        displaySetting.enableLatexRendering,
+    ).count { it }
+    val fontFamilyLabel = when (displaySetting.chatFontFamily) {
+        ChatFontFamily.DEFAULT -> "默认"
+        ChatFontFamily.SERIF -> "衬线"
+        ChatFontFamily.MONOSPACE -> "等宽"
+        ChatFontFamily.CUSTOM -> "自定义"
+    }
+
 
     val fontDir = remember { File(context.filesDir, "custom_fonts").apply { mkdirs() } }
     val fontPickerLauncher = rememberLauncherForActivityResult(
@@ -101,12 +123,59 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
             contentPadding = contentPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 消息显示设置
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text(stringResource(R.string.setting_page_message_display_settings)) },
+                    title = { Text("版式与头像") },
                 ) {
+                    // 消息模式：署名行版式 / 气泡侧边头像版式
+                    val avatarModeOptions = listOf(
+                        ChatAvatarMode.HEADER to "署名行",
+                        ChatAvatarMode.SIDE to "气泡侧边",
+                    )
+                    item(
+                        headlineContent = { Text("消息模式") },
+                        supportingContent = {
+                            Column {
+                                Text(
+                                    if (sideMode) "头像贴在气泡旁边，对方在左、自己在右"
+                                    else "头像和名字排在消息上方一行"
+                                )
+                                SingleChoiceSegmentedButtonRow(
+                                    modifier = Modifier
+                                        .padding(top = 4.dp)
+                                        .fillMaxWidth()
+                                ) {
+                                    avatarModeOptions.forEachIndexed { index, (mode, label) ->
+                                        SegmentedButton(
+                                            selected = displaySetting.chatAvatarMode == mode,
+                                            onClick = {
+                                                updateDisplaySetting(displaySetting.copy(chatAvatarMode = mode))
+                                            },
+                                            shape = SegmentedButtonDefaults.itemShape(
+                                                index,
+                                                avatarModeOptions.size
+                                            ),
+                                        ) { Text(label) }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    if (sideMode) {
+                        item(
+                            headlineContent = { Text("顶栏双头像") },
+                            supportingContent = { Text("在聊天页顶栏并排显示对方和自己的头像") },
+                            trailingContent = {
+                                Switch(
+                                    checked = displaySetting.showTopBarDualAvatar,
+                                    onCheckedChange = {
+                                        updateDisplaySetting(displaySetting.copy(showTopBarDualAvatar = it))
+                                    }
+                                )
+                            },
+                        )
+                    }
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },
@@ -115,6 +184,18 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                                 checked = displaySetting.showUserAvatar,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.showModelIcon,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showModelIcon = it))
                                 }
                             )
                         },
@@ -143,30 +224,15 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showDateTimeInMessage,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it))
-                                }
-                            )
-                        },
-                    )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showModelIcon,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showModelIcon = it))
-                                }
-                            )
-                        },
-                    )
+                }
+            }
+
+            item {
+                CollapsibleCardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("名称与时间") },
+                    summary = { Text("$nameTimeOn / 4 项已开") },
+                ) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_model_name_desc)) },
@@ -192,6 +258,18 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.showDateTimeInMessage,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
                         trailingContent = {
@@ -203,6 +281,15 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
+                }
+            }
+
+            item {
+                CollapsibleCardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("思维链与公式") },
+                    summary = { Text("$thinkingOn / 3 项已开") },
+                ) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },
@@ -239,6 +326,36 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
+                    item(
+                        headlineContent = { Text("思维链字体大小") },
+                        supportingContent = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Slider(
+                                    value = displaySetting.thinkingFontSizeRatio,
+                                    onValueChange = {
+                                        updateDisplaySetting(displaySetting.copy(thinkingFontSizeRatio = it))
+                                    },
+                                    valueRange = 0.5f..2.0f,
+                                    steps = 5,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(text = "${(displaySetting.thinkingFontSizeRatio * 100).toInt()}%")
+                            }
+                        }
+                    )
+                }
+            }
+
+            item {
+                CollapsibleCardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("字体") },
+                    summary = { Text("$fontFamilyLabel · ${(displaySetting.fontSizeRatio * 100).toInt()}%") },
+                ) {
                     val chatFontFamilyOptions = listOf(
                         ChatFontFamily.DEFAULT to stringResource(R.string.setting_display_page_chat_font_family_default),
                         ChatFontFamily.SERIF to stringResource(R.string.setting_display_page_chat_font_family_serif),
@@ -312,36 +429,6 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     item(
-                        headlineContent = { Text("思维链字体大小") },
-                        supportingContent = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Slider(
-                                    value = displaySetting.thinkingFontSizeRatio,
-                                    onValueChange = {
-                                        updateDisplaySetting(displaySetting.copy(thinkingFontSizeRatio = it))
-                                    },
-                                    valueRange = 0.5f..2.0f,
-                                    steps = 5,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(text = "${(displaySetting.thinkingFontSizeRatio * 100).toInt()}%")
-                            }
-                        }
-                    )
-                }
-            }
-
-            // 自定义字体
-            item {
-                CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("自定义字体") },
-                ) {
-                    item(
                         headlineContent = { Text("导入自定义字体") },
                         supportingContent = {
                             Text(
@@ -387,6 +474,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
+
         }
     }
 }

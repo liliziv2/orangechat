@@ -661,12 +661,29 @@ enum class DisplayMaterialMode {
     GLASS,
 }
 
+/**
+ * 消息排版模式。
+ * HEADER: 头像在消息上方的署名行里（原有版式）。
+ * SIDE:   头像贴在气泡侧边——对方在左、自己在右，署名行不再占一行。
+ */
+@Serializable
+enum class ChatAvatarMode {
+    @SerialName("header")
+    HEADER,
+    @SerialName("side")
+    SIDE,
+}
+
 @Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
     val showUserAvatar: Boolean = true,
+    /** 消息排版模式：署名行头像 / 气泡侧边头像。 */
+    val chatAvatarMode: ChatAvatarMode = ChatAvatarMode.HEADER,
+    /** 侧边头像模式下，在聊天页顶栏显示「对方 + 自己」的叠压双头像。 */
+    val showTopBarDualAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
     /** 用户消息是否显示气泡背景；关闭后会真正绕开 BubbleSurface。 */
     val showUserBubble: Boolean = true,

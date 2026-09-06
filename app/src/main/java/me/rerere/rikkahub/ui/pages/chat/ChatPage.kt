@@ -75,6 +75,9 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
@@ -103,6 +106,7 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.ChatAvatarMode
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
@@ -114,6 +118,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.VoiceCallService
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
 import me.rerere.rikkahub.ui.components.message.LiveBubbleBlurContext
 import me.rerere.rikkahub.ui.components.message.LocalLiveBubbleBlur
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -858,13 +863,25 @@ private fun TopBar(
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
-            if (!bigScreen) {
-                IconButton(
-                    onClick = {
-                        scope.launch { drawerState.open() }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!bigScreen) {
+                    IconButton(
+                        onClick = {
+                            scope.launch { drawerState.open() }
+                        }
+                    ) {
+                        Icon(HugeIcons.Menu03, "Messages")
                     }
+                }
+                // 侧边头像版式下顺带在顶栏摆一对叠压头像，跟消息里的头像同一套素材
+                if (settings.displaySetting.chatAvatarMode == ChatAvatarMode.SIDE &&
+                    settings.displaySetting.showTopBarDualAvatar
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    ChatTopBarDualAvatar(
+                        model = settings.getCurrentChatModel(),
+                        assistant = settings.getCurrentAssistant(),
+                        modifier = Modifier.padding(start = if (bigScreen) 12.dp else 0.dp, end = 4.dp),
+                    )
                 }
             }
         },
