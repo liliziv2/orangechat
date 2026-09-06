@@ -129,7 +129,6 @@ import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
 import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
-import me.rerere.rikkahub.ui.pages.health.HealthPage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
 import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
@@ -770,9 +769,6 @@ class RouteActivity : ComponentActivity() {
                                 SearchPage()
                             }
 
-                            entry<Screen.Health> {
-                                HealthPage()
-                            }
 
                             entry<Screen.Stats> {
                                 StatsPage()
@@ -1174,9 +1170,7 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingQqBot : Screen
 
-    @Serializable
-    data object Health : Screen
-
+    
     @Serializable
     data object SettingPlugins : Screen
 

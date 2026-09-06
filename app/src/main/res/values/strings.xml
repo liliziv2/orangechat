@@ -1237,4 +1237,9 @@
 
   <string name="plugin_security_banner">⚠ Plugins can make network requests and access system data you have authorized. Only install plugins from trusted sources.</string>
   <string name="web_server_security_warning_no_jwt">⚠ JWT authentication is not enabled or the password is empty. Anyone who can access this address can read your conversation records. It is strongly recommended to set a password and enable JWT immediately.</string>
+  <string name="card_group_expand">Expand</string>
+  <string name="card_group_collapse">Collapse</string>
+  <string name="setting_page_data_settings_summary">%1$d items · %2$s</string>
+  <string name="setting_display_page_show_datetime_in_message_title">Show date and time in message</string>
+  <string name="setting_display_page_show_datetime_in_message_desc">Show the timestamp in the bottom-right corner of each bubble</string>
 </resources>

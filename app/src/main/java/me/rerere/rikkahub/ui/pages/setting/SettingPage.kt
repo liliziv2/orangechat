@@ -63,7 +63,6 @@ import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
 import me.rerere.hugeicons.stroke.Package
-import me.rerere.hugeicons.stroke.Pulse01
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Shield02
@@ -79,6 +78,7 @@ import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CollapsibleCardGroup
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.icons.DiscordIcon
 import me.rerere.rikkahub.ui.components.ui.icons.TencentQQIcon
@@ -297,22 +297,28 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text("Tasker 风格自动化：触发器 + 条件 -> 执行动作，由 AI 编写") },
                         headlineContent = { Text("工作流") },
                     )
-                    item(
-                        onClick = { navController.navigate(Screen.Health) },
-                        leadingContent = { Icon(HugeIcons.Pulse01, null) },
-                        supportingContent = { Text("Gadgetbridge 健康数据查看") },
-                        headlineContent = { Text("健康数据") },
-                    )
                 }
             }
-
             item("dataSettings") {
                 val storageState by produceState(-1 to 0L) {
                     value = filesManager.countChatFiles()
                 }
-                CardGroup(
+                CollapsibleCardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_page_data_settings)) },
+                    summary = {
+                        Text(
+                            if (storageState.first == -1) {
+                                stringResource(R.string.calculating)
+                            } else {
+                                stringResource(
+                                    R.string.setting_page_data_settings_summary,
+                                    storageState.first,
+                                    "%.2f MB".format(storageState.second / 1024 / 1024.0),
+                                )
+                            }
+                        )
+                    },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.Backup) },

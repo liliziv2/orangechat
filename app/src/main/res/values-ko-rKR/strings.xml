@@ -1089,4 +1089,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_page_folder_add">새로 만들기</string>
   <string name="chat_page_delete_folder_confirm">폴더 "%1$s"를 삭제하시겠습니까? 내부의 대화는 삭제되지 않고 폴더에서만 제거됩니다.</string>
   <string name="chat_page_delete_folder_generating">이 폴더의 일부 대화가 아직 생성 중입니다. 삭제하기 전에 중지해 주세요.</string>
+  <string name="card_group_expand">펼치기</string>
+  <string name="card_group_collapse">접기</string>
+  <string name="setting_page_data_settings_summary">%1$d개 · %2$s</string>
+  <string name="setting_display_page_show_datetime_in_message_title">메시지에 날짜와 시간 표시</string>
+  <string name="setting_display_page_show_datetime_in_message_desc">각 말풍선 오른쪽 아래에 시간을 표시합니다</string>
 </resources>

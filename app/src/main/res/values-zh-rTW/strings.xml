@@ -1167,4 +1167,9 @@
 
   <string name="plugin_security_banner">⚠ 插件可執行網路請求並存取您已授權的系統資料。請僅從可信來源安裝插件。</string>
   <string name="web_server_security_warning_no_jwt">⚠ 未啟用 JWT 鑒權或密碼為空。目前任何可存取該位址的人都能讀取您的對話記錄，強烈建議立即設定密碼並開啟 JWT。</string>
+  <string name="card_group_expand">展開</string>
+  <string name="card_group_collapse">收起</string>
+  <string name="setting_page_data_settings_summary">%1$d 項 · %2$s</string>
+  <string name="setting_display_page_show_datetime_in_message_title">訊息內顯示日期時間</string>
+  <string name="setting_display_page_show_datetime_in_message_desc">在每則訊息氣泡的右下角顯示時間</string>
 </resources>

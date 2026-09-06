@@ -662,22 +662,16 @@ enum class DisplayMaterialMode {
 }
 
 @Serializable
-enum class ChatBubbleStyle {
-    RIKKA,
-    TELEGRAM,
-}
-
-@Serializable
 data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
-    /** 用户消息是否显示气泡背景；关闭后原生与 Telegram 布局都会真正绕开 BubbleSurface。 */
+    /** 用户消息是否显示气泡背景；关闭后会真正绕开 BubbleSurface。 */
     val showUserBubble: Boolean = true,
-    /** 关闭时保持原生 Rikka；开启后使用 Telegram 式双侧消息气泡。 */
-    val chatBubbleStyle: ChatBubbleStyle = ChatBubbleStyle.RIKKA,
+    /** 在消息气泡右下角显示该条消息的日期时间。 */
+    val showDateTimeInMessage: Boolean = false,
     val showModelIcon: Boolean = true,
     val showModelName: Boolean = true,
     val showDateBelowName: Boolean = false,

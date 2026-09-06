@@ -1231,4 +1231,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
 
   <string name="plugin_security_banner">⚠ 插件可执行网络请求并访问您已授权的系统数据。请仅从可信来源安装插件。</string>
   <string name="web_server_security_warning_no_jwt">⚠ 未启用 JWT 鉴权或密码为空。当前任何可访问该地址的人都能读取您的对话记录，强烈建议立即设置密码并开启 JWT。</string>
+  <string name="card_group_expand">展开</string>
+  <string name="card_group_collapse">收起</string>
+  <string name="setting_page_data_settings_summary">%1$d 项 · %2$s</string>
+  <string name="setting_display_page_show_datetime_in_message_title">消息内显示日期时间</string>
+  <string name="setting_display_page_show_datetime_in_message_desc">在每条消息气泡的右下角显示时间</string>
 </resources>

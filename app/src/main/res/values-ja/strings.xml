@@ -1089,4 +1089,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="chat_page_folder_add">新規</string>
   <string name="chat_page_delete_folder_confirm">フォルダ "%1$s" を削除しますか？内部の会話は削除されず、フォルダから取り除かれるだけです。</string>
   <string name="chat_page_delete_folder_generating">フォルダ内の一部の会話がまだ生成中です。削除する前にそれらを停止してください。</string>
+  <string name="card_group_expand">展開</string>
+  <string name="card_group_collapse">折りたたむ</string>
+  <string name="setting_page_data_settings_summary">%1$d 件 · %2$s</string>
+  <string name="setting_display_page_show_datetime_in_message_title">メッセージ内に日時を表示</string>
+  <string name="setting_display_page_show_datetime_in_message_desc">各吹き出しの右下に時刻を表示します</string>
 </resources>

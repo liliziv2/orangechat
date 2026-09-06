@@ -6,7 +6,9 @@
 
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -16,12 +18,15 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemColors
@@ -34,14 +39,24 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.context.LocalDisplaySettings
@@ -199,7 +214,6 @@ fun CardGroup(
 ) {
     val scope = CardGroupScope()
     scope.content()
-
     Column(modifier = modifier) {
         if (title != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
@@ -215,6 +229,86 @@ fun CardGroup(
             CardGroupListItem(item = item, count = count, index = index)
             if (index != count - 1) {
                 Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+            }
+        }
+    }
+}
+
+/**
+ * 可折叠的 CardGroup：标题行整行可点，右侧箭头随展开状态旋转。
+ *
+ * 折叠状态下只显示标题与 [summary]（例如「2 项 · 1.24 GB」），
+ * 收起时也能看到关键信息，不必展开。
+ *
+ * @param initiallyExpanded 首次组合时是否展开，默认收起。
+ * @param summary 收起时显示在标题右侧的摘要，展开时隐藏。
+ */
+@Composable
+fun CollapsibleCardGroup(
+    title: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    initiallyExpanded: Boolean = false,
+    summary: (@Composable () -> Unit)? = null,
+    content: @Composable CardGroupScope.() -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    val scope = CardGroupScope()
+    scope.content()
+    val arrowRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "cardGroupArrow",
+    )
+    val expandLabel = stringResource(
+        if (expanded) R.string.card_group_collapse else R.string.card_group_expand
+    )
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(CardGroupInnerCorner))
+                .clickable(
+                    onClickLabel = expandLabel,
+                    role = Role.Button,
+                ) { expanded = !expanded }
+                .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
+                ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
+                    title()
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            if (summary != null && !expanded) {
+                CompositionLocalProvider(
+                    LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
+                ) {
+                    ProvideTextStyle(MaterialTheme.typography.bodySmall) {
+                        Box(modifier = Modifier.padding(end = 6.dp)) {
+                            summary()
+                        }
+                    }
+                }
+            }
+            Icon(
+                imageVector = HugeIcons.ArrowDown01,
+                contentDescription = expandLabel,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(20.dp)
+                    .rotate(arrowRotation),
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column {
+                val count = scope.items.size
+                scope.items.fastForEachIndexed { index, item ->
+                    CardGroupListItem(item = item, count = count, index = index)
+                    if (index != count - 1) {
+                        Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                    }
+                }
             }
         }
     }
