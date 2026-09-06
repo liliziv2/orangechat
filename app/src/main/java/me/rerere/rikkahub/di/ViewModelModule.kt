@@ -14,7 +14,6 @@ import me.rerere.rikkahub.ui.pages.chat.ChatVM
 import me.rerere.rikkahub.ui.pages.debug.DebugVM
 import me.rerere.rikkahub.ui.pages.developer.DeveloperVM
 import me.rerere.rikkahub.ui.pages.favorite.FavoriteVM
-import me.rerere.rikkahub.ui.pages.health.HealthVM
 import me.rerere.rikkahub.ui.pages.memory.MemoryBankVM
 import me.rerere.rikkahub.ui.pages.miniapp.MiniAppViewModel
 import me.rerere.rikkahub.ui.pages.search.SearchVM
@@ -85,7 +84,6 @@ val viewModelModule = module {
     viewModelOf(::FavoriteVM)
     viewModelOf(::SearchVM)
     viewModelOf(::StatsVM)
-    viewModelOf(::HealthVM)
     viewModelOf(::MemoryBankVM)
     viewModelOf(::MiniAppViewModel)
     viewModelOf(::WorkflowsViewModel)
