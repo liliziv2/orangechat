@@ -186,6 +186,11 @@ class TtsController(
         audio.seekBy(ms)
     }
 
+    /** 绝对定位到当前段的某个位置，供波形拖动使用。 */
+    fun seekTo(ms: Long) {
+        audio.seekTo(ms)
+    }
+
     /** 设置播放速度 */
     fun setSpeed(speed: Float) {
         audio.setSpeed(speed)

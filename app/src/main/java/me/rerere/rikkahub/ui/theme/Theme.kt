@@ -158,9 +158,8 @@ fun RikkahubTheme(
     }
 
     val resolvedMaterialMode = when (settings.displaySetting.materialMode) {
-        DisplayMaterialMode.FOLLOW_THEME -> {
-            if (settings.themeId == "liquid_glass") DisplayMaterialMode.GLASS else DisplayMaterialMode.FLAT
-        }
+        // Liquid Glass 预设已移除，「跟随主题」一律走 FLAT；想要玻璃质感请直接选 GLASS。
+        DisplayMaterialMode.FOLLOW_THEME -> DisplayMaterialMode.FLAT
         else -> settings.displaySetting.materialMode
     }
 

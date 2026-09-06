@@ -37,7 +37,7 @@ import java.io.ByteArrayOutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-class AudioPlayer(context: Context) {
+class AudioPlayer(private val context: Context) {
     private val player = ExoPlayer.Builder(context).build()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -52,6 +52,14 @@ class AudioPlayer(context: Context) {
     fun clear() = player.clearMediaItems()
     fun release() = player.release()
     fun seekBy(ms: Long) = player.seekTo(player.currentPosition + ms)
+
+    /** 绝对定位。波形拖动需要跳到任意位置，seekBy 的相对位移做不到。 */
+    fun seekTo(ms: Long) {
+        val duration = player.duration
+        val target = if (duration > 0) ms.coerceIn(0L, duration) else ms.coerceAtLeast(0L)
+        player.seekTo(target)
+        _playbackState.update { it.copy(positionMs = target) }
+    }
     fun setSpeed(speed: Float) {
         player.playbackParameters = PlaybackParameters(speed)
         _playbackState.update { it.copy(speed = speed) }
@@ -75,8 +83,17 @@ class AudioPlayer(context: Context) {
             it.copy(
                 status = PlaybackStatus.Buffering,
                 positionMs = 0L,
-                durationMs = (response.duration?.times(1000))?.toLong() ?: it.durationMs
+                durationMs = (response.duration?.times(1000))?.toLong() ?: it.durationMs,
+                // 新段开始先清空，否则会拿上一段的波形顶着显示
+                amplitudes = emptyList(),
             )
+        }
+        // 解码走 IO，别卡住播放启动；解出来再回填，UI 在这之前画等高矮墙。
+        scope.launch(Dispatchers.IO) {
+            val envelope = extractAmplitudeEnvelope(bytes, context.cacheDir)
+            if (envelope.isNotEmpty()) {
+                _playbackState.update { it.copy(amplitudes = envelope) }
+            }
         }
 
         val listener = object : Player.Listener {

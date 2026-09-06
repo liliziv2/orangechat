@@ -104,6 +104,9 @@ interface CustomTtsState {
     fun resume()
     fun skipNext()
     fun fastForward(ms: Long = 5_000)
+
+    /** 绝对定位，给波形拖动用。 */
+    fun seekTo(ms: Long)
     fun setSpeed(speed: Float)
     fun cleanup()
 
@@ -168,6 +171,10 @@ internal class CustomTtsStateImpl(
 
     override fun fastForward(ms: Long) {
         controller.fastForward(ms)
+    }
+
+    override fun seekTo(ms: Long) {
+        controller.seekTo(ms)
     }
 
     override fun setSpeed(speed: Float) {

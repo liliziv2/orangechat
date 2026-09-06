@@ -6,7 +6,6 @@
 
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -89,11 +88,6 @@ private fun TelegramVoiceBar(
         playbackState.positionMs.toFloat() / playbackState.durationMs
     } else 0f
 
-    // Pseudo-random waveform bars
-    val waveformBars = remember {
-        val rnd = java.util.Random(42)
-        List(32) { 0.15f + rnd.nextFloat() * 0.85f }
-    }
 
     val activeColor = MaterialTheme.colorScheme.primary
     val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
@@ -144,30 +138,19 @@ private fun TelegramVoiceBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Waveform
-            Canvas(
+            // 真波形 + 可拖动定位（包络由 AudioPlayer 解码后回填）
+            VoiceWaveform(
+                amplitudes = playbackState.amplitudes,
+                progress = progress,
+                playedColor = activeColor,
+                unplayedColor = inactiveColor,
                 modifier = Modifier
                     .weight(1f)
-                    .height(28.dp)
-            ) {
-                val barCount = waveformBars.size
-                val totalWidth = size.width
-                val barWidth = 2.5f
-                val gap = (totalWidth - barWidth * barCount) / (barCount - 1).coerceAtLeast(1)
-                val playedBarCount = (progress * barCount).toInt()
-
-                waveformBars.forEachIndexed { index, barRatio ->
-                    val barHeight = size.height * barRatio.coerceIn(0.15f, 1f)
-                    val x = index * (barWidth + gap)
-                    val y = (size.height - barHeight) / 2f
-                    drawRoundRect(
-                        color = if (index < playedBarCount) activeColor else inactiveColor,
-                        topLeft = androidx.compose.ui.geometry.Offset(x, y),
-                        size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.2f, 1.2f)
-                    )
-                }
-            }
+                    .height(28.dp),
+                onSeek = if (playbackState.durationMs > 0) {
+                    { ratio -> ttsState.seekTo((ratio * playbackState.durationMs).toLong()) }
+                } else null,
+            )
 
             Spacer(modifier = Modifier.width(6.dp))
 

@@ -126,8 +126,12 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import kotlin.math.max
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import me.rerere.tts.controller.extractAmplitudeEnvelope
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
 import me.rerere.rikkahub.ui.components.ui.Favicon
+import me.rerere.rikkahub.ui.components.ui.VoiceWaveform
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
@@ -1474,6 +1478,20 @@ internal fun VoiceMessageBubble(
     var isPlaying by remember { mutableStateOf(false) }
     var showTranscript by remember(voiceMessage.url) { mutableStateOf(false) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var positionMs by remember(voiceMessage.url) { mutableIntStateOf(0) }
+
+    // 解码取真实振幅包络。IO 上做，解不出来就留空，VoiceWaveform 会画等高矮墙。
+    var amplitudes by remember(voiceMessage.url) { mutableStateOf<List<Float>>(emptyList()) }
+    LaunchedEffect(voiceMessage.url) {
+        val path = voiceMessage.url.toUri().path ?: return@LaunchedEffect
+        amplitudes = withContext(Dispatchers.IO) {
+            extractAmplitudeEnvelope(java.io.File(path), buckets = 28)
+        }
+    }
+
+    val progress = if (voiceMessage.duration > 0) {
+        positionMs.toFloat() / voiceMessage.duration
+    } else 0f
  
     val durationSec = (voiceMessage.duration / 1000).coerceAtLeast(1)
  
@@ -1487,7 +1505,10 @@ internal fun VoiceMessageBubble(
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
             mediaPlayer?.let {
-                if (!it.isPlaying) {
+                if (it.isPlaying) {
+                    // 原来这个循环只判完播，不推进度，所以波形永远不染色
+                    positionMs = it.currentPosition
+                } else {
                     isPlaying = false
                 }
             }
@@ -1500,26 +1521,31 @@ internal fun VoiceMessageBubble(
         color = if (isUser) MaterialTheme.colorScheme.secondaryContainer
         else MaterialTheme.colorScheme.tertiaryContainer,
         onClick = {
-            if (isPlaying) {
-                mediaPlayer?.let {
-                    it.stop()
-                    it.reset()
+            val existing = mediaPlayer
+            when {
+                // 暂停而不是 stop+reset：拖动定位后要能从原处接着放
+                isPlaying -> {
+                    existing?.pause()
+                    isPlaying = false
                 }
-                isPlaying = false
-            } else {
-                try {
+                existing != null -> {
+                    existing.start()
+                    isPlaying = true
+                }
+                else -> try {
                     val mp = MediaPlayer()
                     mp.setDataSource(voiceMessage.url)
                     mp.prepare()
                     mp.setOnCompletionListener {
                         isPlaying = false
+                        positionMs = 0
+                        it.seekTo(0)
                     }
                     mp.start()
                     isPlaying = true
-                    mediaPlayer?.release()
                     mediaPlayer = mp
                 } catch (e: Exception) {
-                    // File might not exist
+                    // 文件可能已被清理
                 }
             }
         },
@@ -1536,31 +1562,31 @@ internal fun VoiceMessageBubble(
                     else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                // Waveform bars
-                val waveformBars = remember(voiceMessage.url) {
-                    val rnd = java.util.Random(voiceMessage.url.hashCode().toLong())
-                    List(24) { 0.2f + rnd.nextFloat() * 0.8f }
-                }
-                val waveformColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
-                else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
-                Canvas(modifier = Modifier.width(60.dp).height(24.dp)) {
-                    val barCount = waveformBars.size
-                    val barWidth = 2.5f
-                    val gap = (size.width - barWidth * barCount) / (barCount - 1).coerceAtLeast(1)
-                    waveformBars.forEachIndexed { index, barRatio ->
-                        val barHeight = size.height * barRatio.coerceIn(0.2f, 1f)
-                        val x = index * (barWidth + gap)
-                        val y = (size.height - barHeight) / 2f
-                        drawRoundRect(
-                            color = waveformColor,
-                            topLeft = androidx.compose.ui.geometry.Offset(x, y),
-                            size = Size(barWidth, barHeight),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5f, 1.5f)
-                        )
-                    }
-                }
+                // 真波形：解码音频文件取振幅包络，点/拖可定位
+                val playedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.primary
+                val unplayedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f)
+                else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.35f)
+                VoiceWaveform(
+                    amplitudes = amplitudes,
+                    progress = progress,
+                    playedColor = playedColor,
+                    unplayedColor = unplayedColor,
+                    modifier = Modifier.width(90.dp).height(24.dp),
+                    onSeek = { ratio ->
+                        mediaPlayer?.let { mp ->
+                            val target = (ratio * mp.duration).toInt().coerceAtLeast(0)
+                            mp.seekTo(target)
+                            positionMs = target
+                        }
+                    },
+                )
+                // 播放中报剩余，停下报总长（跟 Operit 一致）
+                val shownSec = if (isPlaying) {
+                    ((voiceMessage.duration - positionMs) / 1000).coerceAtLeast(0)
+                } else durationSec
                 Text(
-                    text = "${durationSec}″",
+                    text = "${shownSec}″",
                     style = MaterialTheme.typography.labelMedium,
                     color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSecondaryContainer,
