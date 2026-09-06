@@ -708,6 +708,18 @@ data class DisplaySetting(
     val showLineNumbers: Boolean = false,
     val ttsOnlyReadQuoted: Boolean = false,
     val autoPlayTTSAfterGeneration: Boolean = false,
+    /**
+     * 生成结束后自动把助手回复合成一条语音条插进消息里（可回放、随会话持久化）。
+     * 与 autoPlayTTSAfterGeneration 的区别：那个只是念一遍，念完什么都不留。
+     * 每条回复都要走一次 TTS 合成，按量计费的服务商会真扣钱，所以默认关。
+     */
+    val autoVoiceMessageAfterGeneration: Boolean = false,
+    /**
+     * 有语音条的助手消息是否仍显示文字。
+     * 手动生成语音条时把文字收起是合理的（自己按的，知道内容）；
+     * 但自动生成开着时每条都收起会导致整个会话只剩语音条、没法回看文字，所以默认显示。
+     */
+    val showTextWithVoiceMessage: Boolean = true,
     val pasteLongTextAsFile: Boolean = false,
     val pasteLongTextThreshold: Int = 1000,
     val sendOnEnter: Boolean = false,

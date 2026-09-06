@@ -319,6 +319,47 @@ class ChatVM(
         }
     }
 
+    /**
+     * 生成结束后自动合成语音条。
+     *
+     * 放在 ViewModel 作用域而不是页面的 LaunchedEffect 里：合成是网络请求，
+     * 用户切走页面就取消的话，钱花了却什么都没留下。ViewModel 活到会话关闭为止。
+     *
+     * 只按 id 精确写回，所以合成期间用户又发了消息、切了分支都不会写错位置——
+     * 目标消息不在了就是一次无操作。
+     */
+    fun generateVoiceMessageFor(
+        nodeId: Uuid,
+        messageId: Uuid,
+        text: String,
+        create: suspend (String) -> UIMessagePart.VoiceMessage?,
+    ) {
+        viewModelScope.launch {
+            val voice = create(text) ?: return@launch
+            appendPartToMessage(nodeId = nodeId, messageId = messageId, part = voice)
+        }
+    }
+
+    /**
+     * 往指定消息追加一个 part（自动语音条用）。
+     * 走 updateConversationState 而不是先读后写，避免与生成线程并发时把别的改动覆盖掉。
+     */
+    fun appendPartToMessage(nodeId: Uuid, messageId: Uuid, part: UIMessagePart) {
+        chatService.updateConversationState(_conversationId) { current ->
+            current.copy(
+                messageNodes = current.messageNodes.map { node ->
+                    if (node.id != nodeId) return@map node
+                    node.copy(
+                        messages = node.messages.map { message ->
+                            if (message.id != messageId) message
+                            else message.copy(parts = message.parts + part)
+                        }
+                    )
+                }
+            )
+        }
+    }
+
     fun toggleMessageFavorite(node: MessageNode) {
         viewModelScope.launch {
             val currentlyFavorited = favoriteRepository.isNodeFavorited(_conversationId, node.id)

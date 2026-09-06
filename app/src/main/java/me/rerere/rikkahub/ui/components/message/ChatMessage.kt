@@ -616,8 +616,11 @@ private fun MessagePartsBlock(
                         
                         SelectionContainer {
                             Column {
-                                if (role == MessageRole.ASSISTANT && parts.any { it is UIMessagePart.VoiceMessage }) {
-                                    // 已生成持久语音条时，文字默认收起，避免同一条回复占两份屏幕。
+                                if (role == MessageRole.ASSISTANT &&
+                                    !displaySettings.showTextWithVoiceMessage &&
+                                    parts.any { it is UIMessagePart.VoiceMessage }
+                                ) {
+                                    // 关掉「语音条旁保留文字」时，有语音条就不渲染文字，避免一条回复占两份屏幕。
                                     // 语音条仍在后面的 part 分支渲染。
                                 } else {
                                 if (role == MessageRole.USER) {

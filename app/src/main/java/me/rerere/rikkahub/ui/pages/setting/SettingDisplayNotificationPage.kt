@@ -142,6 +142,32 @@ fun SettingDisplayNotificationPage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
+                    item(
+                        headlineContent = { Text("自动生成语音条") },
+                        supportingContent = {
+                            Text("回复结束后自动合成一条语音条插进消息里，可回放。开启后不再另外朗读一遍。每条回复都会走一次 TTS 合成，按量计费的服务商会产生费用")
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.autoVoiceMessageAfterGeneration,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(autoVoiceMessageAfterGeneration = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text("语音条旁保留文字") },
+                        supportingContent = { Text("关掉后，有语音条的回复只显示语音条，不显示文字") },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.showTextWithVoiceMessage,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(showTextWithVoiceMessage = it))
+                                }
+                            )
+                        },
+                    )
                 }
             }
         }
