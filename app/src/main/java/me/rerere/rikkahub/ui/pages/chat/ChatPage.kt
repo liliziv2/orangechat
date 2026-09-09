@@ -929,10 +929,10 @@ private fun TopBar(
                         },
                         overflow = TextOverflow.Ellipsis,
                     )
-                    // 双头像版式：只写模型名；常规版式：助手 / 模型 (提供商)
+                    // 双头像版式：只写助手名；常规版式：助手 / 模型 (提供商)
                     val subtitle = when {
+                        topBarDualAvatar -> assistantName
                         model == null -> null
-                        topBarDualAvatar -> model.displayName
                         provider == null -> null
                         else -> "$assistantName / ${model.displayName} (${provider.name})"
                     }

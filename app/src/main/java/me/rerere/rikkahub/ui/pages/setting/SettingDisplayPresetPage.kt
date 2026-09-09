@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -46,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
@@ -136,62 +136,61 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     repeat(DisplaySetting.APPEARANCE_PRESET_SLOTS) { slot ->
                         val preset = displaySetting.appearancePresets.firstOrNull { it.slot == slot }
+                        val slotName = preset?.name?.ifBlank { "预设 ${slot + 1}" } ?: "预设 ${slot + 1}"
                         item(
                             headlineContent = {
-                                Text(preset?.name?.ifBlank { "预设 ${slot + 1}" } ?: "预设 ${slot + 1}")
+                                Text(text = slotName, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
+                            // 按钮放在文字下面单独一行：三个按钮塞进 trailing 会把标题和时间挤成窄条
                             supportingContent = {
-                                Text(
-                                    text = if (preset == null) {
-                                        "空槽位"
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    if (preset == null) {
+                                        Text("空槽位")
                                     } else {
-                                        buildString {
-                                            append(preset.savedAt.toDisplayTime())
-                                            preset.snapshot.themeNote(settings.customThemes)
-                                                ?.let { append("\n$it") }
+                                        Text(preset.savedAt.toDisplayTime())
+                                        preset.snapshot.themeNote(settings.customThemes)?.let {
+                                            Text(text = it, style = MaterialTheme.typography.bodySmall)
                                         }
                                     }
-                                )
+                                    Row(
+                                        modifier = Modifier.padding(top = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        if (preset != null) {
+                                            OutlinedButton(
+                                                onClick = { pendingApply = preset },
+                                                contentPadding = compactButtonPadding,
+                                            ) {
+                                                Text("应用")
+                                            }
+                                        }
+                                        Button(
+                                            onClick = {
+                                                savingSlot = slot
+                                                savingName = slotName
+                                            },
+                                            contentPadding = compactButtonPadding,
+                                        ) {
+                                            Text(if (preset == null) "保存" else "覆盖")
+                                        }
+                                        if (preset != null) {
+                                            IconButton(onClick = { pendingDelete = preset }) {
+                                                Icon(
+                                                    imageVector = HugeIcons.Delete02,
+                                                    contentDescription = "删除预设",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             },
                             leadingContent = {
                                 ThemeDots(
                                     snapshot = preset?.snapshot,
                                     customThemes = settings.customThemes,
                                 )
-                            },
-                            trailingContent = {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    if (preset != null) {
-                                        OutlinedButton(onClick = { pendingApply = preset }) {
-                                            Text("应用")
-                                        }
-                                    }
-                                    Button(
-                                        onClick = {
-                                            savingSlot = slot
-                                            savingName = preset?.name
-                                                ?.ifBlank { "预设 ${slot + 1}" }
-                                                ?: "预设 ${slot + 1}"
-                                        }
-                                    ) {
-                                        Text(if (preset == null) "保存" else "覆盖")
-                                    }
-                                    // 空槽位不显示删除，但仍占位，避免按钮行左右跳动
-                                    if (preset != null) {
-                                        IconButton(onClick = { pendingDelete = preset }) {
-                                            Icon(
-                                                imageVector = HugeIcons.Delete02,
-                                                contentDescription = "删除预设",
-                                                tint = MaterialTheme.colorScheme.error,
-                                            )
-                                        }
-                                    } else {
-                                        Spacer(modifier = Modifier.width(48.dp))
-                                    }
-                                }
                             },
                             onClick = null,
                         )
@@ -348,6 +347,9 @@ private fun AppearanceSnapshot.themeNote(customThemes: List<CustomTheme>): Strin
         else -> "配色：$themeId"
     }
 }
+
+/** 按钮和文字同一列，收紧内边距，三个按钮在窄屏也能排开 */
+private val compactButtonPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
 
 private val presetTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
