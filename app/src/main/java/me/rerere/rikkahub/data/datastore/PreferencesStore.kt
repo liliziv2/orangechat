@@ -790,7 +790,12 @@ data class DisplaySetting(
      * 把当前显示设置中与"外观"相关的字段抽成一个预设快照。
      * 只包含视觉字段，不包含用户资料、行为开关等非外观项。
      */
-    fun toAppearanceSnapshot(): AppearanceSnapshot = AppearanceSnapshot(
+    fun toAppearanceSnapshot(
+        themeId: String = "",
+        dynamicColor: Boolean? = null,
+    ): AppearanceSnapshot = AppearanceSnapshot(
+        themeId = themeId,
+        dynamicColor = dynamicColor,
         chatBubbleTransparency = chatBubbleTransparency,
         thinkingChainTransparency = thinkingChainTransparency,
         fontSizeRatio = fontSizeRatio,
@@ -901,6 +906,10 @@ data class AppearancePreset(
  */
 @Serializable
 data class AppearanceSnapshot(
+    /** 配色方案 id（预设主题或自定义主题）。空 = 该预设不改动配色。 */
+    val themeId: String = "",
+    /** 是否跟随系统取色。null = 该预设不改动这一项。 */
+    val dynamicColor: Boolean? = null,
     val chatBubbleTransparency: Float = 0f,
     val thinkingChainTransparency: Float = 0f,
     val fontSizeRatio: Float = 1.0f,
@@ -966,6 +975,27 @@ data class BackupReminderConfig(
     val intervalDays: Int = 7,
     val lastBackupTime: Long = 0L,
 )
+
+/**
+ * 抓取当前外观快照。配色（themeId / dynamicColor）挂在 [Settings] 上，
+ * 所以要在这一层拼装，[DisplaySetting.toAppearanceSnapshot] 拿不到它们。
+ */
+fun Settings.captureAppearanceSnapshot(): AppearanceSnapshot =
+    displaySetting.toAppearanceSnapshot(themeId = themeId, dynamicColor = dynamicColor)
+
+/**
+ * 应用外观快照：既覆盖 [DisplaySetting] 的视觉字段，也切回快照记录的配色方案。
+ * 主题本身仍由主题管理页单独维护，这里只是记住"用哪一个"。
+ */
+fun Settings.applyAppearanceSnapshot(snapshot: AppearanceSnapshot): Settings {
+    val themeExists = snapshot.themeId.isNotBlank() &&
+        (PresetThemes.any { it.id == snapshot.themeId } || customThemes.any { it.id == snapshot.themeId })
+    return copy(
+        themeId = if (themeExists) snapshot.themeId else themeId,
+        dynamicColor = snapshot.dynamicColor ?: dynamicColor,
+        displaySetting = displaySetting.applyAppearanceSnapshot(snapshot),
+    )
+}
 
 fun Settings.isNotConfigured() = providers.all { it.models.isEmpty() }
 

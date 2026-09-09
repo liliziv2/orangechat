@@ -6,17 +6,27 @@
 
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,14 +43,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.rikkahub.data.datastore.AppearancePreset
+import me.rerere.rikkahub.data.datastore.AppearanceSnapshot
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.applyAppearanceSnapshot
+import me.rerere.rikkahub.data.datastore.captureAppearanceSnapshot
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.CustomTheme
+import me.rerere.rikkahub.ui.theme.findThemeById
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
@@ -49,7 +68,8 @@ import java.time.format.DateTimeFormatter
 
 /**
  * 外观预设：4 个槽位，保存当前的外观设置快照，一键切换。
- * 预设只覆盖视觉字段（颜色、透明度、字体、气泡、背景图等），不动行为开关和用户资料。
+ * 预设覆盖视觉字段（配色方案、颜色、透明度、字体、气泡、背景图等），不动行为开关和用户资料。
+ * 配色只记录 themeId，主题本身仍由「主题」页独立管理，两边互不吞并。
  */
 @Composable
 fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
@@ -62,10 +82,6 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
     var savingName by remember { mutableStateOf("") }
     var pendingApply by remember { mutableStateOf<AppearancePreset?>(null) }
     var pendingDelete by remember { mutableStateOf<AppearancePreset?>(null) }
-
-    fun updateDisplay(setting: DisplaySetting) {
-        vm.updateSettings(settings.copy(displaySetting = setting))
-    }
 
     Scaffold(
         topBar = {
@@ -96,8 +112,13 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "把当前的配色、透明度、字体、气泡样式保存成预设，之后一键切回。",
+                            text = "把当前的配色方案、透明度、字体、气泡样式保存成预设，之后一键切回。",
                             style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = "预设记录使用的主题，但不会复制主题本身；删除主题后该预设会保留当前配色。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = "预设不包含用户资料和功能开关。",
@@ -124,13 +145,23 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
                                     text = if (preset == null) {
                                         "空槽位"
                                     } else {
-                                        "保存于 ${preset.savedAt.toDisplayTime()}"
+                                        buildString {
+                                            append(preset.savedAt.toDisplayTime())
+                                            preset.snapshot.themeNote(settings.customThemes)
+                                                ?.let { append("\n$it") }
+                                        }
                                     }
+                                )
+                            },
+                            leadingContent = {
+                                ThemeDots(
+                                    snapshot = preset?.snapshot,
+                                    customThemes = settings.customThemes,
                                 )
                             },
                             trailingContent = {
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     if (preset != null) {
@@ -148,25 +179,24 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
                                     ) {
                                         Text(if (preset == null) "保存" else "覆盖")
                                     }
+                                    // 空槽位不显示删除，但仍占位，避免按钮行左右跳动
+                                    if (preset != null) {
+                                        IconButton(onClick = { pendingDelete = preset }) {
+                                            Icon(
+                                                imageVector = HugeIcons.Delete02,
+                                                contentDescription = "删除预设",
+                                                tint = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(modifier = Modifier.width(48.dp))
+                                    }
                                 }
                             },
-                            onClick = if (preset != null) {
-                                { pendingDelete = preset }
-                            } else {
-                                null
-                            },
+                            onClick = null,
                         )
                     }
                 }
-            }
-
-            item {
-                Text(
-                    text = "点击已保存的槽位可删除该预设。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
             }
         }
     }
@@ -190,13 +220,15 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
                         val newPreset = AppearancePreset(
                             slot = slot,
                             name = savingName.ifBlank { "预设 ${slot + 1}" },
-                            snapshot = displaySetting.toAppearanceSnapshot(),
+                            snapshot = settings.captureAppearanceSnapshot(),
                             savedAt = System.currentTimeMillis(),
                         )
-                        updateDisplay(
-                            displaySetting.copy(
-                                appearancePresets = displaySetting.appearancePresets
-                                    .filterNot { it.slot == slot } + newPreset
+                        vm.updateSettings(
+                            settings.copy(
+                                displaySetting = displaySetting.copy(
+                                    appearancePresets = displaySetting.appearancePresets
+                                        .filterNot { it.slot == slot } + newPreset
+                                )
                             )
                         )
                         savingSlot = -1
@@ -223,7 +255,7 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        updateDisplay(displaySetting.applyAppearanceSnapshot(preset.snapshot))
+                        vm.updateSettings(settings.applyAppearanceSnapshot(preset.snapshot))
                         pendingApply = null
                     }
                 ) {
@@ -242,14 +274,16 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             title = { Text("删除预设") },
-            text = { Text("删除「${preset.name.ifBlank { "预设 ${preset.slot + 1}" }}」？") },
+            text = { Text("删除「${preset.name.ifBlank { "预设 ${preset.slot + 1}" }}」？该槽位会变回空槽位。") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        updateDisplay(
-                            displaySetting.copy(
-                                appearancePresets = displaySetting.appearancePresets
-                                    .filterNot { it.slot == preset.slot }
+                        vm.updateSettings(
+                            settings.copy(
+                                displaySetting = displaySetting.copy(
+                                    appearancePresets = displaySetting.appearancePresets
+                                        .filterNot { it.slot == preset.slot }
+                                )
                             )
                         )
                         pendingDelete = null
@@ -264,6 +298,54 @@ fun SettingDisplayPresetPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         )
+    }
+}
+
+/**
+ * 三色叠圆预览，和主题页的自定义主题行保持一致的视觉语言。
+ * 空槽位或找不到主题时画成描边空圆。
+ */
+@Composable
+private fun ThemeDots(
+    snapshot: AppearanceSnapshot?,
+    customThemes: List<CustomTheme>,
+) {
+    val themeId = snapshot?.themeId.orEmpty()
+    val theme = remember(themeId, customThemes) {
+        if (themeId.isBlank()) null else findThemeById(themeId, customThemes)
+    }
+    // 跟随系统取色的预设没有固定配色，直接用当前生效的方案示意
+    val scheme = if (snapshot?.dynamicColor == true) {
+        MaterialTheme.colorScheme
+    } else {
+        theme?.getColorScheme(dark = false)
+    }
+    val outline = MaterialTheme.colorScheme.outlineVariant
+    val surface = MaterialTheme.colorScheme.surface
+    Box(modifier = Modifier.width(46.dp)) {
+        listOf(scheme?.primary, scheme?.secondary, scheme?.tertiary)
+            .forEachIndexed { index, color ->
+                Box(
+                    modifier = Modifier
+                        .offset(x = (index * 13).dp)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(color ?: Color.Transparent)
+                        .border(1.dp, if (color == null) outline else surface, CircleShape)
+                )
+            }
+    }
+}
+
+private fun AppearanceSnapshot.themeNote(customThemes: List<CustomTheme>): String? {
+    if (dynamicColor == true) return "配色：跟随系统取色"
+    if (themeId.isBlank()) return null
+    val theme = findThemeById(themeId, customThemes)
+    val customName = customThemes.find { it.id == themeId }?.name
+    return when {
+        theme == null -> "配色：主题已删除，应用时保持当前配色"
+        customName != null -> "配色：$customName"
+        else -> "配色：$themeId"
     }
 }
 
