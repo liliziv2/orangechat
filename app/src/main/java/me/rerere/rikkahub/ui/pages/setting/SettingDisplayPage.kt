@@ -100,6 +100,16 @@ fun SettingDisplayPage() {
                         headlineContent = { Text("通知与TTS") },
                         supportingContent = { Text("消息生成通知、TTS 自动朗读") },
                     )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingDisplayPreset) },
+                        headlineContent = { Text("外观预设") },
+                        supportingContent = { Text("保存 4 套外观方案，一键切换") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingDisplayUserProfile) },
+                        headlineContent = { Text("我的资料卡") },
+                        supportingContent = { Text("昵称、简介、人设，可注入到系统提示词") },
+                    )
                 }
             }
         }

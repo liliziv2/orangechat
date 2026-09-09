@@ -117,6 +117,14 @@ object DefaultPlaceholderProvider : PlaceholderProvider {
         placeholder("user", { Text(stringResource(R.string.placeholder_user)) }) {
             it.settingsStore.settingsFlow.value.displaySetting.userNickname.ifBlank { "user" }
         }
+
+        placeholder("user_bio", { Text("用户简介") }) {
+            it.settingsStore.settingsFlow.value.displaySetting.userBio
+        }
+
+        placeholder("user_persona", { Text("用户人设") }) {
+            it.settingsStore.settingsFlow.value.displaySetting.userPersona
+        }
     }
 
     private fun Temporal.toDateString() = DateTimeFormatter

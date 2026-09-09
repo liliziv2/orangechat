@@ -26,4 +26,6 @@ data class ProactiveMessageSetting(
     val aggressiveDebounceSeconds: Int = 30,
     // 悬浮球：主动消息到达时以 Telegram 风格悬浮球提醒，点击直接进入聊天页
     val floatingBubbleEnabled: Boolean = false,
+    // 来电横幅：AI 发起语音通话时，不直接抢占全屏，而是在当前页面顶部浮一条可接听/拒绝的横幅
+    val incomingCallBannerEnabled: Boolean = true,
 )

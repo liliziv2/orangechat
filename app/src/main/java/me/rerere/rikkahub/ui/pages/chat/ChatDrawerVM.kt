@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -51,7 +52,8 @@ class ChatDrawerVM(
         .distinctUntilChanged()
 
     // 当前选中的文件夹筛选，null 表示「未归类」视图
-    private val _selectedFolderId = MutableStateFlow<Uuid?>(null)
+    // 初值从持久化里读：这样在某个话题频道里新建对话时，新对话能落回同一个频道
+    private val _selectedFolderId = MutableStateFlow(TopicChannelPrefs.read(context))
     val selectedFolderId: StateFlow<Uuid?> = _selectedFolderId.asStateFlow()
 
     // 当前助手的文件夹列表（Room Flow，增删改自动刷新）
@@ -132,8 +134,9 @@ class ChatDrawerVM(
         // 助手切换时重置文件夹筛选，回到「未归类」视图，
         // 避免继续显示上一个助手文件夹内的会话（文件夹是助手内分组）
         viewModelScope.launch {
-            assistantIdFlow.collect {
+            assistantIdFlow.drop(1).collect {
                 _selectedFolderId.value = null
+                TopicChannelPrefs.write(context, null)
             }
         }
     }
@@ -145,6 +148,8 @@ class ChatDrawerVM(
 
     fun selectFolder(folderId: Uuid?) {
         _selectedFolderId.value = folderId
+        // 持久化当前频道，供"在频道内新建对话"继承
+        TopicChannelPrefs.write(context, folderId)
     }
 
     fun createFolder(name: String) {
@@ -176,6 +181,7 @@ class ChatDrawerVM(
             chatService.deleteFolder(folderId)
             if (_selectedFolderId.value == folderId) {
                 _selectedFolderId.value = null
+                TopicChannelPrefs.write(context, null)
             }
         }
         return true

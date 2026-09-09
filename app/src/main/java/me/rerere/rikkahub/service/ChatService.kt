@@ -385,11 +385,23 @@ class ChatService(
             // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()
             val assistant = currentSettings.getCurrentAssistant()
+            // 话题频道: 用户当前停留在某个频道里就把新对话归进去, 否则留在未归类
+            val inheritedFolderId = runCatching {
+                val savedFolderId = me.rerere.rikkahub.ui.pages.chat.TopicChannelPrefs.read(context)
+                if (savedFolderId == null) {
+                    null
+                } else {
+                    // 只在该频道确实属于当前助手时继承, 防止跨助手串频道
+                    val folders = folderRepository.getFoldersOfAssistant(assistant.id).first()
+                    savedFolderId.takeIf { id -> folders.any { it.id == id } }
+                }
+            }.getOrNull()
             val newConversation = Conversation.ofId(
                 id = conversationId,
                 assistantId = assistant.id,
                 newConversation = true
             ).updateCurrentMessages(assistant.presetMessages)
+                .copy(folderId = inheritedFolderId)
             updateConversation(conversationId, newConversation)
         }
     }
@@ -866,9 +878,9 @@ class ChatService(
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 workspaceCwd = conversation.workspaceCwd,
                 memories = if (assistant.useGlobalMemory) {
-                    memoryRepository.getGlobalMemories()
+                    memoryRepository.getGlobalMemoriesByPriority()
                 } else {
-                    memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+                    memoryRepository.getMemoriesOfAssistantByPriority(assistant.id.toString())
                 },
                 inputTransformers = buildList {
                     addAll(inputTransformers)

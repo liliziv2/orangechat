@@ -29,9 +29,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
@@ -106,6 +107,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
+import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -875,6 +877,8 @@ private fun TopBar(
             toaster.show(editTitleWarning, type = ToastType.Warning)
         }
     }
+    // 次要开关收进溢出菜单，图标行只保留抽屉/语音/新建
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -915,7 +919,7 @@ private fun TopBar(
                     Text(
                         text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
                         maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (model != null && provider != null) {
@@ -923,10 +927,8 @@ private fun TopBar(
                             text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName} (${provider.name})",
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -944,18 +946,41 @@ private fun TopBar(
 
             IconButton(
                 onClick = {
-                    onClickMenu()
-                }
-            ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
-            }
-
-            IconButton(
-                onClick = {
                     onNewChat()
                 }
             ) {
                 Icon(HugeIcons.MessageAdd01, "New Message")
+            }
+
+            // 次要开关（如预览模式）收进溢出菜单，保持图标行只有抽屉/语音/新建
+            Box {
+                IconButton(
+                    onClick = {
+                        showOverflowMenu = true
+                    }
+                ) {
+                    Icon(HugeIcons.MoreVertical, "更多")
+                }
+                DropdownMenu(
+                    expanded = showOverflowMenu,
+                    onDismissRequest = { showOverflowMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (previewMode) "退出预览模式" else "预览模式")
+                        },
+                        leadingIcon = {
+                            Icon(
+                                if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            onClickMenu()
+                        }
+                    )
+                }
             }
         },
     )

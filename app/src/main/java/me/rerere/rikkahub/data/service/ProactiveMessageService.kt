@@ -860,12 +860,22 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 append(effectiveSystemPrompt)
             }
 
+            // 用户资料卡
+            val display = settings.displaySetting
+            if (display.injectUserProfile) {
+                val profileBlock = me.rerere.rikkahub.data.ai.buildUserProfilePrompt(display)
+                if (profileBlock.isNotEmpty()) {
+                    appendLine()
+                    append(profileBlock)
+                }
+            }
+
             // 记忆（设备事件上下文移到最后面，避免被网关注入的内容淹没）
             if (assistant.enableMemory) {
                 val memories = if (assistant.useGlobalMemory) {
-                    memoryRepository.getGlobalMemories()
+                    memoryRepository.getGlobalMemoriesByPriority()
                 } else {
-                    memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+                    memoryRepository.getMemoriesOfAssistantByPriority(assistant.id.toString())
                 }
                 if (memories.isNotEmpty()) {
                     appendLine()

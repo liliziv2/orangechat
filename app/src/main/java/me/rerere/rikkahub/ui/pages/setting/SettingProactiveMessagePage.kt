@@ -197,6 +197,26 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
                                 )
                             }
                         )
+                        item(
+                            headlineContent = { Text("来电横幅") },
+                            supportingContent = {
+                                Text("AI 发起语音通话时先在顶部浮一条横幅，而不是直接跳到通话页")
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = settings.proactiveMessageSetting.incomingCallBannerEnabled,
+                                    onCheckedChange = { enabled ->
+                                        vm.updateSettings(
+                                            settings.copy(
+                                                proactiveMessageSetting = settings.proactiveMessageSetting.copy(
+                                                    incomingCallBannerEnabled = enabled
+                                                )
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                        )
                     }
                 }
             }

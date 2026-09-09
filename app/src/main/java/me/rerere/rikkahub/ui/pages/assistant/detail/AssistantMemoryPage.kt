@@ -22,17 +22,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,6 +60,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.ExternalMemory
+import me.rerere.rikkahub.data.model.MemoryCategory
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.pages.setting.settingsScaffoldContainerColor
@@ -109,6 +114,7 @@ fun AssistantMemoryPage(id: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AssistantMemoryContent(
     modifier: Modifier = Modifier,
@@ -141,17 +147,60 @@ private fun AssistantMemoryContent(
                 Text(stringResource(R.string.assistant_page_manage_memory_title))
             },
             text = {
-                TextField(
-                    value = memory.content,
-                    onValueChange = {
-                        update(memory.copy(content = it))
-                    },
-                    label = {
-                        Text(stringResource(R.string.assistant_page_manage_memory_title))
-                    },
-                    minLines = 2,
-                    maxLines = 8
-                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    TextField(
+                        value = memory.content,
+                        onValueChange = {
+                            update(memory.copy(content = it))
+                        },
+                        label = {
+                            Text(stringResource(R.string.assistant_page_manage_memory_title))
+                        },
+                        minLines = 2,
+                        maxLines = 8
+                    )
+
+                    Text(
+                        text = "分类",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        MemoryCategory.entries.fastForEach { category ->
+                            FilterChip(
+                                selected = memory.category == category,
+                                onClick = { update(memory.copy(category = category)) },
+                                label = { Text(category.displayName) },
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "优先级",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(
+                            AssistantMemory.PRIORITY_NORMAL to "普通",
+                            AssistantMemory.PRIORITY_IMPORTANT to "重要",
+                            AssistantMemory.PRIORITY_CRITICAL to "关键",
+                        ).fastForEach { (value, label) ->
+                            FilterChip(
+                                selected = memory.priority == value,
+                                onClick = { update(memory.copy(priority = value)) },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
@@ -443,10 +492,42 @@ private fun MemoryItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(
-                    text = "#${memory.id}",
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "#${memory.id}",
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                    )
+                    MemoryTag(
+                        text = memory.category.displayName,
+                        container = MaterialTheme.colorScheme.secondaryContainer,
+                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    if (memory.priority > 0) {
+                        MemoryTag(
+                            text = memory.priorityName,
+                            container = if (memory.priority >= AssistantMemory.PRIORITY_CRITICAL) {
+                                MaterialTheme.colorScheme.errorContainer
+                            } else {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            },
+                            content = if (memory.priority >= AssistantMemory.PRIORITY_CRITICAL) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onTertiaryContainer
+                            },
+                        )
+                    }
+                    if (memory.autoGenerated) {
+                        MemoryTag(
+                            text = "自动",
+                            container = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            content = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 Text(
                     text = memory.content,
 
@@ -469,5 +550,24 @@ private fun MemoryItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MemoryTag(
+    text: String,
+    container: androidx.compose.ui.graphics.Color,
+    content: androidx.compose.ui.graphics.Color,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.extraSmall,
+        color = container,
+        contentColor = content,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
     }
 }

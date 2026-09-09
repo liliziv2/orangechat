@@ -534,6 +534,9 @@ private fun MessagePartsBlock(
     val hapticFeedback = LocalHapticFeedback.current
     val displaySettings = LocalDisplaySettings.current
     val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
+    // 助手气泡描边: 仅当未使用自定义背景图/自定义气泡色时才画细描边, 避免破坏用户自定义外观
+    val assistantBubbleOutlined = displaySettings.assistantBubbleImagePath.isBlank() &&
+        displaySettings.assistantBubbleColor == null
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -654,6 +657,7 @@ private fun MessagePartsBlock(
                                                         bubbleAlpha = bubbleAlpha,
                                                         liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                                         messageTimeText = if (showMessageTime) messageTime else null,
+                                                        isUser = true,
                                                         onClick = { onUserMessageClick?.invoke() },
                                                         enableLiveBubbleBlur = true,
                                                     ) {
@@ -678,6 +682,7 @@ private fun MessagePartsBlock(
                                             bubbleAlpha = bubbleAlpha,
                                             liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                             messageTimeText = if (showMessageTime) messageTime else null,
+                                            isUser = true,
                                             onClick = { onUserMessageClick?.invoke() },
                                             enableLiveBubbleBlur = true,
                                         ) {
@@ -712,6 +717,8 @@ private fun MessagePartsBlock(
                                                         liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                                         messageTimeText = if (showMessageTime) messageTime else null,
                                                         enableLiveBubbleBlur = true,
+                                                        isUser = false,
+                                                        outlined = assistantBubbleOutlined,
                                                     ) {
                                                         MarkdownBlock(
                                                             content = segment.replaceRegexes(
@@ -748,6 +755,8 @@ private fun MessagePartsBlock(
                                             liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                             messageTimeText = if (showMessageTime) messageTime else null,
                                             enableLiveBubbleBlur = true,
+                                            isUser = false,
+                                            outlined = assistantBubbleOutlined,
                                         ) {
                                             MarkdownBlock(
                                                 content = displayText.replaceRegexes(
@@ -966,6 +975,12 @@ private fun MessagePartsBlock(
     }
 }
  
+/**
+ * 消息气泡容器。
+ *
+ * @param isUser 是否为用户气泡（右对齐）。用户气泡右下角收窄，助手气泡左下角收窄，形成非对称造型。
+ * @param outlined 是否绘制细描边。仅在助手气泡使用默认背景（无自定义背景图/自定义气泡色）时传 true。
+ */
 @Composable
 private fun BubbleSurface(
     imagePath: String,
@@ -976,6 +991,8 @@ private fun BubbleSurface(
     liquidGlassBubbles: Boolean = false,
     /** 非空时在气泡右下角显示该时间；由「消息内显示日期时间」开关控制。 */
     messageTimeText: String? = null,
+    isUser: Boolean = false,
+    outlined: Boolean = false,
     onClick: (() -> Unit)? = null,
     // 本轮原型：用户与助手的普通文本气泡传 true（最终由 LiveBubbleBlurContext 与 final 条件决定）
     enableLiveBubbleBlur: Boolean = false,
@@ -1166,7 +1183,22 @@ private fun BubbleSurface(
         }
     }
     // 气泡实际轮廓：玻璃/液态玻璃的贴边高光必须照它走，否则会在圆角处错位并被父级 clip 切掉一截。
-    val shape = RoundedCornerShape(cornerRadius)
+    // 非对称造型：用户气泡右下角收窄、助手气泡左下角收窄，指向各自的头像一侧。
+    val shape = if (isUser) {
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius * 0.25f,
+            bottomStart = cornerRadius,
+        )
+    } else {
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius,
+            bottomStart = cornerRadius * 0.25f,
+        )
+    }
     val bubbleLayoutDirection = LocalLayoutDirection.current
     // 实时模糊气泡专用：沿真实轮廓贴边的方向性硬高光（左上亮、向右下透明；昼夜强弱不同）
     val liveBubbleEdgeHighlightModifier = Modifier.drawWithCache {
@@ -1382,6 +1414,9 @@ private fun BubbleSurface(
             color = color.copy(alpha = effectiveAlpha),
             border = if (materialMode == DisplayMaterialMode.TRANSLUCENT) {
                 BorderStroke(1.dp, translucentBorderColor)
+            } else if (outlined) {
+                // 助手气泡默认背景时补一道细描边，把气泡从纯色底上区分出来
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             } else {
                 null
             },
