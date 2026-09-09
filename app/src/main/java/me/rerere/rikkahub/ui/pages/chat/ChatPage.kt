@@ -864,8 +864,9 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
-    // 顶栏摆了双头像就不再重复标题与「助手 / 模型」副标题——两者挤一行会双双被截断。
-    // 改名入口挪到头像上：点头像即弹出改标题对话框。
+    // 双头像版式下标题区被头像挤窄，所以走精简版：会话标题 + 模型名。
+    // 助手名由左侧头像本身表达，提供商名省掉，避免两行都被截断。
+    // 改名入口同时挂在头像和标题上。
     val topBarDualAvatar = settings.displaySetting.chatAvatarMode == ChatAvatarMode.SIDE &&
         settings.displaySetting.showTopBarDualAvatar
     val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
@@ -907,7 +908,6 @@ private fun TopBar(
             }
         },
         title = {
-            if (!topBarDualAvatar) {
             Surface(
                 onClick = openTitleEdit,
                 color = Color.Transparent,
@@ -916,15 +916,29 @@ private fun TopBar(
                     val assistant = settings.getCurrentAssistant()
                     val model = settings.getCurrentChatModel()
                     val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
+                    val assistantName = assistant.name.ifBlank {
+                        stringResource(R.string.assistant_page_default_assistant)
+                    }
                     Text(
                         text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
                         maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (topBarDualAvatar) {
+                            MaterialTheme.typography.titleSmall
+                        } else {
+                            MaterialTheme.typography.titleMedium
+                        },
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (model != null && provider != null) {
+                    // 双头像版式：只写模型名；常规版式：助手 / 模型 (提供商)
+                    val subtitle = when {
+                        model == null -> null
+                        topBarDualAvatar -> model.displayName
+                        provider == null -> null
+                        else -> "$assistantName / ${model.displayName} (${provider.name})"
+                    }
+                    if (subtitle != null) {
                         Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName} (${provider.name})",
+                            text = subtitle,
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -932,7 +946,6 @@ private fun TopBar(
                         )
                     }
                 }
-            }
             }
         },
         actions = {
