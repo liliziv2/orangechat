@@ -864,8 +864,7 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
-    // 双头像版式下标题区被头像挤窄，所以走精简版：会话标题 + 模型名。
-    // 助手名由左侧头像本身表达，提供商名省掉，避免两行都被截断。
+    // 双头像版式下标题区被头像挤窄，所以只留助手名一行，模型名和提供商名都不显示。
     // 改名入口同时挂在头像和标题上。
     val topBarDualAvatar = settings.displaySetting.chatAvatarMode == ChatAvatarMode.SIDE &&
         settings.displaySetting.showTopBarDualAvatar
@@ -919,19 +918,19 @@ private fun TopBar(
                     val assistantName = assistant.name.ifBlank {
                         stringResource(R.string.assistant_page_default_assistant)
                     }
+                    // 双头像版式：整栏只留助手名，像聊天软件的联系人标题；点它照样能改会话名
                     Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = if (topBarDualAvatar) {
-                            MaterialTheme.typography.titleSmall
+                        text = if (topBarDualAvatar) {
+                            assistantName
                         } else {
-                            MaterialTheme.typography.titleMedium
+                            conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) }
                         },
+                        maxLines = 1,
+                        style = MaterialTheme.typography.titleMedium,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    // 双头像版式：只写助手名；常规版式：助手 / 模型 (提供商)
                     val subtitle = when {
-                        topBarDualAvatar -> assistantName
+                        topBarDualAvatar -> null
                         model == null -> null
                         provider == null -> null
                         else -> "$assistantName / ${model.displayName} (${provider.name})"
