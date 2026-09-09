@@ -617,15 +617,15 @@ private fun MessagePartsBlock(
                             part.text.replace(Regex("\\[zip:[^\\]]+\\]", RegexOption.IGNORE_CASE), "")
                         }
                         
+                        // 关掉「语音条旁保留文字」时，有语音条就整块不渲染，避免一条回复占两份屏幕。
+                        // 判断放在 SelectionContainer 外面：留一个空容器的话，父 Column 的 spacedBy
+                        // 仍会为它算一份间距，把语音条整体往下推歪。语音条仍在后面的 part 分支渲染。
+                        val hideTextForVoice = role == MessageRole.ASSISTANT &&
+                            !displaySettings.showTextWithVoiceMessage &&
+                            parts.any { it is UIMessagePart.VoiceMessage }
+                        if (!hideTextForVoice) {
                         SelectionContainer {
                             Column {
-                                if (role == MessageRole.ASSISTANT &&
-                                    !displaySettings.showTextWithVoiceMessage &&
-                                    parts.any { it is UIMessagePart.VoiceMessage }
-                                ) {
-                                    // 关掉「语音条旁保留文字」时，有语音条就不渲染文字，避免一条回复占两份屏幕。
-                                    // 语音条仍在后面的 part 分支渲染。
-                                } else {
                                 if (role == MessageRole.USER) {
                                     if (!displaySettings.showUserBubble) {
                                         MarkdownBlock(
@@ -780,8 +780,8 @@ private fun MessagePartsBlock(
                                         )
                                     }
                                 }
-                                }
                             }
+                        }
                         }
                     }
  
@@ -813,9 +813,21 @@ private fun MessagePartsBlock(
                     }
  
                     is UIMessagePart.VoiceMessage -> {
+                        // 语音条跟同一条消息的文本气泡共用圆角、配色与透明度，
+                        // 这样两种消息版式（署名行 / 气泡侧边）下它都落在气泡该在的位置上。
                         VoiceMessageBubble(
                             voiceMessage = part,
                             isUser = role == MessageRole.USER,
+                            cornerRadius = displaySettings.bubbleCornerRadius.dp,
+                            bubbleColor = if (role == MessageRole.USER) {
+                                displaySettings.userBubbleColor?.let { it.toComposeColor() }
+                                    ?: MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                displaySettings.assistantBubbleColor?.let { it.toComposeColor() }
+                                    ?: MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                            bubbleAlpha = bubbleAlpha,
+                            outlined = role != MessageRole.USER && assistantBubbleOutlined,
                         )
                     }
  
@@ -1601,10 +1613,13 @@ internal fun AudioPlayerBubble(url: String) {
 internal fun VoiceMessageBubble(
     voiceMessage: UIMessagePart.VoiceMessage,
     isUser: Boolean,
+    cornerRadius: Dp = 16.dp,
+    bubbleColor: Color? = null,
+    bubbleAlpha: Float = 1f,
+    outlined: Boolean = false,
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
-    var showTranscript by remember(voiceMessage.url) { mutableStateOf(false) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var positionMs by remember(voiceMessage.url) { mutableIntStateOf(0) }
 
@@ -1644,10 +1659,44 @@ internal fun VoiceMessageBubble(
         }
     }
  
+    // 与文本气泡同一套非对称造型：用户右下角收窄、助手左下角收窄，指向各自头像一侧。
+    val shape = if (isUser) {
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius * 0.25f,
+            bottomStart = cornerRadius,
+        )
+    } else {
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius,
+            bottomStart = cornerRadius * 0.25f,
+        )
+    }
+    val resolvedColor = bubbleColor ?: if (isUser) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    // 半透明材质下跟文本气泡吃同一个基础透明度，否则同一条消息里语音条会比文字气泡明显更实。
+    val voiceMaterialMode = LocalMaterialMode.current
+    val effectiveAlpha = if (voiceMaterialMode == DisplayMaterialMode.TRANSLUCENT) {
+        TRANSLUCENT_BUBBLE_BASE_ALPHA * bubbleAlpha
+    } else {
+        bubbleAlpha
+    }
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (isUser) MaterialTheme.colorScheme.secondaryContainer
-        else MaterialTheme.colorScheme.tertiaryContainer,
+        shape = shape,
+        color = resolvedColor.copy(alpha = resolvedColor.alpha * effectiveAlpha),
+        border = when {
+            voiceMaterialMode == DisplayMaterialMode.TRANSLUCENT ->
+                BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = TRANSLUCENT_BUBBLE_BORDER_ALPHA))
+
+            outlined -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            else -> null
+        },
         onClick = {
             val existing = mediaPlayer
             when {
@@ -1678,73 +1727,49 @@ internal fun VoiceMessageBubble(
             }
         },
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) HugeIcons.PauseCircle else HugeIcons.PlayCircle,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                // 真波形：解码音频文件取振幅包络，点/拖可定位
-                val playedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
-                else MaterialTheme.colorScheme.primary
-                val unplayedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f)
-                else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.35f)
-                VoiceWaveform(
-                    amplitudes = amplitudes,
-                    progress = progress,
-                    playedColor = playedColor,
-                    unplayedColor = unplayedColor,
-                    modifier = Modifier.width(90.dp).height(24.dp),
-                    onSeek = { ratio ->
-                        mediaPlayer?.let { mp ->
-                            val target = (ratio * mp.duration).toInt().coerceAtLeast(0)
-                            mp.seekTo(target)
-                            positionMs = target
-                        }
-                    },
-                )
-                // 播放中报剩余，停下报总长（跟 Operit 一致）
-                val shownSec = if (isPlaying) {
-                    ((voiceMessage.duration - positionMs) / 1000).coerceAtLeast(0)
-                } else durationSec
-                Text(
-                    text = "${shownSec}″",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
-            // 语音条默认只留声音；需要核对原文时再按需展开，避免同一回复占两份屏幕。
-            if (voiceMessage.transcript.isNotBlank()) {
-                TextButton(
-                    onClick = { showTranscript = !showTranscript },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 0.dp),
-                ) {
-                    Text(
-                        text = if (showTranscript) "收起文字" else "显示文字",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.68f)
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    )
-                }
-            }
-            if (showTranscript && voiceMessage.transcript.isNotBlank()) {
-                Text(
-                    text = voiceMessage.transcript,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 2.dp),
-                    maxLines = 12,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        // 语音条只有一行：播放键 + 波形 + 时长。原来外面还套了一层 Column 撑「显示文字」按钮，
+        // 那个按钮让气泡凭空高出一行、也把语音条的重心压偏，一并去掉。
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = if (isPlaying) HugeIcons.PauseCircle else HugeIcons.PlayCircle,
+                contentDescription = if (isPlaying) "Pause" else "Play",
+                tint = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            // 真波形：解码音频文件取振幅包络，点/拖可定位
+            val playedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
+            else MaterialTheme.colorScheme.primary
+            val unplayedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.35f)
+            VoiceWaveform(
+                amplitudes = amplitudes,
+                progress = progress,
+                playedColor = playedColor,
+                unplayedColor = unplayedColor,
+                modifier = Modifier.width(90.dp).height(24.dp),
+                onSeek = { ratio ->
+                    mediaPlayer?.let { mp ->
+                        val target = (ratio * mp.duration).toInt().coerceAtLeast(0)
+                        mp.seekTo(target)
+                        positionMs = target
+                    }
+                },
+            )
+            // 播放中报剩余，停下报总长（跟 Operit 一致）
+            val shownSec = if (isPlaying) {
+                ((voiceMessage.duration - positionMs) / 1000).coerceAtLeast(0)
+            } else durationSec
+            Text(
+                text = "${shownSec}″",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSecondaryContainer,
+            )
         }
     }
 }

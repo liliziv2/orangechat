@@ -158,7 +158,9 @@ fun SettingDisplayNotificationPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         headlineContent = { Text("语音条旁保留文字") },
-                        supportingContent = { Text("关掉后，有语音条的回复只显示语音条，不显示文字") },
+                        supportingContent = {
+                            Text("关掉后，有语音条的回复只显示语音条。语音条本身不再带展开文字的按钮，想看原文就开着这项")
+                        },
                         trailingContent = {
                             Switch(
                                 checked = displaySetting.showTextWithVoiceMessage,
