@@ -9,11 +9,44 @@ package me.rerere.rikkahub.data.ai
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.toLocalDate
+
+/**
+ * 用户资料卡注入。昵称 / 简介 / 人设都为空时返回空串，不占用 prompt。
+ */
+internal fun buildUserProfilePrompt(display: DisplaySetting): String {
+    val nickname = display.userNickname.trim()
+    val bio = display.userBio.trim()
+    val persona = display.userPersona.trim()
+    if (nickname.isEmpty() && bio.isEmpty() && persona.isEmpty()) return ""
+    return buildString {
+        appendLine()
+        append("**User Profile**")
+        appendLine()
+        append("This is who you are talking to. Use it naturally; do not recite it back to the user.")
+        appendLine()
+        if (nickname.isNotEmpty()) {
+            append("- Name / nickname: ")
+            append(nickname)
+            appendLine()
+        }
+        if (bio.isNotEmpty()) {
+            append("- About the user: ")
+            append(bio)
+            appendLine()
+        }
+        if (persona.isNotEmpty()) {
+            append("- The role the user plays in this conversation: ")
+            append(persona)
+            appendLine()
+        }
+    }
+}
 
 internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
     buildString {
@@ -22,11 +55,21 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
         appendLine()
         append("These are memories stored via the memory_tool that you can reference in future conversations.")
         appendLine()
+        append("They are sorted by priority (critical first). `category` is a semantic grouping;")
+        appendLine()
+        append("`priority` is 0=normal, 1=important, 2=critical. Treat priority=2 as never-forget facts.")
+        appendLine()
+        val sorted = memories.sortedWith(
+            compareByDescending<AssistantMemory> { it.priority }
+                .thenBy { it.id }
+        )
         val json = buildJsonArray {
-            memories.forEach { memory ->
+            sorted.forEach { memory ->
                 add(buildJsonObject {
                     put("id", memory.id)
                     put("content", memory.content)
+                    put("category", memory.category.serialName)
+                    put("priority", memory.priority)
                 })
             }
         }

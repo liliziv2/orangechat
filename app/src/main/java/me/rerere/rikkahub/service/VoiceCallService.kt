@@ -36,7 +36,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.VOICE_CALL_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.MemoryCategory
+import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.ui.hooks.CustomAsrState
 import me.rerere.rikkahub.ui.hooks.CustomTtsState
 import me.rerere.rikkahub.ui.hooks.createCustomAsrState
@@ -64,6 +67,15 @@ class VoiceCallService : Service(), KoinComponent {
     private val chatService: ChatService by inject()
     private val httpClient: OkHttpClient by inject()
     private val settingsStore: SettingsStore by inject()
+    private val memoryRepository: MemoryRepository by inject()
+
+    // 挂断时写通话摘要用的独立作用域.
+    // 不能用 serviceScope: onDestroy 会先 endCall() 再 cancel() 掉它, 摘要还没落库就被取消了.
+    private val summaryScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e ->
+            Log.e(TAG, "保存通话摘要协程异常", e)
+        }
+    )
 
     private val serviceScope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, e ->
@@ -99,6 +111,11 @@ class VoiceCallService : Service(), KoinComponent {
     // 静音状态 (独立于 _uiState.isMuted, 检测循环里直接读这个字段更快)
     private var isMuted: Boolean = false
 
+    // 心跳: 用户长时间没说话时由助手主动开口, 连续多次无人回应则自动挂断
+    private var heartbeatJob: Job? = null
+    private var heartbeatCount: Int = 0
+    private var lastUserActivityTime: Long = 0L
+
     companion object {
         private val _activeConversationId = MutableStateFlow<String?>(null)
         val activeConversationId: StateFlow<String?> = _activeConversationId.asStateFlow()
@@ -130,6 +147,12 @@ class VoiceCallService : Service(), KoinComponent {
         const val EXTRA_CONVERSATION_ID = "conversationId"
         const val ACTION_HANG_UP = "me.rerere.rikkahub.VOICE_CALL_HANG_UP"
         const val NOTIFICATION_ID = 40001
+
+        /** 无人说话多久后由助手主动开口 */
+        const val SILENCE_HEARTBEAT_MS = 45_000L
+
+        /** 连续心跳多少次仍无人回应就自动挂断 */
+        const val MAX_SILENCE_HEARTBEATS = 2
     }
 
     // Binder, 供 VoiceCallPage bindService 用
@@ -290,9 +313,11 @@ class VoiceCallService : Service(), KoinComponent {
             return
         }
 
+        heartbeatCount = 0
         startVadDetection()
         startAsrMonitor()
         startConversationMonitor()
+        startHeartbeat()
     }
 
     /**
@@ -384,6 +409,121 @@ class VoiceCallService : Service(), KoinComponent {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * 通话心跳.
+     *
+     * 真人打电话不会一直沉默。用户超过 [SILENCE_HEARTBEAT_MS] 没说话时,
+     * 让助手主动开口一次(把它当成一条来自系统的提示消息发给模型);
+     * 连续 [MAX_SILENCE_HEARTBEATS] 次都没人回应就自动挂断, 避免空跑烧 token 和麦克风。
+     *
+     * 只在 Listening 状态计时: Processing/Speaking 期间本来就有声音, 不该催。
+     */
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        lastUserActivityTime = System.currentTimeMillis()
+        heartbeatJob = serviceScope.launch {
+            var lastTranscript = ""
+            while (true) {
+                delay(1000)
+                val state = _uiState.value
+                if (state.status == VoiceCallStatus.Idle) break
+                if (state.status == VoiceCallStatus.Error) continue
+
+                // 非 Listening 状态(AI 正在想/说) 视为有活动, 重置计时
+                if (state.status != VoiceCallStatus.Listening) {
+                    lastUserActivityTime = System.currentTimeMillis()
+                    continue
+                }
+
+                // 用户静音时不催
+                if (isMuted) {
+                    lastUserActivityTime = System.currentTimeMillis()
+                    continue
+                }
+
+                // 转写有变化 = 用户在说话
+                val transcript = state.userTranscript
+                if (transcript != lastTranscript) {
+                    lastTranscript = transcript
+                    lastUserActivityTime = System.currentTimeMillis()
+                    heartbeatCount = 0
+                    continue
+                }
+
+                val silentFor = System.currentTimeMillis() - lastUserActivityTime
+                if (silentFor < SILENCE_HEARTBEAT_MS) continue
+
+                if (heartbeatCount >= MAX_SILENCE_HEARTBEATS) {
+                    Log.d(TAG, "心跳超过上限, 自动挂断, conversationId=$conversationId")
+                    // endCall() 会 cancel 掉 heartbeatJob(也就是当前协程),
+                    // 所以放到 serviceScope 另起一个协程执行, 这里先退出循环
+                    serviceScope.launch {
+                        endCall()
+                        stopSelf()
+                    }
+                    break
+                }
+
+                heartbeatCount++
+                lastUserActivityTime = System.currentTimeMillis()
+                sendHeartbeatPrompt(heartbeatCount)
+            }
+        }
+    }
+
+    /**
+     * 给模型发一条"对方没说话"的提示, 让它自己决定说什么(关心、换话题或准备道别).
+     * 这里不写死台词, 交给助人设去表达。
+     */
+    private suspend fun sendHeartbeatPrompt(round: Int) {
+        val hint = if (round >= MAX_SILENCE_HEARTBEATS) {
+            "[通话提示] 对方已经沉默很久了，用一句话温和地问要不要先挂断，不要长篇大论。"
+        } else {
+            "[通话提示] 对方沉默了一会儿，主动说一句话打破沉默：可以关心一下，也可以换个轻松的话题。只说一句。"
+        }
+
+        _uiState.update {
+            it.copy(status = VoiceCallStatus.Processing, assistantText = "")
+        }
+        ttsSentLength = 0
+        lastAssistantText = ""
+
+        try {
+            chatService.sendMessage(conversationId, listOf(UIMessagePart.Text(hint)))
+        } catch (e: Exception) {
+            Log.e(TAG, "心跳消息发送失败, conversationId=$conversationId", e)
+            // 发送失败就退回监听, 不要卡在 Processing
+            startListening()
+        }
+    }
+
+    /**
+     * 挂断时把这次通话记一笔到助手记忆里 (自动生成、普通优先级).
+     * 只在确实聊过内容时写, 内容是最后一次对话的摘要片段, 不做额外模型调用。
+     */
+    private fun saveCallSummary() {
+        val assistantText = _uiState.value.assistantText.trim()
+        val convId = if (::conversationId.isInitialized) conversationId else return
+        if (assistantText.isBlank()) return
+
+        summaryScope.launch {
+            runCatching {
+                val conv = chatService.getConversationFlow(convId).value
+                val messageCount = conv.currentMessages.size
+                if (messageCount < 2) return@runCatching
+
+                val excerpt = assistantText.take(120).replace("\n", " ")
+                memoryRepository.addMemory(
+                    assistantId = conv.assistantId.toString(),
+                    content = "[call_summary] 通话结束，共 $messageCount 条消息。最后聊到：$excerpt",
+                    category = MemoryCategory.EVENT,
+                    priority = AssistantMemory.PRIORITY_NORMAL,
+                    autoGenerated = true,
+                )
+            }.onFailure { Log.e(TAG, "保存通话摘要失败", it) }
         }
     }
 
@@ -709,6 +849,12 @@ class VoiceCallService : Service(), KoinComponent {
      * 额外复位 _activeConversationId 和移除前台通知.
      */
     fun endCall() {
+        // 状态还没归零时先记一笔通话摘要, 否则读不到 assistantText
+        if (_uiState.value.status != VoiceCallStatus.Idle) {
+            saveCallSummary()
+        }
+        heartbeatJob?.cancel()
+        heartbeatCount = 0
         vadJob?.cancel()
         speakingMonitorJob?.cancel()
         conversationMonitorJob?.cancel()

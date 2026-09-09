@@ -20,13 +20,14 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.model.MemoryCategory
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
 
 fun buildMemoryTools(
     json: Json,
-    onCreation: suspend (String) -> AssistantMemory,
-    onUpdate: suspend (Int, String) -> AssistantMemory,
+    onCreation: suspend (String, MemoryCategory, Int) -> AssistantMemory,
+    onUpdate: suspend (Int, String, MemoryCategory?, Int?) -> AssistantMemory,
     onDelete: suspend (Int) -> Unit
 ): List<Tool> = listOf(
     Tool(
@@ -44,9 +45,18 @@ fun buildMemoryTools(
             Today is ${LocalDate.now().toLocalString(true)}.
             Similar memories should be merged; prefer updating existing records.
 
+            Optional `category` groups the record: `preference` (likes/dislikes/style),
+            `fact` (stable facts about the user), `plan` (future intentions/schedule),
+            `relation` (people around the user), `event` (something that happened),
+            `general` (anything else). Defaults to `general`.
+            Optional `priority` marks how important the record is: 0 normal, 1 important, 2 critical.
+            Use 2 only for information that must never be forgotten (e.g., the user's preferred name,
+            hard constraints, health-related restrictions). Defaults to 0.
+
             Examples:
-            {"action":"create","content":"User prefers brief replies and is more active on weekends."}
-            {"action":"edit","id":12,"content":"User’s preferred name updated to “A-Xing”, prefers Chinese replies."}
+            {"action":"create","content":"User prefers brief replies and is more active on weekends.","category":"preference"}
+            {"action":"create","content":"User's preferred name is “A-Xing”.","category":"fact","priority":2}
+            {"action":"edit","id":12,"content":"User’s preferred name updated to “A-Xing”, prefers Chinese replies.","priority":2}
             {"action":"delete","id":7}
         """.trimIndent(),
         parameters = {
@@ -72,6 +82,25 @@ fun buildMemoryTools(
                         put("type", "string")
                         put("description", "The content of the memory record (required for create/edit)")
                     })
+                    put("category", buildJsonObject {
+                        put("type", "string")
+                        put(
+                            "enum",
+                            buildJsonArray {
+                                add("general")
+                                add("preference")
+                                add("fact")
+                                add("plan")
+                                add("relation")
+                                add("event")
+                            }
+                        )
+                        put("description", "Optional category of the memory record, defaults to general")
+                    })
+                    put("priority", buildJsonObject {
+                        put("type", "integer")
+                        put("description", "Optional importance: 0 normal, 1 important, 2 critical. Defaults to 0")
+                    })
                 },
                 required = listOf("action")
             )
@@ -79,16 +108,25 @@ fun buildMemoryTools(
         execute = {
             val params = it.jsonObject
             val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
+            val categoryParam = params["category"]?.jsonPrimitive?.contentOrNull
+                ?.let { MemoryCategory.fromSerialName(it) }
+            val priorityParam = params["priority"]?.jsonPrimitive?.intOrNull?.coerceIn(0, 2)
             val payload = when (action) {
                 "create" -> {
                     val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                    json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content))
+                    val memory = onCreation(
+                        content,
+                        categoryParam ?: MemoryCategory.GENERAL,
+                        priorityParam ?: 0
+                    )
+                    json.encodeToJsonElement(AssistantMemory.serializer(), memory)
                 }
 
                 "edit" -> {
                     val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
                     val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                    json.encodeToJsonElement(AssistantMemory.serializer(), onUpdate(id, content))
+                    val memory = onUpdate(id, content, categoryParam, priorityParam)
+                    json.encodeToJsonElement(AssistantMemory.serializer(), memory)
                 }
 
                 "delete" -> {

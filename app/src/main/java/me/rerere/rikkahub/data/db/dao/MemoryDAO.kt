@@ -41,4 +41,25 @@ interface MemoryDAO {
 
     @Query("DELETE FROM memoryentity WHERE assistant_id = :assistantId")
     suspend fun deleteMemoriesOfAssistant(assistantId: String)
+
+    /**
+     * 按分类查询某助手的记忆。
+     */
+    @Query("SELECT * FROM memoryentity WHERE assistant_id = :assistantId AND category = :category")
+    fun getMemoriesOfCategoryFlow(assistantId: String, category: String): Flow<List<MemoryEntity>>
+
+    /**
+     * 按优先级降序、创建时间降序查询，用于注入 prompt 时优先给出关键记忆。
+     */
+    @Query(
+        "SELECT * FROM memoryentity WHERE assistant_id = :assistantId " +
+            "ORDER BY priority DESC, create_at DESC, id DESC"
+    )
+    suspend fun getMemoriesOfAssistantByPriority(assistantId: String): List<MemoryEntity>
+
+    @Query("UPDATE memoryentity SET category = :category WHERE id = :id")
+    suspend fun updateCategory(id: Int, category: String)
+
+    @Query("UPDATE memoryentity SET priority = :priority WHERE id = :id")
+    suspend fun updatePriority(id: Int, priority: Int)
 }

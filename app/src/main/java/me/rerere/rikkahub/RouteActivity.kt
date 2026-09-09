@@ -142,6 +142,8 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDisplayGeneralPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayIllustrationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayMessagePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayNotificationPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPresetPage
+import me.rerere.rikkahub.ui.pages.setting.SettingDisplayUserProfilePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayTransparencyPage
@@ -168,7 +170,8 @@ import me.rerere.rikkahub.ui.components.ui.EmojiPickerPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
- import me.rerere.rikkahub.ui.pages.voice.IncomingCallPage
+import me.rerere.rikkahub.ui.pages.voice.IncomingCallBanner
+import me.rerere.rikkahub.ui.pages.voice.IncomingCallPage
  import me.rerere.rikkahub.ui.pages.voice.VoiceCallPage
 import me.rerere.rikkahub.service.VoiceCallService
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
@@ -371,6 +374,10 @@ class RouteActivity : ComponentActivity() {
         val backStack = rememberNavBackStack(startScreen)
         SideEffect { this@RouteActivity.navStack = backStack }
 
+        // 来电横幅当前对应的对话 id, null 表示没有待接听来电
+        var incomingCallBannerConvId by remember { mutableStateOf<String?>(null) }
+        val bannerChatService = koinInject<ChatService>()
+
         ShareHandler(backStack)
 
         // 监听 App 事件: TTS 朗读 / AI 主动发起语音通话
@@ -386,7 +393,12 @@ class RouteActivity : ComponentActivity() {
                         if (VoiceCallService.activeConversationId.value != null) return@collect
                         // 防止重复叠加来电页
                         val alreadyIncoming = backStack.lastOrNull() is Screen.IncomingCall
-                        if (!alreadyIncoming) {
+                        if (alreadyIncoming) return@collect
+
+                        // 开了来电横幅: 先浮一条横幅, 用户点接听才进整页, 不抢占当前操作
+                        if (settings.proactiveMessageSetting.incomingCallBannerEnabled) {
+                            incomingCallBannerConvId = convId
+                        } else {
                             backStack.add(Screen.IncomingCall(convId))
                         }
                     }
@@ -571,6 +583,12 @@ class RouteActivity : ComponentActivity() {
                             }
                             entry<Screen.SettingDisplayNotification> {
                                 SettingDisplayNotificationPage()
+                            }
+                            entry<Screen.SettingDisplayPreset> {
+                                SettingDisplayPresetPage()
+                            }
+                            entry<Screen.SettingDisplayUserProfile> {
+                                SettingDisplayUserProfilePage()
                             }
 
                             entry<Screen.SettingProvider> {
@@ -891,6 +909,37 @@ entry<Screen.Extensions> {
                             }
                         }
                     }
+
+                    // 来电横幅: 浮在当前页面顶部, 不打断用户手上的操作
+                    val bannerConvId = incomingCallBannerConvId
+                    IncomingCallBanner(
+                        visible = bannerConvId != null,
+                        callerName = settings.getCurrentAssistant().name,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        onAccept = {
+                            val convId = bannerConvId
+                            incomingCallBannerConvId = null
+                            if (convId != null) {
+                                // 先停掉聊天侧 TTS, 避免抢音频焦点影响 ASR
+                                runCatching { tts.stop() }
+                                if (VoiceCallService.activeConversationId.value == null) {
+                                    VoiceCallService.start(this@RouteActivity, convId)
+                                }
+                                backStack.add(Screen.VoiceCall(convId))
+                            }
+                        },
+                        onDismiss = {
+                            val convId = bannerConvId
+                            incomingCallBannerConvId = null
+                            if (convId != null) {
+                                runCatching {
+                                    bannerChatService.notifyVoiceCallDeclined(Uuid.parse(convId))
+                                }.onFailure {
+                                    Log.e(TAG, "来电横幅拒绝失败, conversationId=$convId", it)
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -987,6 +1036,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingDisplayNotification : Screen
+
+    @Serializable
+    data object SettingDisplayPreset : Screen
+
+    @Serializable
+    data object SettingDisplayUserProfile : Screen
 
     @Serializable
     data object SettingProvider : Screen

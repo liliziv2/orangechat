@@ -718,6 +718,127 @@ data class DisplaySetting(
     val assistantBubbleImagePath: String = "",
     val bubbleCornerRadius: Float = 16f,
     val bubbleImageOverlayEnabled: Boolean = false, // 关=纯图片, 开=图片+主题色遮罩
+    // 用户资料卡：会注入到 system prompt，让助手知道"你在跟谁说话"
+    val userBio: String = "",
+    val userPersona: String = "",
+    val injectUserProfile: Boolean = true,
+    // 外观预设槽位（4 个），保存/读取当前的外观相关字段快照
+    val appearancePresets: List<AppearancePreset> = emptyList(),
+) {
+    /**
+     * 把当前显示设置中与"外观"相关的字段抽成一个预设快照。
+     * 只包含视觉字段，不包含用户资料、行为开关等非外观项。
+     */
+    fun toAppearanceSnapshot(): AppearanceSnapshot = AppearanceSnapshot(
+        chatBubbleTransparency = chatBubbleTransparency,
+        thinkingChainTransparency = thinkingChainTransparency,
+        fontSizeRatio = fontSizeRatio,
+        thinkingFontSizeRatio = thinkingFontSizeRatio,
+        chatFontFamily = chatFontFamily,
+        customFontPath = customFontPath,
+        inputBackgroundPath = inputBackgroundPath,
+        userAvatarFramePath = userAvatarFramePath,
+        aiAvatarFramePath = aiAvatarFramePath,
+        drawerBackgroundPath = drawerBackgroundPath,
+        drawerItemAlpha = drawerItemAlpha,
+        chatTextColor = chatTextColor,
+        globalTextColor = globalTextColor,
+        userBubbleColor = userBubbleColor,
+        assistantBubbleColor = assistantBubbleColor,
+        thinkingBubbleColor = thinkingBubbleColor,
+        chatBackgroundColor = chatBackgroundColor,
+        primaryColor = primaryColor,
+        inputFieldColor = inputFieldColor,
+        userBubbleImagePath = userBubbleImagePath,
+        assistantBubbleImagePath = assistantBubbleImagePath,
+        bubbleCornerRadius = bubbleCornerRadius,
+        bubbleImageOverlayEnabled = bubbleImageOverlayEnabled,
+        showAssistantBubble = showAssistantBubble,
+        showUserAvatar = showUserAvatar,
+        enableBlurEffect = enableBlurEffect,
+    )
+
+    /**
+     * 用预设快照覆盖当前的外观字段，其它字段保持不变。
+     */
+    fun applyAppearanceSnapshot(snapshot: AppearanceSnapshot): DisplaySetting = copy(
+        chatBubbleTransparency = snapshot.chatBubbleTransparency,
+        thinkingChainTransparency = snapshot.thinkingChainTransparency,
+        fontSizeRatio = snapshot.fontSizeRatio,
+        thinkingFontSizeRatio = snapshot.thinkingFontSizeRatio,
+        chatFontFamily = snapshot.chatFontFamily,
+        customFontPath = snapshot.customFontPath,
+        inputBackgroundPath = snapshot.inputBackgroundPath,
+        userAvatarFramePath = snapshot.userAvatarFramePath,
+        aiAvatarFramePath = snapshot.aiAvatarFramePath,
+        drawerBackgroundPath = snapshot.drawerBackgroundPath,
+        drawerItemAlpha = snapshot.drawerItemAlpha,
+        chatTextColor = snapshot.chatTextColor,
+        globalTextColor = snapshot.globalTextColor,
+        userBubbleColor = snapshot.userBubbleColor,
+        assistantBubbleColor = snapshot.assistantBubbleColor,
+        thinkingBubbleColor = snapshot.thinkingBubbleColor,
+        chatBackgroundColor = snapshot.chatBackgroundColor,
+        primaryColor = snapshot.primaryColor,
+        inputFieldColor = snapshot.inputFieldColor,
+        userBubbleImagePath = snapshot.userBubbleImagePath,
+        assistantBubbleImagePath = snapshot.assistantBubbleImagePath,
+        bubbleCornerRadius = snapshot.bubbleCornerRadius,
+        bubbleImageOverlayEnabled = snapshot.bubbleImageOverlayEnabled,
+        showAssistantBubble = snapshot.showAssistantBubble,
+        showUserAvatar = snapshot.showUserAvatar,
+        enableBlurEffect = snapshot.enableBlurEffect,
+    )
+
+    companion object {
+        /** 外观预设槽位数量 */
+        const val APPEARANCE_PRESET_SLOTS = 4
+    }
+}
+
+/**
+ * 外观预设槽位。slot 为 0..3，空槽位不出现在 [DisplaySetting.appearancePresets] 里。
+ */
+@Serializable
+data class AppearancePreset(
+    val slot: Int,
+    val name: String = "",
+    val snapshot: AppearanceSnapshot = AppearanceSnapshot(),
+    val savedAt: Long = 0L,
+)
+
+/**
+ * 外观字段快照。新增外观字段时同步更新这里以及
+ * [DisplaySetting.toAppearanceSnapshot] / [DisplaySetting.applyAppearanceSnapshot]。
+ */
+@Serializable
+data class AppearanceSnapshot(
+    val chatBubbleTransparency: Float = 0f,
+    val thinkingChainTransparency: Float = 0f,
+    val fontSizeRatio: Float = 1.0f,
+    val thinkingFontSizeRatio: Float = 1.0f,
+    val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
+    val customFontPath: String = "",
+    val inputBackgroundPath: String = "",
+    val userAvatarFramePath: String = "",
+    val aiAvatarFramePath: String = "",
+    val drawerBackgroundPath: String = "",
+    val drawerItemAlpha: Float = 1f,
+    val chatTextColor: Long? = null,
+    val globalTextColor: Long? = null,
+    val userBubbleColor: Long? = null,
+    val assistantBubbleColor: Long? = null,
+    val thinkingBubbleColor: Long? = null,
+    val chatBackgroundColor: Long? = null,
+    val primaryColor: Long? = null,
+    val inputFieldColor: Long? = null,
+    val userBubbleImagePath: String = "",
+    val assistantBubbleImagePath: String = "",
+    val bubbleCornerRadius: Float = 16f,
+    val bubbleImageOverlayEnabled: Boolean = false,
+    val showAssistantBubble: Boolean = false,
+    val showUserAvatar: Boolean = true,
+    val enableBlurEffect: Boolean = false,
 )
 
 @Serializable

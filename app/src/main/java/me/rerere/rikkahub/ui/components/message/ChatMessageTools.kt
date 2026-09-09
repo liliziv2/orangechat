@@ -9,6 +9,7 @@ package me.rerere.rikkahub.ui.components.message
 import android.util.Log
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,6 +39,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
@@ -62,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -89,6 +92,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.highlight.HighlightText
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clipboard
@@ -324,30 +328,41 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         else -> false
     } || isDenied || images.isNotEmpty() || audios.isNotEmpty()
 
-    ControlledChainOfThoughtStep(
+    // 工具执行是否失败: 被拒绝, 或结果里带 error / success=false
+    val isFailed = isDenied ||
+        content?.jsonObjectOrNull?.get("error") != null ||
+        content?.jsonObjectOrNull?.get("success")?.jsonPrimitiveOrNull?.booleanOrNull == false
+    val isSucceeded = tool.isExecuted && !isFailed
+
+    ToolCallCard(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         icon = {
-            if (loading) {
-                DotLoading(
-                    size = 10.dp
+            when {
+                loading -> CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
                 )
-            } else {
-                Icon(
+
+                else -> Icon(
                     imageVector = getToolIcon(tool.toolName, memoryAction),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f)
+                    tint = when {
+                        isFailed -> MaterialTheme.colorScheme.error
+                        isSucceeded -> MaterialTheme.colorScheme.primary
+                        else -> LocalContentColor.current.copy(alpha = 0.7f)
+                    },
                 )
             }
         },
         label = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.shimmer(isLoading = loading),
-                maxLines = 2,
+                maxLines = if (expanded) 2 else 1,
                 overflow = TextOverflow.Ellipsis,
             )
         },
@@ -378,18 +393,28 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                     }
                 }
             }
-        } else {
-            null
-        },
-        onClick = if (content != null || isPending || images.isNotEmpty() || audios.isNotEmpty() ||
+        } else if (content != null || isPending || images.isNotEmpty() || audios.isNotEmpty() ||
             tool.toolName == ToolNames.WORKSPACE_EDIT_FILE ||
             tool.toolName == ToolNames.WORKSPACE_WRITE_FILE ||
             tool.toolName == ToolNames.WORKSPACE_READ_FILE
         ) {
-            { showResult = true }
+            {
+                IconButton(
+                    onClick = { showResult = true },
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.ArrowRight01,
+                        contentDescription = "查看详情",
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         } else {
             null
         },
+        onClick = null,
         content = if (hasExtraContent) {
             {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1570,6 +1595,73 @@ private fun WorkspaceShellPreview(
                 language = "plaintext",
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+/**
+ * 工具动作卡。
+ *
+ * 把一次工具调用渲染成一张独立的卡片: 顶部一行是图标 + 标题 + 右侧操作,
+ * 展开后在下方显示详情。相比原来内嵌在思维链里的一行文字, 卡片让
+ * "AI 做了什么" 在聊天流里更容易被扫到。
+ *
+ * @param expanded 是否展开详情
+ * @param onExpandedChange 展开状态变化回调；[content] 为 null 时卡片不可展开
+ * @param icon 左侧图标区域
+ * @param label 标题区域
+ * @param extra 标题右侧的附加操作(审批按钮 / 查看详情)
+ * @param onClick 自定义整卡点击行为；设置后优先于展开/折叠
+ * @param content 展开后的详情；为 null 表示没有详情可看
+ */
+@Composable
+private fun ToolCallCard(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    icon: (@Composable () -> Unit)? = null,
+    label: @Composable () -> Unit,
+    extra: (@Composable () -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+    content: (@Composable () -> Unit)? = null,
+) {
+    val expandable = content != null
+    val cardClick: (() -> Unit)? = when {
+        onClick != null -> onClick
+        expandable -> {
+            { onExpandedChange(!expanded) }
+        }
+
+        else -> null
+    }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (cardClick != null) Modifier.clickable(onClick = cardClick) else Modifier),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (icon != null) {
+                    Box(contentAlignment = Alignment.Center) { icon() }
+                }
+                Box(modifier = Modifier.weight(1f)) { label() }
+                if (extra != null) {
+                    extra()
+                }
+            }
+            if (expandable && expanded) {
+                content()
+            }
         }
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -312,6 +313,9 @@ private fun MessagePartsBlock(
     val hapticFeedback = LocalHapticFeedback.current
     val displaySettings = LocalDisplaySettings.current
     val bubbleAlpha = 1f - displaySettings.chatBubbleTransparency / 100f
+    // 助手气泡描边: 仅当未使用自定义背景图/自定义气泡色时才画细描边, 避免破坏用户自定义外观
+    val assistantBubbleOutlined = displaySettings.assistantBubbleImagePath.isBlank() &&
+        displaySettings.assistantBubbleColor == null
     val partsState by rememberUpdatedState(parts)
  
     val handleClickCitation: (String) -> Unit = remember {
@@ -413,6 +417,7 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
+                                                        isUser = true,
                                                         onClick = { onUserMessageClick?.invoke() },
                                                     ) {
                                                         MarkdownBlock(
@@ -434,6 +439,7 @@ private fun MessagePartsBlock(
                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
+                                            isUser = true,
                                             onClick = { onUserMessageClick?.invoke() },
                                         ) {
                                             MarkdownBlock(
@@ -464,6 +470,8 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
+                                                        isUser = false,
+                                                        outlined = assistantBubbleOutlined,
                                                     ) {
                                                         MarkdownBlock(
                                                             content = segment.replaceRegexes(
@@ -497,6 +505,8 @@ private fun MessagePartsBlock(
                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
+                                            isUser = false,
+                                            outlined = assistantBubbleOutlined,
                                         ) {
                                             MarkdownBlock(
                                                 content = displayText.replaceRegexes(
@@ -715,6 +725,12 @@ private fun MessagePartsBlock(
     }
 }
  
+/**
+ * 消息气泡容器。
+ *
+ * @param isUser 是否为用户气泡（右对齐）。用户气泡右下角收窄，助手气泡左下角收窄，形成非对称造型。
+ * @param outlined 是否绘制细描边。仅在助手气泡使用默认背景（无自定义背景图/自定义气泡色）时传 true。
+ */
 @Composable
 private fun BubbleSurface(
     imagePath: String,
@@ -722,15 +738,32 @@ private fun BubbleSurface(
     color: Color,
     overlayEnabled: Boolean,
     bubbleAlpha: Float,
+    isUser: Boolean = false,
+    outlined: Boolean = false,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
+    val bubbleShape = if (isUser) {
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius * 0.25f,
+            bottomStart = cornerRadius,
+        )
+    } else {
+        RoundedCornerShape(
+            topStart = cornerRadius,
+            topEnd = cornerRadius,
+            bottomEnd = cornerRadius,
+            bottomStart = cornerRadius * 0.25f,
+        )
+    }
     val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
     if (hasImage) {
         Box(
             modifier = Modifier
                 .animateContentSize()
-                .clip(RoundedCornerShape(cornerRadius))
+                .clip(bubbleShape)
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
         ) {
             AsyncImage(
@@ -751,8 +784,13 @@ private fun BubbleSurface(
     } else {
         Surface(
             modifier = Modifier.animateContentSize(),
-            shape = RoundedCornerShape(cornerRadius),
+            shape = bubbleShape,
             color = color.copy(alpha = bubbleAlpha),
+            border = if (outlined) {
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            } else {
+                null
+            },
             onClick = onClick ?: {},
         ) {
             Column(modifier = Modifier.padding(8.dp)) { content() }
