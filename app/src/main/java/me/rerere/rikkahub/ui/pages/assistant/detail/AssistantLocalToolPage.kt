@@ -177,6 +177,18 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("主动敲门弹窗") },
+                supportingContent = {
+                    Text("允许 AI 自己发起一个浮在最上层的小弹窗找你说话（提醒、邀约、确认一下）。你可以点按钮、划掉、或者完全不理；不理的话它会收到「用户没回应」，然后自己接着说点什么")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.KnockUser),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.KnockUser, it) }
+                    )
+                }
+            )
+            item(
                 headlineContent = { Text("日历读写") },
                 supportingContent = { Text("允许AI读取、创建和删除日历事件，需要日历权限") },
                 trailingContent = {

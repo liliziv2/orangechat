@@ -61,6 +61,15 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("ask_user")
     data object AskUser : LocalToolOption()
+
+    /**
+     * AI 主动敲门弹窗 (knock_user). 与 AskUser 分工: ask_user 是任务卡住必须问,
+     * knock_user 是 AI 自己想找人说句话, 弹窗浮在最上层, 用户可以直接无视,
+     * 超时后模型收到「用户没回应」再自己接着说.
+     */
+    @Serializable
+    @SerialName("knock_user")
+    data object KnockUser : LocalToolOption()
  
     /**
      * 已废弃: 本地短信工具与系统工具(SystemToolOption.Sms)都注册成同名 read_sms,
@@ -592,6 +601,9 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.AskUser)) {
             tools.add(askUserTool)
+        }
+        if (options.contains(LocalToolOption.KnockUser)) {
+            tools.add(createKnockUserTool(conversationId))
         }
         // 注: 本地短信工具已废弃, 与系统工具同名冲突。改由系统工具侧提供。
         if (options.contains(LocalToolOption.Calendar)) {

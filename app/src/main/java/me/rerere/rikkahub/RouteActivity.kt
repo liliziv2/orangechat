@@ -170,6 +170,9 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingsBackground
 import me.rerere.rikkahub.plugin.webview.PluginWebViewPage
 import me.rerere.rikkahub.ui.pages.memory.MemoryBankPage
 import me.rerere.rikkahub.ui.components.ui.EmojiPickerPage
+import me.rerere.rikkahub.ui.components.chat.KnockDialog
+import me.rerere.rikkahub.data.ai.tools.local.KnockOutcome
+import me.rerere.rikkahub.data.ai.tools.local.KnockRequestBuffer
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
@@ -1032,6 +1035,22 @@ class RouteActivity : ComponentActivity() {
                             }
                         }
                     )
+
+                    // AI 主动敲门弹窗 (knock_user): 浮在最上层, 用户可以点按钮/划掉/完全不理。
+                    // 不理的话由工具侧超时收尾, 模型会收到「用户没回应」再自己接着说。
+                    val knockRequest by KnockRequestBuffer.current.collectAsStateWithLifecycle()
+                    knockRequest?.let { knock ->
+                        KnockDialog(
+                            request = knock,
+                            assistantName = settings.getCurrentAssistant().name,
+                            onChoose = { label ->
+                                KnockRequestBuffer.respond(knock.id, KnockOutcome.Chosen(label))
+                            },
+                            onDismiss = {
+                                KnockRequestBuffer.respond(knock.id, KnockOutcome.Dismissed)
+                            },
+                        )
+                    }
                 }
             }
         }

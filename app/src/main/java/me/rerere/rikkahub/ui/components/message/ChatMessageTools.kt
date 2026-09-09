@@ -96,6 +96,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
+import me.rerere.hugeicons.stroke.Notification02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clipboard
 import me.rerere.hugeicons.stroke.ComputerTerminal01
@@ -154,6 +155,7 @@ private object ToolNames {
     const val CLIPBOARD = "clipboard_tool"
     const val TTS = "text_to_speech"
     const val ASK_USER = "ask_user"
+    const val KNOCK_USER = "knock_user"
     const val USE_SKILL = "use_skill"
     const val WRITE_FILES = "write_files"
     const val ZIP_FILES = "zip_files"  // backward compat
@@ -188,6 +190,7 @@ private fun getToolIcon(toolName: String, action: String?) = when (toolName) {
     ToolNames.CLIPBOARD -> HugeIcons.Clipboard
     ToolNames.TTS -> HugeIcons.VolumeHigh
     ToolNames.ASK_USER -> HugeIcons.BubbleChatQuestion
+    ToolNames.KNOCK_USER -> HugeIcons.Notification02
     ToolNames.USE_SKILL -> HugeIcons.MagicWand01
     ToolNames.ZIP_FILES, ToolNames.WRITE_FILES -> HugeIcons.Zip02
     ToolNames.WORKSPACE_READ_FILE -> HugeIcons.FileView
