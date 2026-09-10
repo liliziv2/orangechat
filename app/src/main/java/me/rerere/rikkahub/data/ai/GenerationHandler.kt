@@ -305,6 +305,9 @@ class GenerationHandler(
  
                     else -> {
                         // Auto or Approved - execute the tool
+                        // 记录耗时：工具卡完成后显示"用了多久"，慢工具（联网搜索、抓网页、
+                        // shell）一眼能看出来卡在哪，失败时也能区分"立刻报错"和"超时"。
+                        val startedAt = System.currentTimeMillis()
                         runCatching {
                             val toolDef = toolsInternal.find { toolDef -> toolDef.name == tool.toolName }
                                 ?: error("Tool ${tool.toolName} not found")
@@ -315,7 +318,10 @@ class GenerationHandler(
                             }
                             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
                             val result = toolDef.execute(args)
-                            executedTools += tool.copy(output = result)
+                            executedTools += tool.copy(
+                                output = result,
+                                metadata = tool.withElapsedMs(System.currentTimeMillis() - startedAt),
+                            )
                         }.onFailure {
                             it.printStackTrace()
                             executedTools += tool.copy(
@@ -333,7 +339,8 @@ class GenerationHandler(
                                             }
                                         )
                                     )
-                                )
+                                ),
+                                metadata = tool.withElapsedMs(System.currentTimeMillis() - startedAt),
                             )
                         }
                     }

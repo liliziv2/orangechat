@@ -13,6 +13,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
@@ -472,10 +474,31 @@ sealed class UIMessagePart {
         /** Whether generation can resume and handle this tool immediately */
         val canResumeExecution: Boolean get() = !isExecuted && approvalState.canResumeToolExecution()
 
+        /**
+         * 这次工具执行耗时（毫秒），执行方写入 metadata，UI 读出来显示。
+         * 老会话里的工具没有这个字段，返回 null，UI 就不画耗时。
+         */
+        val elapsedMs: Long?
+            // 用 as? 而不是 .jsonPrimitive：后者遇到非 primitive 会抛异常，
+            // 而 metadata 是开放字段，别处可能写进对象或数组
+            get() = (metadata?.get(META_ELAPSED_MS) as? JsonPrimitive)?.longOrNull
+
+        /**
+         * 把耗时并进现有 metadata（不丢弃已有键）。
+         * 放在这里而不是调用方手搓 JsonObject，是为了让键名只有一处定义。
+         */
+        fun withElapsedMs(elapsedMs: Long): JsonObject = JsonObject(
+            (metadata ?: JsonObject(emptyMap())) + (META_ELAPSED_MS to JsonPrimitive(elapsedMs))
+        )
+
         /** Parse input string as JsonElement */
         fun inputAsJson(): JsonElement = runCatching {
             json.parseToJsonElement(input.ifBlank { "{}" })
         }.getOrElse { JsonObject(emptyMap()) }
+
+        companion object {
+            private const val META_ELAPSED_MS = "elapsed_ms"
+        }
 
         fun merge(other: Tool): Tool {
             return Tool(

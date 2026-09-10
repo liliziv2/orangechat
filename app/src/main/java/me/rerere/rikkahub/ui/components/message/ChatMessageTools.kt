@@ -204,6 +204,16 @@ private fun getToolIcon(toolName: String, action: String?) = when (toolName) {
 private fun JsonElement?.getStringContent(key: String): String? =
     this?.jsonObjectOrNull?.get(key)?.jsonPrimitiveOrNull?.contentOrNull
 
+/**
+ * 工具耗时的紧凑显示。毫秒级用 ms，秒级保留一位小数，超过一分钟给 m+s。
+ * 不本地化：这些是数字加单位符号，各语言读法一致。
+ */
+private fun formatToolElapsed(elapsedMs: Long): String = when {
+    elapsedMs < 1000 -> "${elapsedMs}ms"
+    elapsedMs < 60_000 -> String.format(java.util.Locale.US, "%.1fs", elapsedMs / 1000.0)
+    else -> "${elapsedMs / 60_000}m${(elapsedMs % 60_000) / 1000}s"
+}
+
 @Composable
 fun ChainOfThoughtScope.ChatMessageToolStep(
     tool: UIMessagePart.Tool,
@@ -364,14 +374,32 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             }
         },
         label = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.shimmer(isLoading = loading),
-                maxLines = if (expanded) 2 else 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // 标题 + 耗时。耗时只在执行完成后有值（老会话没有这个字段就不画），
+            // 慢工具（联网搜索 / 抓网页 / shell）一眼能看出时间花在哪。
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .shimmer(isLoading = loading),
+                    maxLines = if (expanded) 2 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                val elapsedText = tool.elapsedMs?.takeIf { !loading }?.let { formatToolElapsed(it) }
+                if (elapsedText != null) {
+                    Text(
+                        text = elapsedText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
         },
         extra = if (isPending && onToolApproval != null) {
             {

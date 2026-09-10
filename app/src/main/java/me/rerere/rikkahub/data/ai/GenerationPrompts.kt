@@ -49,6 +49,19 @@ internal fun buildUserProfilePrompt(display: DisplaySetting): String {
     }
 }
 
+/**
+ * 记忆注入的字符预算上限。
+ *
+ * 记忆是只增不减的：助手每聊几轮就可能记一条，半年后攒到几百条，
+ * 而它们每一轮都要整份塞进 system prompt。没有上限的话既白烧 token，
+ * 又会把真正的对话历史挤出上下文窗口 —— 而且挤掉的总是最近的对话，
+ * 因为 system prompt 在最前面，不会被上游截断。
+ *
+ * 所以按优先级从高到低填，填不下就停，并在末尾如实说明省略了多少条。
+ * 宁可让模型知道"还有一些记忆没给你"，也不要静默丢弃。
+ */
+private const val MEMORY_PROMPT_BUDGET_CHARS = 6000
+
 internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
     buildString {
         appendLine()
@@ -64,8 +77,18 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
             compareByDescending<AssistantMemory> { it.priority }
                 .thenBy { it.id }
         )
+        // 按优先级从高到低填进预算，超出即停：低优先级的记忆先被舍弃。
+        val included = mutableListOf<AssistantMemory>()
+        var usedChars = 0
+        for (memory in sorted) {
+            // +32 粗算这条记忆的 JSON 外壳（id / category / priority 三个字段与括号引号）
+            val cost = memory.content.length + 32
+            if (usedChars + cost > MEMORY_PROMPT_BUDGET_CHARS && included.isNotEmpty()) break
+            included += memory
+            usedChars += cost
+        }
         val json = buildJsonArray {
-            sorted.forEach { memory ->
+            included.forEach { memory ->
                 add(buildJsonObject {
                     put("id", memory.id)
                     put("content", memory.content)
@@ -76,6 +99,14 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
         }
         append(JsonInstantPretty.encodeToString(json))
         appendLine()
+        val omitted = sorted.size - included.size
+        if (omitted > 0) {
+            append(
+                "Note: $omitted lower-priority memories were omitted to stay within the context budget. " +
+                    "Use the memory tool to look up or reorganize them if needed."
+            )
+            appendLine()
+        }
     }
 
 internal suspend fun buildRecentChatsPrompt(
