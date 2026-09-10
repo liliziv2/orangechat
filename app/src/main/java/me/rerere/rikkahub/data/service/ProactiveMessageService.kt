@@ -562,18 +562,25 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 }
 
                 // 获取历史消息（先过滤掉悬空的工具调用消息，避免 tool_use 结构不完整触发 400）
-                val historyMessages = filterInvalidToolMessages(
-                    conversation?.currentMessages?.let {
-                        if (assistant.contextMessageSize > 0) {
-                            it.takeLast(assistant.contextMessageSize)
-                        } else it
-                    } ?: emptyList()
+                // 截断后需要做角色对齐：若开头是 ASSISTANT/TOOL，说明截断点落在一轮对话中间，
+                // 需要丢弃这些"无主"的消息，保证历史从 USER 开始，否则角色边界错位会让模型
+                // 把 AI 自己的上一条回复当成用户发言。
+                val historyMessages = alignHistoryStart(
+                    filterInvalidToolMessages(
+                        conversation?.currentMessages?.let {
+                            if (assistant.contextMessageSize > 0) {
+                                it.takeLast(assistant.contextMessageSize)
+                            } else it
+                        } ?: emptyList()
+                    )
                 )
 
                 // 构建系统提示词（包含记忆 + 上下文，都放在最后面避免被网关淹没）
                 val systemPrompt = buildSystemPrompt(assistant, settings, idleMinutes, proactiveSetting.jumpIdleThresholdMinutes, isFromDeviceEvent, if (isFromDeviceEvent) deviceEventContext else contextStr)
 
-                // user message 只放简短指令（上下文已在系统提示词中）
+                // user message 只放简短指令（上下文已在系统提示词中）。
+                // 必须保留这条结尾的 USER 轮次：否则消息列表以 ASSISTANT 结束，
+                // 模型会去"续写"上一条回复而不是发一条新消息。
                 val userMessage = UIMessage(
                     role = MessageRole.USER,
                     parts = listOf(UIMessagePart.Text(
@@ -595,16 +602,23 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 ).first()
 
                 // 组合完整消息列表：System + History + User Context
-                // 合并相邻同角色消息（包括 history 末尾与合成 User 消息之间可能出现的 USER-USER 相邻），避免 400
-                val messages = mergeAdjacentSameRoleMessages(
-                    buildList {
-                        add(UIMessage(
-                            role = MessageRole.SYSTEM,
-                            parts = listOf(UIMessagePart.Text(systemPrompt))
-                        ))
-                        addAll(historyMessages)
-                        add(processedUserMessage)
-                    }
+                // 关键：SYSTEM 不参与同角色合并。只对「历史 + 合成 USER」做合并，
+                // 且历史已经通过 alignHistoryStart 保证从 USER 开始、角色边界干净，
+                // 这样合并不会把 ASSISTANT 的内容并进 USER 消息。
+                val conversationTurns = mergeAdjacentSameRoleMessages(
+                    historyMessages + processedUserMessage
+                )
+                val messages = buildList {
+                    add(UIMessage(
+                        role = MessageRole.SYSTEM,
+                        parts = listOf(UIMessagePart.Text(systemPrompt))
+                    ))
+                    addAll(conversationTurns)
+                }
+                Log.d(
+                    TAG,
+                    "Proactive prompt roles: " + messages.joinToString("-") { it.role.name.take(1) } +
+                        " (history=${historyMessages.size})"
                 )
 
                 // 直接调用 AI API 生成消息
@@ -1093,10 +1107,33 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
     }
 
     /**
+     * 对齐历史消息的起始角色。
+     *
+     * `takeLast(contextMessageSize)` 会在任意位置截断，截断点可能落在一轮对话的中间，
+     * 于是历史会以 ASSISTANT（AI 的回复）或 TOOL（工具结果）开头 —— 这些消息失去了
+     * 对应的用户提问，模型读到时无法判断它们属于谁。叠加同角色合并后，AI 自己的回复
+     * 就可能被当成用户发言（表现为"AI 把自己的上一条回复认成用户发的"）。
+     *
+     * 这里丢弃开头所有非 USER 的消息，保证历史一定从 USER 开始，角色边界干净。
+     * 如果整段历史里没有任何 USER 消息（例如连续多条主动消息且用户从未回复），
+     * 则返回空列表，让模型只依据系统提示词生成，而不是读到一堆无主的 ASSISTANT。
+     */
+    private fun alignHistoryStart(messages: List<UIMessage>): List<UIMessage> {
+        val firstUserIndex = messages.indexOfFirst { it.role == MessageRole.USER }
+        return if (firstUserIndex <= 0) {
+            if (firstUserIndex == 0) messages else emptyList()
+        } else {
+            messages.subList(firstUserIndex, messages.size)
+        }
+    }
+
+    /**
      * 合并相邻同角色消息（ASSISTANT-ASSISTANT / USER-USER 都要合并），
      * 避免相邻同角色消息触发 Anthropic 等 API 的 400 错误
      * （"roles must alternate between user and assistant"）。
-     * SYSTEM 角色在本文件的消息列表里只会出现一次（列表最前面），不会与自身相邻，无需特殊处理。
+     *
+     * 注意：只能对"历史消息"整体调用，不要把系统提示词或额外合成的消息一起传进来 ——
+     * 跨来源合并会把不同角色的内容并进同一条消息，导致模型误判发言人。
      */
     private fun mergeAdjacentSameRoleMessages(messages: List<UIMessage>): List<UIMessage> {
         if (messages.size < 2) return messages
