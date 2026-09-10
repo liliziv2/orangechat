@@ -54,6 +54,7 @@ interface SearchService<T : SearchServiceOptions> {
                 is SearchServiceOptions.TavilyOptions -> TavilySearchService
                 is SearchServiceOptions.ExaOptions -> ExaSearchService
                 is SearchServiceOptions.ZhipuOptions -> ZhipuSearchService
+                is SearchServiceOptions.DoubaoOptions -> DoubaoSearchService
                 is SearchServiceOptions.BingLocalOptions -> BingSearchService
                 is SearchServiceOptions.SearXNGOptions -> SearXNGService
                 is SearchServiceOptions.LinkUpOptions -> LinkUpService
@@ -67,6 +68,7 @@ interface SearchService<T : SearchServiceOptions> {
                 is SearchServiceOptions.RikkaHubOptions -> RikkaHubSearchService
                 is SearchServiceOptions.GrokOptions -> GrokSearchService
                 is SearchServiceOptions.TinyfishOptions -> TinyfishSearchService
+                is SearchServiceOptions.SerperOptions -> SerperSearchService
                 is SearchServiceOptions.CustomJsOptions -> CustomJsSearchService
             } as SearchService<T>
         }
@@ -105,12 +107,18 @@ data class SearchCommonOptions(
 data class SearchResult(
     val answer: String? = null,
     val items: List<SearchResultItem>,
+    val images: List<String> = emptyList(),
+    /** 抓取该结果的本地时间，不是内容的发布时间 */
+    val retrievedAt: String? = null,
 ) {
     @Serializable
     data class SearchResultItem(
         val title: String,
         val url: String,
         val text: String,
+        /** 提供商返回的发布日期，null 表示未提供 */
+        val publishedDate: String? = null,
+        val highlights: List<String> = emptyList(),
     )
 }
 
@@ -147,6 +155,7 @@ sealed class SearchServiceOptions {
             BingLocalOptions::class to "Bing",
             RikkaHubOptions::class to "RikkaHub",
             ZhipuOptions::class to "智谱",
+            DoubaoOptions::class to "豆包",
             TavilyOptions::class to "Tavily",
             ExaOptions::class to "Exa",
             SearXNGOptions::class to "SearXNG",
@@ -160,6 +169,7 @@ sealed class SearchServiceOptions {
             BochaOptions::class to "博查",
             GrokOptions::class to "Grok",
             TinyfishOptions::class to "Tinyfish",
+            SerperOptions::class to "Serper",
             CustomJsOptions::class to "Custom JS",
         )
     }
@@ -175,6 +185,14 @@ sealed class SearchServiceOptions {
     data class ZhipuOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
+    ) : SearchServiceOptions()
+
+    @Serializable
+    @SerialName("doubao")
+    data class DoubaoOptions(
+        override val id: Uuid = Uuid.random(),
+        val apiKey: String = "",
+        val mode: DoubaoSearchMode = DoubaoSearchMode.CUSTOM,
     ) : SearchServiceOptions()
 
     @Serializable
@@ -291,6 +309,13 @@ sealed class SearchServiceOptions {
     ) : SearchServiceOptions()
 
     @Serializable
+    @SerialName("serper")
+    data class SerperOptions(
+        override val id: Uuid = Uuid.random(),
+        val apiKey: String = "",
+    ) : SearchServiceOptions()
+
+    @Serializable
     @SerialName("custom_js")
     data class CustomJsOptions(
         override val id: Uuid = Uuid.random(),
@@ -334,6 +359,15 @@ function search(query, resultSize) {
 }"""
         }
     }
+}
+
+@Serializable
+enum class DoubaoSearchMode {
+    @SerialName("global")
+    GLOBAL,
+
+    @SerialName("custom")
+    CUSTOM,
 }
 
 internal suspend fun Call.await(): Response {

@@ -66,6 +66,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -768,6 +769,10 @@ private fun SearchWebPreview(
     val items = content.jsonObject["items"]?.jsonArray ?: emptyList()
     val answer = content.getStringContent("answer")
     val query = arguments.getStringContent("query") ?: ""
+    val images = content.jsonObject["images"]?.jsonArray
+        ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+        ?.filter { it.isNotBlank() }
+        ?: emptyList()
 
     LazyColumn(
         modifier = Modifier
@@ -793,6 +798,27 @@ private fun SearchWebPreview(
                             .fillMaxWidth(),
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+            }
+        }
+
+        if (images.isNotEmpty()) {
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    items(images) { imageUrl ->
+                        ZoomableAsyncImage(
+                            model = imageUrl,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .height(120.dp)
+                                .width(160.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                        )
+                    }
                 }
             }
         }
