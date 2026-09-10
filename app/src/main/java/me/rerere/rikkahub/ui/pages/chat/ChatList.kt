@@ -369,10 +369,17 @@ private fun ChatListNormal(
                     }
                 },
         ) {
-            // 上下文用量条：只在接近上限时出现。
-            // 常态下它是一条没人看的装饰，占位还挤压消息；到了 85% 才有信息量 ——
-            // 那时候距离"上游直接报 context length exceeded"已经不远了。
-            if ((sizeInfo.contextUsageRatio ?: 0f) >= CONTEXT_USAGE_WARN_RATIO) {
+            // 上下文用量条。
+            // 有上限数据时按老规矩只在 85% 之后出现: 常态下比例条是没人看的装饰, 还挤占位置。
+            // 查不到上限时(自建 provider 的模型多数如此)没有比例可判断, 此时改为常显纯用量 ——
+            // 否则这类模型永远看不到任何读数, 而它们恰恰是最容易撞上超限报错的。
+            val usageRatio = sizeInfo.contextUsageRatio
+            val showUsageBar = if (usageRatio != null) {
+                usageRatio >= CONTEXT_USAGE_WARN_RATIO
+            } else {
+                sizeInfo.lastAssistantInputTokens > 0
+            }
+            if (showUsageBar) {
                 item(key = "context-usage-bar") {
                     ContextUsageBar(sizeInfo = sizeInfo)
                 }

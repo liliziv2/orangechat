@@ -91,6 +91,11 @@ fun rememberConversationSizeInfo(
  * 这是表，不是闸：它不会裁剪或压缩任何消息，满了照发，真正的上限由上游端点划。
  * 存在的意义是让"这轮带了多少上下文"这件事在超限报错之前就看得见。
  *
+ * 分两种形态：
+ * - 模型表里有上下文上限 → "12.3k / 128.0k" + 进度条，颜色随占用转黄转红；
+ * - 查不到上限（自建 provider 的模型多数如此）→ 只显示 "已用 12.3k"，不画进度条。
+ *   没有分母就没有比例，硬造一个假上限只会误导；但已用量本身是真实数据，值得显示。
+ *
  * 数据来源是上一条助手消息报的 promptTokens，所以第一轮生成完成前不显示。
  */
 @Composable
@@ -98,10 +103,12 @@ fun ContextUsageBar(
     sizeInfo: ConversationSizeInfo,
     modifier: Modifier = Modifier,
 ) {
-    val ratio = sizeInfo.contextUsageRatio ?: return
-    val limit = sizeInfo.contextLength ?: return
-    val clamped = ratio.coerceIn(0f, 1f)
+    val used = sizeInfo.lastAssistantInputTokens
+    if (used <= 0) return
+    val limit = sizeInfo.contextLength?.takeIf { it > 0 }
+    val ratio = sizeInfo.contextUsageRatio
     val color = when {
+        ratio == null -> MaterialTheme.colorScheme.onSurfaceVariant
         ratio >= CONTEXT_USAGE_DANGER_RATIO -> MaterialTheme.colorScheme.error
         ratio >= CONTEXT_USAGE_WARN_RATIO -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.primary
@@ -111,19 +118,26 @@ fun ContextUsageBar(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = "${formatTokenCount(sizeInfo.lastAssistantInputTokens)} / ${formatTokenCount(limit)}",
+            text = if (limit != null) {
+                "${formatTokenCount(used)} / ${formatTokenCount(limit)}"
+            } else {
+                stringResource(R.string.chat_page_context_usage_used, formatTokenCount(used))
+            },
             style = MaterialTheme.typography.labelSmall,
             color = color,
         )
-        LinearProgressIndicator(
-            progress = { clamped },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(2.dp),
-            color = color,
-            trackColor = color.copy(alpha = 0.16f),
-            drawStopIndicator = {},
-        )
+        // 没有上限就没有进度可言，只留数字
+        if (ratio != null) {
+            LinearProgressIndicator(
+                progress = { ratio.coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
+                color = color,
+                trackColor = color.copy(alpha = 0.16f),
+                drawStopIndicator = {},
+            )
+        }
     }
 }
 
