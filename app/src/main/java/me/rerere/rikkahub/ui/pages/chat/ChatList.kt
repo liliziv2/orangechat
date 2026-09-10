@@ -109,6 +109,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.transformers.SystemHintTransformer
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -324,13 +325,14 @@ private fun ChatListNormal(
             }
         }
 
-        // Filter out [SKIP] messages and proactive message context markers
+        // 过滤 [SKIP] 占位回复, 以及程序替用户发出的系统提示(主动消息上下文 / 通话心跳)。
+        // 后者是为了复用 sendMessage 落库链路才存成 USER 消息的, 用户并没有说过这些话。
         val displayNodes = remember(conversation.messageNodes) {
             conversation.messageNodes.filter { node ->
                 val msg = node.currentMessage
                 val text = msg.toText().trim()
                 !(msg.role == MessageRole.ASSISTANT && text == "[SKIP]") &&
-                !(msg.role == MessageRole.USER && text.contains("[主动消息上下文]"))
+                    !SystemHintTransformer.isSystemHint(msg)
             }
         }
 

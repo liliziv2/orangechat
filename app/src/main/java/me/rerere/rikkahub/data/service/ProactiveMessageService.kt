@@ -44,6 +44,7 @@ import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
+import me.rerere.rikkahub.data.ai.transformers.SystemHintTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
@@ -424,6 +425,8 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
     // 输入转换器（与 ChatService 保持一致）
     private val inputTransformers by lazy {
+        // 系统提示(通话心跳等)的过滤不在这里: 主动消息只把转换器作用在合成的那条 USER
+        // 指令上, 历史不经过转换器, 所以过滤直接做在 historyMessages 构建处。
         listOf(
             TimeReminderTransformer,
             PromptInjectionTransformer,
@@ -565,13 +568,18 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 // 截断后需要做角色对齐：若开头是 ASSISTANT/TOOL，说明截断点落在一轮对话中间，
                 // 需要丢弃这些"无主"的消息，保证历史从 USER 开始，否则角色边界错位会让模型
                 // 把 AI 自己的上一条回复当成用户发言。
+                // 另外先剔除程序注入的系统提示（通话心跳 / 上一次的主动消息上下文）：
+                // 它们存成了 USER 消息但用户并没说过，留在历史里既占额度又会被模型当成说话风格模仿。
+                // 放在 takeLast 之前，这样上下文条数配额全部留给真实对话。
                 val historyMessages = alignHistoryStart(
                     filterInvalidToolMessages(
-                        conversation?.currentMessages?.let {
-                            if (assistant.contextMessageSize > 0) {
-                                it.takeLast(assistant.contextMessageSize)
-                            } else it
-                        } ?: emptyList()
+                        conversation?.currentMessages
+                            ?.filterNot { SystemHintTransformer.isSystemHint(it) }
+                            ?.let {
+                                if (assistant.contextMessageSize > 0) {
+                                    it.takeLast(assistant.contextMessageSize)
+                                } else it
+                            } ?: emptyList()
                     )
                 )
 

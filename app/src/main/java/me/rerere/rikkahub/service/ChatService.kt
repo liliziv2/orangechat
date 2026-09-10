@@ -86,6 +86,7 @@ import me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer
 import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
+import me.rerere.rikkahub.data.ai.transformers.SystemHintTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.VoiceMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
@@ -135,6 +136,8 @@ enum class ChatErrorSolution {
 
 private val inputTransformers by lazy {
     listOf(
+        // SystemHintTransformer 不在这里: 转换器跑在 limitContext 之后, 那时额度已被
+        // 心跳消息吃掉。过滤改在 generateText 的 messages 入参处做。
         TimeReminderTransformer,
         PromptInjectionTransformer,
         PlaceholderTransformer,
@@ -875,6 +878,11 @@ class ChatService(
                     } else {
                         it
                     }
+                }.let { history ->
+                    // 剔除已经沉进历史的系统提示(通话心跳等): 用户没说过这些话, 留着会被模型
+                    // 当成说话风格模仿, 还白占 contextMessageSize 的条数额度。末尾那条保留 ——
+                    // 通话心跳正是靠它触发本轮回复。
+                    SystemHintTransformer.dropStaleHints(history)
                 },
                 assistant = assistant,
                 conversationSystemPrompt = conversation.customSystemPrompt,
@@ -1263,6 +1271,8 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
 
             val transcript = conversation.currentMessages
                 .filter { it.role == MessageRole.USER || it.role == MessageRole.ASSISTANT }
+                // 心跳/主动消息上下文这些程序注入的提示不是对话内容, 别让它们挤占摘要额度
+                .filterNot { SystemHintTransformer.isSystemHint(it) }
                 .joinToString("\n\n") { "${it.role.name.lowercase()}: ${it.summaryAsText()}" }
             if (transcript.isBlank()) return false
 
