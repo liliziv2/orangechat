@@ -264,6 +264,10 @@
   <string name="chat_page_cancel">Cancel</string>
   <string name="chat_page_check_title_model_settings">Check title model settings</string>
   <string name="chat_page_clear_all_errors">Clear all</string>
+  <string name="chat_page_closeout">Wrap Up &amp; Start New</string>
+  <string name="chat_page_closeout_desc">Summarize this conversation into a single memory, then start a new chat. The original conversation stays in your list and is not deleted.</string>
+  <string name="chat_page_closeout_done">Archived as a memory</string>
+  <string name="chat_page_closeout_empty">Nothing worth archiving</string>
   <string name="chat_page_compress_additional_prompt">Additional Instructions (Optional)</string>
   <string name="chat_page_compress_additional_prompt_hint">Specify what to preserve or focus on</string>
   <string name="chat_page_compress_context">Compress History</string>

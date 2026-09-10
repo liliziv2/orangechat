@@ -261,6 +261,10 @@
   <string name="chat_page_cancel">취소</string>
   <string name="chat_page_check_title_model_settings">제목 모델 설정 확인</string>
   <string name="chat_page_clear_all_errors">모두 지우기</string>
+  <string name="chat_page_closeout">마무리하고 새로 시작</string>
+  <string name="chat_page_closeout_desc">이 대화를 하나의 메모리로 요약해 저장한 뒤 새 대화를 시작합니다. 원래 대화는 목록에 남아 있으며 삭제되지 않습니다.</string>
+  <string name="chat_page_closeout_done">메모리로 보관했습니다</string>
+  <string name="chat_page_closeout_empty">보관할 내용이 없습니다</string>
   <string name="chat_page_compress_additional_prompt">추가 지침(선택 사항)</string>
   <string name="chat_page_compress_additional_prompt_hint">보존하거나 집중할 내용을 지정하세요</string>
   <string name="chat_page_compress_context">기록 압축</string>

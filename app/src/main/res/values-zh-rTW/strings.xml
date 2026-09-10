@@ -261,6 +261,10 @@
   <string name="chat_page_cancel">取消</string>
   <string name="chat_page_check_title_model_settings">檢查標題模型設定</string>
   <string name="chat_page_clear_all_errors">清除全部</string>
+  <string name="chat_page_closeout">收尾並新建</string>
+  <string name="chat_page_closeout_desc">把這段對話總結成一條記憶存進記憶庫，然後開一個新對話。原對話會保留在列表中，不會刪除。</string>
+  <string name="chat_page_closeout_done">已歸檔成一條記憶</string>
+  <string name="chat_page_closeout_empty">沒有可歸檔的內容</string>
   <string name="chat_page_compress_additional_prompt">額外指示（選填）</string>
   <string name="chat_page_compress_additional_prompt_hint">指定要保留或聚焦的內容</string>
   <string name="chat_page_compress_context">壓縮歷史</string>

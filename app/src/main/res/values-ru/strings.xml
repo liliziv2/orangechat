@@ -261,6 +261,10 @@
   <string name="chat_page_cancel">Отмена</string>
   <string name="chat_page_check_title_model_settings">Проверьте настройки модели заголовков</string>
   <string name="chat_page_clear_all_errors">Очистить всё</string>
+  <string name="chat_page_closeout">Подвести итог и начать новый</string>
+  <string name="chat_page_closeout_desc">Свести этот разговор в одну запись памяти, а затем начать новый чат. Исходный разговор останется в списке и не будет удалён.</string>
+  <string name="chat_page_closeout_done">Сохранено как запись памяти</string>
+  <string name="chat_page_closeout_empty">Нечего сохранять</string>
   <string name="chat_page_compress_additional_prompt">Дополнительные инструкции (по желанию)</string>
   <string name="chat_page_compress_additional_prompt_hint">Укажите, что сохранить или на чём сосредоточиться</string>
   <string name="chat_page_compress_context">Сжать историю</string>

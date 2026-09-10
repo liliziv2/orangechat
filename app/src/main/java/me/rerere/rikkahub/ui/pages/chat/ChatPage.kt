@@ -415,6 +415,10 @@ private fun ChatPageContent(
             setting.displaySetting.chatBubbleRealtimeBlur &&
             bubbleBlurCapableMode &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    // 收尾归档的 toast 文案：toaster.show 在普通 lambda 里执行，拿不到 composable 上下文，
+    // 所以在这里先把字符串取出来。
+    val closeoutDoneText = stringResource(R.string.chat_page_closeout_done)
+    val closeoutEmptyText = stringResource(R.string.chat_page_closeout_empty)
     // 共享聊天背景 Painter（仅图片背景时非空；与 AssistantBackground 共用同一实例，不重复加载）
     val chatBackgroundPainter = rememberChatBackgroundPainter(setting)
     // 共享背景视觉参数（基础底色、背景纸 alpha、渐变遮罩），与 AssistantBackground 完全一致
@@ -595,7 +599,7 @@ private fun ChatPageContent(
                     onCloseout = {
                         vm.closeoutConversation { archived ->
                             toaster.show(
-                                if (archived) "已归档成一条记忆" else "没有可归档的内容",
+                                if (archived) closeoutDoneText else closeoutEmptyText,
                                 type = if (archived) ToastType.Success else ToastType.Info,
                             )
                             navigateToChatPage(navController)
@@ -1007,7 +1011,7 @@ private fun TopBar(
                     )
                     // 收尾：总结成记忆后开新会话。空会话没什么可总结的，所以禁用。
                     DropdownMenuItem(
-                        text = { Text("收尾并新建") },
+                        text = { Text(stringResource(R.string.chat_page_closeout)) },
                         leadingIcon = {
                             Icon(HugeIcons.QuillWrite01, contentDescription = null)
                         },
@@ -1024,9 +1028,9 @@ private fun TopBar(
     if (showCloseoutDialog) {
         AlertDialog(
             onDismissRequest = { showCloseoutDialog = false },
-            title = { Text("收尾并新建") },
+            title = { Text(stringResource(R.string.chat_page_closeout)) },
             text = {
-                Text("把这段对话总结成一条记忆存进记忆库，然后开一个新会话。原对话保留在列表里，不会删除。")
+                Text(stringResource(R.string.chat_page_closeout_desc))
             },
             confirmButton = {
                 TextButton(
