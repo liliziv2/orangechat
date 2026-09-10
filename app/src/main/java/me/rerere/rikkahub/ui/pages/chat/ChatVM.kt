@@ -309,6 +309,21 @@ class ChatVM(
         }
     }
 
+    /**
+     * 会话收尾：把这一段对话总结成一条记忆存下来，然后交给调用方开新会话。
+     *
+     * 总结失败不拦路（onDone(false)），调用方照常开新会话 —— 少一条记忆
+     * 比把用户卡在旧会话里好。
+     */
+    fun closeoutConversation(onDone: (archived: Boolean) -> Unit) {
+        viewModelScope.launch {
+            val conversationFull = conversationRepo.getConversationById(_conversationId)
+                ?: conversation.value
+            val archived = chatService.closeoutConversationToMemory(_conversationId, conversationFull)
+            onDone(archived)
+        }
+    }
+
     fun clearTranslationField(messageId: Uuid) {
         chatService.clearTranslationField(_conversationId, messageId)
     }

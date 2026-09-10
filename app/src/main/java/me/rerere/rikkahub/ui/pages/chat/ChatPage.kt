@@ -108,6 +108,7 @@ import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.MoreVertical
+import me.rerere.hugeicons.stroke.QuillWrite01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -591,6 +592,15 @@ private fun ChatPageContent(
                     onNewChat = {
                         navigateToChatPage(navController)
                     },
+                    onCloseout = {
+                        vm.closeoutConversation { archived ->
+                            toaster.show(
+                                if (archived) "已归档成一条记忆" else "没有可归档的内容",
+                                type = if (archived) ToastType.Success else ToastType.Info,
+                            )
+                            navigateToChatPage(navController)
+                        }
+                    },
                     onClickMenu = {
                         previewMode = !previewMode
                     },
@@ -856,11 +866,14 @@ private fun TopBar(
     previewMode: Boolean,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
+    onCloseout: () -> Unit,
     onUpdateTitle: (String) -> Unit,
     onVoiceCall: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    // closeout 会写记忆并离开当前会话，属于有副作用的动作，所以先确认一次
+    var showCloseoutDialog by remember { mutableStateOf(false) }
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
@@ -992,10 +1005,46 @@ private fun TopBar(
                             onClickMenu()
                         }
                     )
+                    // 收尾：总结成记忆后开新会话。空会话没什么可总结的，所以禁用。
+                    DropdownMenuItem(
+                        text = { Text("收尾并新建") },
+                        leadingIcon = {
+                            Icon(HugeIcons.QuillWrite01, contentDescription = null)
+                        },
+                        enabled = conversation.messageNodes.isNotEmpty(),
+                        onClick = {
+                            showOverflowMenu = false
+                            showCloseoutDialog = true
+                        }
+                    )
                 }
             }
         },
     )
+    if (showCloseoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showCloseoutDialog = false },
+            title = { Text("收尾并新建") },
+            text = {
+                Text("把这段对话总结成一条记忆存进记忆库，然后开一个新会话。原对话保留在列表里，不会删除。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCloseoutDialog = false
+                        onCloseout()
+                    }
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloseoutDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
     titleState.EditStateContent { title, onUpdate ->
         AlertDialog(
             onDismissRequest = {

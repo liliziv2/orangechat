@@ -106,6 +106,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
@@ -272,8 +273,18 @@ private fun ChatListNormal(
     // 自动跟随键盘滚动
     ImeLazyListAutoScroller(lazyListState = state)
 
-    // 对话大小警告对话框
-    val sizeInfo = rememberConversationSizeInfo(conversation)
+    // 对话大小警告对话框 + 上下文用量条
+    // 上限取自最后一条助手消息用的那个模型（模型表里没记录就没有上限，量表不显示）
+    val contextLength = remember(conversation.messageNodes, settings.providers) {
+        conversation.messageNodes.asReversed()
+            .map { it.currentMessage }
+            .firstOrNull { it.role == MessageRole.ASSISTANT }
+            ?.modelId
+            ?.let { settings.findModelById(it) }
+            ?.modelId
+            ?.let { ModelRegistry.MODEL_CONTEXT_LENGTH.getData(it) }
+    }
+    val sizeInfo = rememberConversationSizeInfo(conversation, contextLength)
     var showSizeWarningDialog by rememberSaveable(conversation.id) { mutableStateOf(true) }
     if (sizeInfo.showWarning && showSizeWarningDialog) {
         ConversationSizeWarningDialog(
@@ -356,6 +367,14 @@ private fun ChatListNormal(
                     }
                 },
         ) {
+            // 上下文用量条：只在接近上限时出现。
+            // 常态下它是一条没人看的装饰，占位还挤压消息；到了 85% 才有信息量 ——
+            // 那时候距离"上游直接报 context length exceeded"已经不远了。
+            if ((sizeInfo.contextUsageRatio ?: 0f) >= CONTEXT_USAGE_WARN_RATIO) {
+                item(key = "context-usage-bar") {
+                    ContextUsageBar(sizeInfo = sizeInfo)
+                }
+            }
             itemsIndexed(
                 items = displayNodes,
                 key = { index, item -> item.id },
