@@ -530,6 +530,13 @@ class ChatService(
     // ---- 添加主动消息 ----
 
     fun addProactiveMessage(conversationId: Uuid, aiMessage: UIMessage) {
+        // 同 ProactiveMessageService.updateOrAppendAiMessage 的守卫：这里写进去的消息
+        // 会直接成为时间线上的一条气泡，角色决定了它显示在哪一侧。非 ASSISTANT 的消息
+        // 一旦从这里落库，用户就会看到 AI 发的内容被标成自己发的。
+        if (aiMessage.role != MessageRole.ASSISTANT) {
+            Log.w(TAG, "addProactiveMessage refused a ${aiMessage.role} message, conversationId=$conversationId")
+            return
+        }
         launchWithConversationReference(conversationId) {
             try {
                 appendProactiveAiMessageUnderLock(conversationId, aiMessage)

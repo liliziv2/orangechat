@@ -601,25 +601,54 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 )
 
                 // 应用输入转换器
-                val processedUserMessage = listOf(userMessage).transforms(
+                // 注意：转换器不只是改写这条消息，还会往列表里**插入新消息** ——
+                // TimeReminderTransformer 会在 USER 之前插一条时间提醒，
+                // PromptInjectionTransformer 会按 TOP_OF_CHAT / AT_DEPTH 插入模式注入和世界书条目，
+                // 在列表里没有 SYSTEM 消息时甚至会新建一条 SYSTEM。
+                // 这里原先直接 .first()，于是被插到最前面的那条注入消息顶替了真正的指令：
+                // 一方面模型收不到"请决定是否发消息"这条指令，另一方面这段通用条款成了
+                // 消息列表里的 USER 轮次，再顺着 streamMessages 被当成 AI 回复落库，
+                // 最终以用户气泡的形式把系统层的行为约束条款暴露在聊天界面上。
+                val transformedMessages = listOf(userMessage).transforms(
                     transformers = inputTransformers + templateTransformer,
                     context = this@ProactiveMessageTriggerService,
                     model = model,
                     assistant = assistant,
                     settings = settings
-                ).first()
+                )
+                // 注入生成的 SYSTEM 内容并入系统提示词，不参与对话轮次
+                val injectedSystemText = transformedMessages
+                    .filter { it.role == MessageRole.SYSTEM }
+                    .joinToString("\n") { it.toText() }
+                    .trim()
+                // 其余消息保留，但必须保证合成指令仍是最后一条：
+                // 它才是模型这一轮要回答的问题，结尾放注入内容会让模型去续写而不是发新消息。
+                val nonSystemMessages = transformedMessages.filter { it.role != MessageRole.SYSTEM }
+                val instructionIndex = nonSystemMessages.indexOfFirst { it.id == userMessage.id }
+                val processedUserMessages = if (instructionIndex >= 0) {
+                    nonSystemMessages.filterIndexed { index, _ -> index != instructionIndex } +
+                        nonSystemMessages[instructionIndex]
+                } else {
+                    nonSystemMessages + userMessage
+                }
 
                 // 组合完整消息列表：System + History + User Context
                 // 关键：SYSTEM 不参与同角色合并。只对「历史 + 合成 USER」做合并，
                 // 且历史已经通过 alignHistoryStart 保证从 USER 开始、角色边界干净，
                 // 这样合并不会把 ASSISTANT 的内容并进 USER 消息。
                 val conversationTurns = mergeAdjacentSameRoleMessages(
-                    historyMessages + processedUserMessage
+                    historyMessages + processedUserMessages
                 )
                 val messages = buildList {
                     add(UIMessage(
                         role = MessageRole.SYSTEM,
-                        parts = listOf(UIMessagePart.Text(systemPrompt))
+                        parts = listOf(UIMessagePart.Text(
+                            if (injectedSystemText.isNotBlank()) {
+                                systemPrompt + "\n" + injectedSystemText
+                            } else {
+                                systemPrompt
+                            }
+                        ))
                     ))
                     addAll(conversationTurns)
                 }
@@ -684,7 +713,15 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 )
 
                 // 提取AI消息
-                val aiMessage = finalMessages.lastOrNull() ?: UIMessage(
+                // 必须按角色取：finalMessages 的最后一条不一定是 AI 回复
+                // （工具链末尾可能是 TOOL 结果，异常路径下可能是合成的 USER 指令）。
+                // 还必须排除 initialMessages 里原有的消息：历史里本来就有 ASSISTANT 回复，
+                // 如果这一轮没生成出任何东西，只按角色取会捞到上一条旧回复，
+                // 然后当成"新的主动消息"再推送一遍通知。
+                val initialMessageIds = messages.map { it.id }.toSet()
+                val aiMessage = finalMessages.lastOrNull {
+                    it.role == MessageRole.ASSISTANT && it.id !in initialMessageIds
+                } ?: UIMessage(
                     role = MessageRole.ASSISTANT,
                     parts = emptyList()
                 )
@@ -1066,6 +1103,14 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
         conversationId: Uuid,
         aiMessage: UIMessage
     ) {
+        // 兜底守卫：这个函数会把消息写进会话时间线，UI 完全按 role 决定气泡的左右和头像。
+        // 一旦非 ASSISTANT 的消息（例如主动消息流程里合成的那条 USER 指令、提示词注入
+        // 生成的 USER 消息）从这里落库，用户就会看到"AI 发的消息被标成自己发的"，
+        // 而且下一轮 AI 会把它当成用户发言去回复。宁可丢掉这次更新也不能写错角色。
+        if (aiMessage.role != MessageRole.ASSISTANT) {
+            Log.w(TAG, "Refused to persist a ${aiMessage.role} message as the AI reply")
+            return
+        }
         val session = chatService.getOrCreateSession(conversationId)
         session.saveMutex.withLock {
             val conv = chatService.getConversationFlow(conversationId).value
@@ -1183,11 +1228,13 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
             // 流式调用 AI（替代非流式 generateText，兼容 thinking 模型）
             var streamMessages = messages.toList()
+            var receivedAnyChunk = false
             providerImpl.streamText(
                 providerSetting = providerSetting,
                 messages = messages,
                 params = params
             ).collect { chunk ->
+                receivedAnyChunk = true
                 streamMessages = streamMessages.handleMessageChunk(chunk = chunk, model = model)
 
                 // 实时更新 session 状态，让打开的聊天界面能看到消息生成
@@ -1200,10 +1247,24 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
             // 流式结束，更新 messages
             messages = streamMessages.toMutableList()
-            val aiMessage = streamMessages.lastOrNull() ?: run {
-                Log.w(TAG, "No message in AI response")
+            // 这一轮流是否真的产出了内容。空流（网关直接 [DONE]、内容被安全策略拦截、
+            // chunk 里没有 choices）时 streamMessages 仍等于输入，下面按角色取会捞到
+            // 历史里的上一条旧回复，被当成"新的主动消息"再推送一遍。
+            if (!receivedAnyChunk) {
+                Log.w(TAG, "AI stream produced nothing at step $step, aborting")
                 break
             }
+            // 必须显式要求 ASSISTANT 角色。streamMessages 以 initialMessages 打头，
+            // 不判角色的 lastOrNull() 会拿到我们自己合成的那条 USER 指令 —— 它随后被当成
+            // "AI 回复"落库，于用户侧表现为 AI 的主动消息被标成用户发送的消息，
+            // 下一轮 AI 还会去回复它。
+            val aiMessage = streamMessages.lastOrNull { it.role == MessageRole.ASSISTANT } ?: run {
+                Log.w(TAG, "No assistant message in AI response, aborting this step")
+                break
+            }
+            // 用 id 定位而不是 lastIndex：避免把 AI 回复写到别人的槽位上。
+            val aiIndex = messages.indexOfFirst { it.id == aiMessage.id }
+                .takeIf { it >= 0 } ?: messages.lastIndex
 
 
             // 在输出转换器处理前，检测 AI 原始输出是否含 [JUMP] 标记
@@ -1220,7 +1281,7 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 assistant = assistant,
                 settings = settings
             ).first()
-            messages[messages.lastIndex] = processedMessage
+            messages[aiIndex] = processedMessage
 
             // 检查是否有工具调用
             val toolCalls = processedMessage.getTools().filter { !it.isExecuted }
@@ -1238,7 +1299,7 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                         }
                     }
                 )
-                messages[messages.lastIndex] = finalMessage
+                messages[aiIndex] = finalMessage
                 // 最终更新 session 状态（用 id 匹配就地更新）
                 updateOrAppendAiMessage(conversationId, finalMessage)
                 break
@@ -1299,7 +1360,7 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 }
             }
             val updatedMessage = processedMessage.copy(parts = updatedParts)
-            messages[messages.lastIndex] = updatedMessage
+            messages[aiIndex] = updatedMessage
             // 更新 session 状态（带工具结果的消息，用 id 匹配就地更新）
             updateOrAppendAiMessage(conversationId, updatedMessage)
         }

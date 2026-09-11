@@ -325,8 +325,8 @@ private fun ChatListNormal(
             }
         }
 
-        // 过滤 [SKIP] 占位回复, 以及程序替用户发出的系统提示(主动消息上下文 / 通话心跳)。
-        // 后者是为了复用 sendMessage 落库链路才存成 USER 消息的, 用户并没有说过这些话。
+        // 过滤 [SKIP] 占位回复, 以及程序替用户发出的系统提示(主动消息上下文 / 通话心跳 /
+        // 时间提醒, 以及历史上误落库的提示词注入条款)。这些都不是用户真的说过的话。
         val displayNodes = remember(conversation.messageNodes) {
             conversation.messageNodes.filter { node ->
                 val msg = node.currentMessage
