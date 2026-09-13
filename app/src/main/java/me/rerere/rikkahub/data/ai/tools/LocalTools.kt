@@ -9,6 +9,7 @@ package me.rerere.rikkahub.data.ai.tools
 import android.content.Context
 import com.whl.quickjs.wrapper.QuickJSContext
 import com.whl.quickjs.wrapper.QuickJSObject
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNull
@@ -70,6 +71,14 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("knock_user")
     data object KnockUser : LocalToolOption()
+
+    /**
+     * AI 自己排定下次主动找用户的时间 (schedule_wake_up).
+     * 与用户设置的随机间隔并存, 取较早的那个触发, 所以开了不会让常规主动消息停摆.
+     */
+    @Serializable
+    @SerialName("schedule_wake_up")
+    data object ScheduleWakeUp : LocalToolOption()
  
     /**
      * 已废弃: 本地短信工具与系统工具(SystemToolOption.Sms)都注册成同名 read_sms,
@@ -142,6 +151,29 @@ class LocalTools(
     private val workflowEngine: me.rerere.rikkahub.workflow.execution.WorkflowEngine,
     private val sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
 ) {
+    /**
+     * AI 改完自主唤醒计划后重排闹钟。
+     *
+     * 用 Koin 懒取而不是加构造参数：ProactiveMessageService 是 service 层，
+     * 从构造函数注进来会让 LocalTools 的依赖图跟着 service 走。
+     * 这里只在工具真被调用时才解析一次。
+     */
+    private fun rescheduleProactiveWakeUp() {
+        runCatching {
+            val settingsStore = org.koin.core.context.GlobalContext.get()
+                .get<me.rerere.rikkahub.data.datastore.SettingsStore>()
+            val setting = kotlinx.coroutines.runBlocking {
+                settingsStore.settingsFlow.first().proactiveMessageSetting
+            }
+            // 主动消息总开关关着时不排闹钟：计划留着，等用户开开关时自然生效
+            if (setting.enabled) {
+                me.rerere.rikkahub.data.service.ProactiveMessageService.scheduleNext(context, setting)
+            }
+        }.onFailure {
+            android.util.Log.w("LocalTools", "failed to reschedule proactive wake up", it)
+        }
+    }
+
     val javascriptTool by lazy {
         Tool(
             name = "eval_javascript",
@@ -604,6 +636,15 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.KnockUser)) {
             tools.add(createKnockUserTool(conversationId))
+        }
+        if (options.contains(LocalToolOption.ScheduleWakeUp)) {
+            tools.add(
+                createProactiveScheduleTool(
+                    context = context,
+                    assistantId = invocationContext.callerAssistantId,
+                    onScheduleChanged = { rescheduleProactiveWakeUp() },
+                )
+            )
         }
         // 注: 本地短信工具已废弃, 与系统工具同名冲突。改由系统工具侧提供。
         if (options.contains(LocalToolOption.Calendar)) {

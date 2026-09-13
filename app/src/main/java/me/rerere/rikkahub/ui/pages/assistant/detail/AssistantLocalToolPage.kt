@@ -199,6 +199,18 @@ private fun AssistantLocalToolContent(
                 }
             )
             item(
+                headlineContent = { Text("自主唤醒") },
+                supportingContent = {
+                    Text("允许 AI 自己决定下次什么时候来找你（如\"明早八点叫你\"\"每晚九点提醒\"）。与主动消息的随机间隔并存，取较早的触发")
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ScheduleWakeUp),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ScheduleWakeUp, it) }
+                    )
+                }
+            )
+            item(
                 headlineContent = { Text("允许跳过回复") },
                 supportingContent = { Text("允许AI在认为无需回复时跳过，回复 [SKIP] 的消息将被隐藏") },
                 trailingContent = {

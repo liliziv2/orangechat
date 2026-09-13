@@ -110,7 +110,20 @@ class ProactiveMessageService : KoinComponent {
             val minMinutes = setting.minIntervalMinutes.coerceAtLeast(1)
             val maxMinutes = setting.maxIntervalMinutes.coerceAtLeast(minMinutes)
             val delayMinutes = Random.nextInt(minMinutes, maxMinutes + 1)
-            val triggerTime = java.lang.System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
+            val regularTriggerTime =
+                java.lang.System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(delayMinutes.toLong())
+
+            // AI 自己排的唤醒时间参与竞争：取它和常规随机间隔里较早的那个。
+            // 这样 AI 排了计划不会让常规主动消息停摆，反过来也不会让 AI 的约定被推迟。
+            val autonomousTriggerTime = runCatching {
+                me.rerere.rikkahub.data.proactive.ProactiveScheduleStore(context)
+                    .nextWakeAtMillis(setting.assistantId.takeIf { it.isNotBlank() })
+                    ?.coerceAtLeast(
+                        java.lang.System.currentTimeMillis() +
+                            me.rerere.rikkahub.data.proactive.ProactiveSchedulePlanner.MIN_LEAD_MILLIS
+                    )
+            }.getOrNull()
+            val triggerTime = listOfNotNull(regularTriggerTime, autonomousTriggerTime).min()
 
             // 保存下次触发时间到SharedPreferences
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -476,11 +489,22 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
                 val prefs = getSharedPreferences(ProactiveMessageService.PREFS_NAME, Context.MODE_PRIVATE)
 
+                // 先看这次是不是 AI 自己排的唤醒点到了。命中的话要绕过下面的"最小间隔节流"：
+                // 那个节流是为随机间隔设计的，用它挡住 AI 亲口约定的时间（"20 分钟后叫我"
+                // 撞上 30 分钟的最小间隔）会让约定直接失效。
+                val autonomousDue = runCatching {
+                    me.rerere.rikkahub.data.proactive.ProactiveScheduleStore(this@ProactiveMessageTriggerService)
+                        .consumeDue(proactiveSetting.assistantId.takeIf { it.isNotBlank() })
+                }.getOrDefault(false)
+                if (autonomousDue) {
+                    Log.d(TAG, "Autonomous wake-up plan is due, bypassing the interval throttle")
+                }
+
                 // 去重判断：防止 AlarmManager 和 WorkManager 在同一窗口内重复触发。
                 // 外部触发（网关轮询/激进模式设备事件）跳过此检查，因为这是独立信号源，不受内部闹钟链约束。
                 // 注意：isForceTrigger 跳过的是"时间间隔节流"（两回事），不跳过后面 tryClaimGeneration 的并发安全检查。
                 // 把"读取 last_triggered_time -> 判断 -> 写入"整段放在同步块里，修复 check-then-act 竞态。
-                if (!isForceTrigger) {
+                if (!isForceTrigger && !autonomousDue) {
                     val skipDueToInterval = synchronized(prefsLock) {
                         val lastTriggeredTime = prefs.getLong("last_triggered_time", 0L)
                         val minIntervalMs = proactiveSetting.minIntervalMinutes.coerceAtLeast(1) * 60 * 1000L
