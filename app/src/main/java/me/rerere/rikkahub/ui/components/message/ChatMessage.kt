@@ -1320,152 +1320,183 @@ private fun BubbleSurface(
         Box(
             modifier = Modifier
                 .animateContentSize()
-                // 投影画在 clip 之前，落在气泡轮廓之外
+                // 投影挂在外层节点上。
+                //
+                // 原来投影和 clip(shape) 挂在同一个节点上，drawWithCache 的绘制会被归进
+                // clip 那一层，投影实际只有内侧一半画得出来：直边处看是一条贴着边的暗带，
+                // 外侧整个没了（真机上量气泡外面一点投影都读不到）。拆成两层后，投影所在的
+                // 节点没有 clip，才是一圈完整的、跟着圆角走的柔和投影。
                 .then(glassShadowModifier(LIQUID_GLASS_SHADOW_ELEVATION))
-                .clip(shape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .border(1.dp, frostedBorderColor, shape)
         ) {
-            if (finalLiveBubbleBlurEnabled) {
-                // 背景模糊片段：仅模糊背景层，文字保持清晰
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveFragmentModifier)
-                )
-            }
-            // 自定义气泡背景图。以前这个模式遇到背景图就整段退化成普通气泡，
-            // 玻璃质感全丢；现在图铺在玻璃填充之下，高光和描边照常叠加。
-            if (hasImage) {
-                AsyncImage(
-                    model = imagePath,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            }
-            if (isDarkTheme && finalLiveBubbleBlurEnabled) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleNightReadabilityModifier)
-                )
-            }
+            // 内层：气泡本体，圆角裁剪只作用在这里
             Box(
                 modifier = Modifier
-                    .matchParentSize()
-                    .then(liquidGlassFillModifier)
-            )
-            if (finalLiveBubbleBlurEnabled) {
-                // 径向光泽：左上亮，模拟玻璃对光的折射
+                    .clip(shape)
+                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                    .border(1.dp, frostedBorderColor, shape)
+            ) {
+                if (finalLiveBubbleBlurEnabled) {
+                    // 背景模糊片段：仅模糊背景层，文字保持清晰
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            // 显式按圆角裁剪 —— 这块方形暗角就是这一层漏出来的。
+                            //
+                            // 它是带 RenderEffect 的离屏模糊层，父级的 clip(shape) 兜不住它，于是整块按
+                            // 矩形画了出来。气泡内部有半透明填充压在上面、会被提亮，圆角外侧那一小块
+                            // 没有填充，露出的就是没被提亮的原始背景 —— 看着就是四个角的方形暗块。
+                            .clip(shape)
+                            .then(liveFragmentModifier)
+                    )
+                }
+                // 自定义气泡背景图。以前这个模式遇到背景图就整段退化成普通气泡，
+                // 玻璃质感全丢；现在图铺在玻璃填充之下，高光和描边照常叠加。
+                if (hasImage) {
+                    AsyncImage(
+                        model = imagePath,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                }
+                if (isDarkTheme && finalLiveBubbleBlurEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            // 同上：这是一层深色遮罩，漏出去会直接在圆角外留下暗块。
+                            .clip(shape)
+                            .then(liveBubbleNightReadabilityModifier)
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .then(liveBubbleRadialHighlightModifier)
+                        .then(liquidGlassFillModifier)
                 )
-                // 顶部折射反光带
+                if (finalLiveBubbleBlurEnabled) {
+                    // 径向光泽：左上亮，模拟玻璃对光的折射
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(liveBubbleRadialHighlightModifier)
+                    )
+                    // 顶部折射反光带
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(liveBubbleEdgeHighlightModifier)
+                    )
+                } else {
+                    // 无实时模糊时的降级：静态高光 + 顶部反光，保证液态玻璃观感
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(glassHighlightModifier)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(liveBubbleEdgeHighlightModifier)
+                    )
+                }
+                // 顶沿内高光压在所有层之上：它代表玻璃板的上切面，被任何东西盖住就没意义了
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .then(liveBubbleEdgeHighlightModifier)
+                        .then(glassInsetTopHighlightModifier)
                 )
-            } else {
-                // 无实时模糊时的降级：静态高光 + 顶部反光，保证液态玻璃观感
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(glassHighlightModifier)
-                )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleEdgeHighlightModifier)
-                )
-            }
-            // 顶沿内高光压在所有层之上：它代表玻璃板的上切面，被任何东西盖住就没意义了
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .then(glassInsetTopHighlightModifier)
-            )
-            Column(modifier = Modifier.padding(8.dp)) {
-                content()
-                MessageTimeLabel(messageTimeText)
+                Column(modifier = Modifier.padding(8.dp)) {
+                    content()
+                    MessageTimeLabel(messageTimeText)
+                }
             }
         }
     } else if (materialMode == DisplayMaterialMode.GLASS) {
         Box(
             modifier = Modifier
                 .animateContentSize()
-                // 同液态玻璃：手绘圆角投影，不用 Modifier.shadow
+                // 同液态玻璃：投影挂在外层节点，clip 只作用于内层气泡本体
                 .then(glassShadowModifier(GLASS_SHADOW_ELEVATION))
-                .clip(shape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .border(1.dp, glassBorderColor, shape)
         ) {
-            if (finalLiveBubbleBlurEnabled) {
-                // 背景图片片段层：仅模糊此子层，文字等前景内容保持清晰。
-                // matchParentSize 只覆盖父 Box 已确定尺寸，不参与父 Box 测量，
-                // 因此气泡宽度仍由文字内容 + padding + 宽度上限决定。
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveFragmentModifier)
-                )
-            }
-            if (hasImage) {
-                AsyncImage(
-                    model = imagePath,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            }
-            if (finalLiveBubbleBlurEnabled && isDarkTheme) {
-                // 夜间深色识读遮罩：位于模糊背景之上、glass fill 之下，压暗亮背景保证白字可读
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleNightReadabilityModifier)
-                )
-            }
-            if (!hasImage || overlayEnabled) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(glassFillModifier)
-                )
-            }
-            if (finalLiveBubbleBlurEnabled) {
-                // 白色径向渐变高光遮罩：位于 glass fill 上方、玻璃高光下方，受气泡圆角裁剪
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleRadialHighlightModifier)
-                )
-            }
+            // 内层：气泡本体，圆角裁剪只作用在这里
             Box(
                 modifier = Modifier
-                    .matchParentSize()
-                    .then(glassHighlightModifier)
-            )
-            if (finalLiveBubbleBlurEnabled) {
-                // 沿真实圆角贴边的方向性硬高光：位于渲染层外、content 之下；仅左上/顶部可见，向右下透明
+                    .clip(shape)
+                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                    .border(1.dp, glassBorderColor, shape)
+            ) {
+                if (finalLiveBubbleBlurEnabled) {
+                    // 背景图片片段层：仅模糊此子层，文字等前景内容保持清晰。
+                    // matchParentSize 只覆盖父 Box 已确定尺寸，不参与父 Box 测量，
+                    // 因此气泡宽度仍由文字内容 + padding + 宽度上限决定。
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            // 显式按圆角裁剪 —— 这块方形暗角就是这一层漏出来的。
+                            //
+                            // 它是带 RenderEffect 的离屏模糊层，父级的 clip(shape) 兜不住它，于是整块按
+                            // 矩形画了出来。气泡内部有半透明填充压在上面、会被提亮，圆角外侧那一小块
+                            // 没有填充，露出的就是没被提亮的原始背景 —— 看着就是四个角的方形暗块。
+                            .clip(shape)
+                            .then(liveFragmentModifier)
+                    )
+                }
+                if (hasImage) {
+                    AsyncImage(
+                        model = imagePath,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                }
+                if (finalLiveBubbleBlurEnabled && isDarkTheme) {
+                    // 夜间深色识读遮罩：位于模糊背景之上、glass fill 之下，压暗亮背景保证白字可读
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            // 同上：这是一层深色遮罩，漏出去会直接在圆角外留下暗块。
+                            .clip(shape)
+                            .then(liveBubbleNightReadabilityModifier)
+                    )
+                }
+                if (!hasImage || overlayEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(glassFillModifier)
+                    )
+                }
+                if (finalLiveBubbleBlurEnabled) {
+                    // 白色径向渐变高光遮罩：位于 glass fill 上方、玻璃高光下方，受气泡圆角裁剪
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(liveBubbleRadialHighlightModifier)
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .then(liveBubbleEdgeHighlightModifier)
+                        .then(glassHighlightModifier)
                 )
-            }
-            // 顶沿内高光：同液态玻璃，压在所有层之上代表玻璃上切面
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .then(glassInsetTopHighlightModifier)
-            )
-            Column(modifier = Modifier.padding(8.dp)) {
-                content()
-                MessageTimeLabel(messageTimeText)
+                if (finalLiveBubbleBlurEnabled) {
+                    // 沿真实圆角贴边的方向性硬高光：位于渲染层外、content 之下；仅左上/顶部可见，向右下透明
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .then(liveBubbleEdgeHighlightModifier)
+                    )
+                }
+                // 顶沿内高光：同液态玻璃，压在所有层之上代表玻璃上切面
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(glassInsetTopHighlightModifier)
+                )
+                Column(modifier = Modifier.padding(8.dp)) {
+                    content()
+                    MessageTimeLabel(messageTimeText)
+                }
             }
         }
     } else if (hasImage) {
