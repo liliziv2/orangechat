@@ -66,7 +66,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -1239,6 +1238,35 @@ private fun BubbleSurface(
         )
     }
     val bubbleLayoutDirection = LocalLayoutDirection.current
+    // 玻璃气泡的投影。
+    //
+    // 不能用 Modifier.shadow：那条路必须配 clip=false（半透明气泡的阴影得落在自身之外），
+    // 而 clip=false 时 elevation 阴影是按 graphicsLayer 的矩形边界渲染的，圆角外侧会
+    // 漏出四个方形暗角。这里改成自己画：按真实轮廓生成 Path，用几层递减的半透明黑
+    // 描边往外扩，得到一圈跟着圆角走的柔和投影。
+    val glassShadowModifier = { elevation: Dp ->
+        Modifier.drawWithCache {
+            val spread = elevation.toPx()
+            val layers = 5
+            val outline = shape.createOutline(
+                size = size,
+                layoutDirection = bubbleLayoutDirection,
+                density = this@drawWithCache,
+            )
+            val shadowPath = Path().apply { addOutline(outline) }
+            onDrawBehind {
+                // 从外往内画：最外层最淡最宽，逐层收窄加深，叠出渐变的衰减
+                for (i in layers downTo 1) {
+                    val fraction = i.toFloat() / layers
+                    drawPath(
+                        path = shadowPath,
+                        color = Color.Black.copy(alpha = 0.055f * (1f - fraction) + 0.02f),
+                        style = Stroke(width = spread * fraction * 2f),
+                    )
+                }
+            }
+        }
+    }
     // 实时模糊气泡专用：沿真实轮廓贴边的方向性硬高光（左上亮、向右下透明；昼夜强弱不同）
     val liveBubbleEdgeHighlightModifier = Modifier.drawWithCache {
         val strokeWidthPx = 1.dp.toPx()
@@ -1292,15 +1320,8 @@ private fun BubbleSurface(
         Box(
             modifier = Modifier
                 .animateContentSize()
-                // 投影要在 clip 之前：玻璃片本身是半透明的，阴影必须落在气泡之外，
-                // 否则会被 clip 连着裁掉，气泡就像直接印在背景上而不是浮在上面。
-                .shadow(
-                    elevation = LIQUID_GLASS_SHADOW_ELEVATION,
-                    shape = shape,
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.5f),
-                    spotColor = Color.Black.copy(alpha = 0.5f),
-                )
+                // 投影画在 clip 之前，落在气泡轮廓之外
+                .then(glassShadowModifier(LIQUID_GLASS_SHADOW_ELEVATION))
                 .clip(shape)
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .border(1.dp, frostedBorderColor, shape)
@@ -1376,14 +1397,8 @@ private fun BubbleSurface(
         Box(
             modifier = Modifier
                 .animateContentSize()
-                // 与液态玻璃同理：投影必须在 clip 之前，否则半透明玻璃的阴影会被一起裁掉
-                .shadow(
-                    elevation = GLASS_SHADOW_ELEVATION,
-                    shape = shape,
-                    clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.5f),
-                    spotColor = Color.Black.copy(alpha = 0.5f),
-                )
+                // 同液态玻璃：手绘圆角投影，不用 Modifier.shadow
+                .then(glassShadowModifier(GLASS_SHADOW_ELEVATION))
                 .clip(shape)
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .border(1.dp, glassBorderColor, shape)
