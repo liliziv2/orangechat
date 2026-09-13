@@ -7,6 +7,7 @@
 package me.rerere.rikkahub.ui.components.message
  
 import android.content.Intent
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect as AndroidRenderEffect
 import android.graphics.Shader
 import android.media.MediaPlayer
@@ -65,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -1030,10 +1032,18 @@ private fun BubbleSurface(
             liveContext.radiusPx > 0f
     val cachedBlurEffect = remember(liveEnabled, liveContext.radiusPx) {
         if (liveEnabled) {
-            AndroidRenderEffect.createBlurEffect(
+            // 模糊之后再提一点饱和度。纯高斯模糊会把背景的颜色摊平成一片灰，
+            // 真实玻璃透过来的颜色反而更浓；加一级颜色矩阵能把气泡从"磨砂塑料"
+            // 拉回"玻璃"。这是 CSS 里 backdrop-filter: blur() saturate() 的常见搭配，
+            // Android 侧用 RenderEffect 链式组合实现。
+            val blur = AndroidRenderEffect.createBlurEffect(
                 liveContext.radiusPx,
                 liveContext.radiusPx,
                 Shader.TileMode.CLAMP,
+            )
+            AndroidRenderEffect.createColorFilterEffect(
+                ColorMatrixColorFilter(saturationColorMatrix(LIQUID_GLASS_SATURATION)),
+                blur,
             ).asComposeRenderEffect()
         } else {
             null
@@ -1263,12 +1273,21 @@ private fun BubbleSurface(
     }
     val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
     val frostedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = LIQUID_GLASS_BORDER_ALPHA)
-    if (materialMode == DisplayMaterialMode.FLAT && liquidGlassBubbles && !hasImage) {
+    if (materialMode == DisplayMaterialMode.FLAT && liquidGlassBubbles) {
         // ── 液态玻璃模式（iOS Liquid Glass）──
         // 实时背景模糊 + 均匀半透明填充 + 顶部折射反光 + 边缘高光描边
         Box(
             modifier = Modifier
                 .animateContentSize()
+                // 投影要在 clip 之前：玻璃片本身是半透明的，阴影必须落在气泡之外，
+                // 否则会被 clip 连着裁掉，气泡就像直接印在背景上而不是浮在上面。
+                .shadow(
+                    elevation = LIQUID_GLASS_SHADOW_ELEVATION,
+                    shape = shape,
+                    clip = false,
+                    ambientColor = Color.Black.copy(alpha = 0.5f),
+                    spotColor = Color.Black.copy(alpha = 0.5f),
+                )
                 .clip(shape)
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .border(1.dp, frostedBorderColor, shape)
@@ -1279,6 +1298,16 @@ private fun BubbleSurface(
                     modifier = Modifier
                         .matchParentSize()
                         .then(liveFragmentModifier)
+                )
+            }
+            // 自定义气泡背景图。以前这个模式遇到背景图就整段退化成普通气泡，
+            // 玻璃质感全丢；现在图铺在玻璃填充之下，高光和描边照常叠加。
+            if (hasImage) {
+                AsyncImage(
+                    model = imagePath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
                 )
             }
             if (isDarkTheme && finalLiveBubbleBlurEnabled) {
@@ -1451,6 +1480,45 @@ private const val LIQUID_GLASS_BORDER_ALPHA = 0.12f
 private const val TRANSLUCENT_BUBBLE_BASE_ALPHA = 0.72f
 private const val TRANSLUCENT_BUBBLE_BORDER_ALPHA = 0.18f
 private const val GLASS_BUBBLE_BORDER_ALPHA = 0.24f
+
+/**
+ * 液态玻璃背景的饱和度倍数。
+ *
+ * 1.0 是原色。高斯模糊本身会让背景颜色互相平均、显得发灰，稍微提一点饱和度
+ * 才像"透过玻璃看到的颜色"而不是"磨砂塑料"。取值偏保守：太高会让深色背景
+ * 下的气泡出现偏色。
+ */
+private const val LIQUID_GLASS_SATURATION = 1.35f
+
+/**
+ * 液态玻璃气泡的投影高度。
+ *
+ * 玻璃片应当浮在背景之上而不是印在上面，一点投影就能把这层关系交代清楚。
+ * 数值刻意压得低：气泡是密集重复的元素，投影稍重整屏就会显得脏。
+ */
+private val LIQUID_GLASS_SHADOW_ELEVATION = 6.dp
+
+/**
+ * 构造一个只改饱和度的颜色矩阵。
+ *
+ * 用 Rec. 709 亮度权重把每个通道往灰度拉或往外推：saturation=0 得到灰度图，
+ * 1 得到原图，大于 1 增强。手写而不是用 ColorMatrix.setSaturation() 是为了
+ * 不依赖可变对象，可以直接放进 remember 里。
+ */
+private fun saturationColorMatrix(saturation: Float): android.graphics.ColorMatrix {
+    val inv = 1f - saturation
+    val r = 0.213f * inv
+    val g = 0.715f * inv
+    val b = 0.072f * inv
+    return android.graphics.ColorMatrix(
+        floatArrayOf(
+            r + saturation, g, b, 0f, 0f,
+            r, g + saturation, b, 0f, 0f,
+            r, g, b + saturation, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
+        )
+    )
+}
  
 @Composable
 @Suppress("UnusedCrossTarget")
