@@ -36,13 +36,14 @@ const val PROACTIVE_SCHEDULE_TOOL_NAME = "schedule_wake_up"
  * 常规随机间隔一起参与调度，取较早的那个，所以两者并存互不干扰。
  *
  * @param assistantId 计划按助手隔离，null 时落在公共键上（不该发生，调用方总会传）
- * @param onScheduleChanged 计划变更后重排闹钟。传进来而不是直接调 ProactiveMessageService，
- *   避免 tools 包反向依赖 service 包。
+ * @param onScheduleChanged 计划变更后重排闹钟，返回主动消息总开关是否开着。
+ *   传进来而不是直接调 ProactiveMessageService，避免 tools 包反向依赖 service 包。
+ *   返回值让工具能告知模型"计划存下了但不会触发"，而不是让它空口答应。
  */
 fun createProactiveScheduleTool(
     context: Context,
     assistantId: String?,
-    onScheduleChanged: () -> Unit,
+    onScheduleChanged: () -> Boolean,
 ): Tool = Tool(
     name = PROACTIVE_SCHEDULE_TOOL_NAME,
     description = """
@@ -139,10 +140,22 @@ fun createProactiveScheduleTool(
                     assistantId = assistantId,
                 )
                 store.replace(plan)
-                onScheduleChanged()
+                val proactiveEnabled = onScheduleChanged()
                 buildJsonObject {
                     put("success", true)
                     put("replaced", true)
+                    put("proactive_messages_enabled", proactiveEnabled)
+                    // 总开关关着时计划存下来了但闹钟不会排。必须让模型知道，
+                    // 否则它会一口答应"明早八点叫你"，而那个八点永远不会到，
+                    // 用户完全看不出来出了什么问题。
+                    if (!proactiveEnabled) {
+                        put(
+                            "warning",
+                            "The user has proactive messages turned off, so this plan is saved but will " +
+                                "not fire. Tell them plainly that you cannot actually reach them until " +
+                                "they enable proactive messages in settings - do not just agree."
+                        )
+                    }
                     putPlanFields(store, assistantId)
                 }
             }
@@ -157,7 +170,11 @@ fun createProactiveScheduleTool(
                 }
             }
 
-            "status" -> buildJsonObject { putPlanFields(store, assistantId) }
+            // status 也报告总开关：模型自查时应当看到"排了但不会触发"这种状态
+            "status" -> buildJsonObject {
+                put("proactive_messages_enabled", onScheduleChanged())
+                putPlanFields(store, assistantId)
+            }
 
             else -> error("action must be set, status or cancel")
         }

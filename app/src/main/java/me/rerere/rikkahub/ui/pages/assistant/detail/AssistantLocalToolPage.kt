@@ -201,7 +201,7 @@ private fun AssistantLocalToolContent(
             item(
                 headlineContent = { Text("自主唤醒") },
                 supportingContent = {
-                    Text("允许 AI 自己决定下次什么时候来找你（如\"明早八点叫你\"\"每晚九点提醒\"）。与主动消息的随机间隔并存，取较早的触发")
+                    Text("允许 AI 自己决定下次什么时候来找你（如\"明早八点叫你\"\"每晚九点提醒\"）。与主动消息的随机间隔并存，取较早的触发。需要先在「设置 → 主动消息」里启用主动消息，否则 AI 排的时间不会真的触发")
                 },
                 trailingContent = {
                     Switch(

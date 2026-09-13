@@ -1208,6 +1208,19 @@ private fun BubbleSurface(
             drawRect(brush = readabilityBrush)
         }
     }
+    // 顶沿内高光：紧贴上边缘的 1px 亮线，模拟玻璃板的厚度切面。
+    // CSS 里就是 box-shadow 的 inset 0 1px 0 —— 它跟 border 的区别在于只有顶边一条，
+    // 眼睛会把它读成"这块板有厚度"，而四边均匀的描边只会读成"一个框"。
+    val glassInsetTopHighlightModifier = Modifier.drawWithCache {
+        val lineHeight = 1.dp.toPx()
+        val lineAlpha = if (isDarkTheme) 0.20f else 0.62f
+        onDrawBehind {
+            drawRect(
+                color = Color.White.copy(alpha = lineAlpha),
+                size = Size(size.width, minOf(lineHeight, size.height)),
+            )
+        }
+    }
     // 气泡实际轮廓：玻璃/液态玻璃的贴边高光必须照它走，否则会在圆角处错位并被父级 clip 切掉一截。
     // 非对称造型：用户气泡右下角收窄、助手气泡左下角收窄，指向各自的头像一侧。
     val shape = if (isUser) {
@@ -1348,6 +1361,12 @@ private fun BubbleSurface(
                         .then(liveBubbleEdgeHighlightModifier)
                 )
             }
+            // 顶沿内高光压在所有层之上：它代表玻璃板的上切面，被任何东西盖住就没意义了
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(glassInsetTopHighlightModifier)
+            )
             Column(modifier = Modifier.padding(8.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
@@ -1357,6 +1376,14 @@ private fun BubbleSurface(
         Box(
             modifier = Modifier
                 .animateContentSize()
+                // 与液态玻璃同理：投影必须在 clip 之前，否则半透明玻璃的阴影会被一起裁掉
+                .shadow(
+                    elevation = GLASS_SHADOW_ELEVATION,
+                    shape = shape,
+                    clip = false,
+                    ambientColor = Color.Black.copy(alpha = 0.5f),
+                    spotColor = Color.Black.copy(alpha = 0.5f),
+                )
                 .clip(shape)
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .border(1.dp, glassBorderColor, shape)
@@ -1415,6 +1442,12 @@ private fun BubbleSurface(
                         .then(liveBubbleEdgeHighlightModifier)
                 )
             }
+            // 顶沿内高光：同液态玻璃，压在所有层之上代表玻璃上切面
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(glassInsetTopHighlightModifier)
+            )
             Column(modifier = Modifier.padding(8.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
@@ -1497,6 +1530,13 @@ private const val LIQUID_GLASS_SATURATION = 1.35f
  * 数值刻意压得低：气泡是密集重复的元素，投影稍重整屏就会显得脏。
  */
 private val LIQUID_GLASS_SHADOW_ELEVATION = 6.dp
+
+/**
+ * GLASS 材质气泡的投影高度。
+ *
+ * 比液态玻璃稍轻：GLASS 模式的填充本身更实（不透明度更高），投影再重就显得笨。
+ */
+private val GLASS_SHADOW_ELEVATION = 4.dp
 
 /**
  * 构造一个只改饱和度的颜色矩阵。

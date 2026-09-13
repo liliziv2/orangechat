@@ -157,20 +157,26 @@ class LocalTools(
      * 用 Koin 懒取而不是加构造参数：ProactiveMessageService 是 service 层，
      * 从构造函数注进来会让 LocalTools 的依赖图跟着 service 走。
      * 这里只在工具真被调用时才解析一次。
+     *
+     * @return 主动消息总开关是否开着。关着时计划存下来了但闹钟不会排，
+     *   调用方要据此告诉模型"这个约定实际不会生效"，不能让它空口答应用户。
      */
-    private fun rescheduleProactiveWakeUp() {
-        runCatching {
+    private fun rescheduleProactiveWakeUp(): Boolean {
+        return runCatching {
             val settingsStore = org.koin.core.context.GlobalContext.get()
                 .get<me.rerere.rikkahub.data.datastore.SettingsStore>()
             val setting = kotlinx.coroutines.runBlocking {
                 settingsStore.settingsFlow.first().proactiveMessageSetting
             }
-            // 主动消息总开关关着时不排闹钟：计划留着，等用户开开关时自然生效
+            // 总开关关着时不排闹钟：计划留着，等用户开开关时自然生效
             if (setting.enabled) {
                 me.rerere.rikkahub.data.service.ProactiveMessageService.scheduleNext(context, setting)
             }
-        }.onFailure {
+            setting.enabled
+        }.getOrElse {
             android.util.Log.w("LocalTools", "failed to reschedule proactive wake up", it)
+            // 读不到设置时按"没开"上报：宁可让模型多提醒一句，也别让约定静默失效
+            false
         }
     }
 
