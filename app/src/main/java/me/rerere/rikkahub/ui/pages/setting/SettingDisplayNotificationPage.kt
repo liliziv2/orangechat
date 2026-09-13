@@ -131,6 +131,18 @@ fun SettingDisplayNotificationPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_tts_english_only_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_tts_english_only_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.ttsEnglishOnly,
+                                onCheckedChange = {
+                                    updateDisplaySetting(displaySetting.copy(ttsEnglishOnly = it))
+                                }
+                            )
+                        },
+                    )
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_desc)) },
                         trailingContent = {

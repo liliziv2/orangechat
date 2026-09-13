@@ -377,18 +377,43 @@ private fun MiniMaxTTSConfiguration(
     }
 
     // Model
+    var modelExpanded by remember { mutableStateOf(false) }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_model)) },
         description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
     ) {
-        OutlinedTextField(
-            value = setting.model,
-            onValueChange = { newModel ->
-                onValueChange(setting.copy(model = newModel))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("speech-2.8-turbo") }
-        )
+        ExposedDropdownMenuBox(
+            expanded = modelExpanded,
+            onExpandedChange = { modelExpanded = !modelExpanded }
+        ) {
+            OutlinedTextField(
+                value = setting.model,
+                onValueChange = { newModel ->
+                    onValueChange(setting.copy(model = newModel))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(MenuAnchorType.PrimaryEditable),
+                placeholder = { Text(TTSProviderSetting.MiniMax.DEFAULT_MODEL) },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded)
+                }
+            )
+            ExposedDropdownMenu(
+                expanded = modelExpanded,
+                onDismissRequest = { modelExpanded = false }
+            ) {
+                TTSProviderSetting.MiniMax.MODEL_OPTIONS.forEach { model ->
+                    DropdownMenuItem(
+                        text = { Text(model) },
+                        onClick = {
+                            modelExpanded = false
+                            onValueChange(setting.copy(model = model))
+                        }
+                    )
+                }
+            }
+        }
     }
 
     // Voice ID
@@ -444,23 +469,32 @@ private fun MiniMaxTTSConfiguration(
         }
     }
 
-    // Emotion
+    // Emotion（整体情绪，仅 speech-2.8 系列支持）
     var emotionExpanded by remember { mutableStateOf(false) }
-    val emotions = listOf("calm", "happy", "sad", "angry", "fearful", "disgusted", "surprised")
+    val emotions = TTSProviderSetting.MiniMax.EMOTION_OPTIONS
 
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_emotion)) },
-        description = { Text(stringResource(R.string.setting_tts_page_emotion_description)) }
+        description = {
+            Text(
+                if (setting.supportsEmotion) {
+                    stringResource(R.string.setting_tts_page_emotion_description)
+                } else {
+                    stringResource(R.string.setting_tts_page_emotion_unsupported)
+                }
+            )
+        }
     ) {
         ExposedDropdownMenuBox(
             expanded = emotionExpanded,
-            onExpandedChange = { emotionExpanded = !emotionExpanded }
+            onExpandedChange = { if (setting.supportsEmotion) emotionExpanded = !emotionExpanded }
         ) {
             OutlinedTextField(
                 value = setting.emotion,
                 onValueChange = { newEmotion ->
                     onValueChange(setting.copy(emotion = newEmotion))
                 },
+                enabled = setting.supportsEmotion,
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor(MenuAnchorType.PrimaryEditable),

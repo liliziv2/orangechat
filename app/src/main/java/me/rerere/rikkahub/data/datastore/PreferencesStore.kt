@@ -707,6 +707,11 @@ data class DisplaySetting(
     val codeBlockAutoCollapse: Boolean = false,
     val showLineNumbers: Boolean = false,
     val ttsOnlyReadQuoted: Boolean = false,
+    /**
+     * 只朗读文本里的英文部分，中文/日文等其它文字跳过。
+     * 适合用英文音色听发音练习：中英混排时不会被中文读音打断。
+     */
+    val ttsEnglishOnly: Boolean = false,
     val autoPlayTTSAfterGeneration: Boolean = false,
     /**
      * 生成结束后自动把助手回复合成一条语音条插进消息里（可回放、随会话持久化）。

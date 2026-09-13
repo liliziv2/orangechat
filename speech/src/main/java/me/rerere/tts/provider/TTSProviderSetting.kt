@@ -88,11 +88,44 @@ sealed class TTSProviderSetting {
         override var name: String = "MiniMax TTS",
         val apiKey: String = "",
         val baseUrl: String = "https://api.minimaxi.com/v1",
-        val model: String = "speech-2.8-turbo",
+        val model: String = DEFAULT_MODEL,
         val voiceId: String = "female-shaonv",
         val emotion: String = "calm",
         val speed: Float = 1.0f
     ) : TTSProviderSetting() {
+        companion object {
+            const val DEFAULT_MODEL = "speech-2.8-turbo"
+
+            /** 可选模型。2.8 系列支持整体情绪控制，2.6 系列不支持。 */
+            val MODEL_OPTIONS = listOf(
+                "speech-2.8-hd",
+                "speech-2.8-turbo",
+                "speech-2.6-hd",
+                "speech-2.6-turbo",
+            )
+
+            /** 只有这些模型不接受 emotion 参数，传了会被拒。 */
+            val MODELS_WITHOUT_EMOTION = setOf(
+                "speech-2.6-hd",
+                "speech-2.6-turbo",
+            )
+
+            /** MiniMax Speech 2.8 的整体情绪档位。 */
+            val EMOTION_OPTIONS = listOf(
+                "calm",
+                "happy",
+                "sad",
+                "angry",
+                "fearful",
+                "disgusted",
+                "surprised",
+                "fluent",
+            )
+        }
+
+        /** 当前模型是否支持整体情绪。 */
+        val supportsEmotion: Boolean get() = model !in MODELS_WITHOUT_EMOTION
+
         override fun copyProvider(
             id: Uuid,
             name: String,

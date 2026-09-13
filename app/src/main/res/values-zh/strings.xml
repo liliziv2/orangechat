@@ -718,6 +718,8 @@
   <string name="setting_display_page_skip_crop_image_title">跳过图片编辑</string>
   <string name="setting_display_page_title">显示设置</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">启用后，TTS 仅朗读引号内的内容</string>
+    <string name="setting_display_page_tts_english_only_title">只朗读英文</string>
+    <string name="setting_display_page_tts_english_only_desc">只朗读文本里的英文部分，中文等其它文字跳过</string>
   <string name="setting_display_page_tts_only_read_quoted_title">TTS仅朗读引用内容</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_desc">使用应用图标动画替代默认的圆形加载指示器</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_title">使用APP图标风格的加载指示器</string>
@@ -967,6 +969,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_tts_page_edit_provider">编辑提供商</string>
   <string name="setting_tts_page_emotion">情感</string>
   <string name="setting_tts_page_emotion_description">语音合成的情感风格</string>
+    <string name="setting_tts_page_emotion_unsupported">整体情绪需要 speech-2.8 模型</string>
   <string name="setting_tts_page_model">模型</string>
   <string name="setting_tts_page_model_description">要使用的TTS模型</string>
   <string name="setting_tts_page_model_placeholder_gemini">gemini-2.5-flash-preview-tts</string>

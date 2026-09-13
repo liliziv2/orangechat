@@ -15,8 +15,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.context.LocalTTSState
-import me.rerere.rikkahub.utils.extractQuotedContentAsText
-import me.rerere.rikkahub.utils.stripTtsInternalMarkup
+import me.rerere.rikkahub.utils.toChatTtsText
 
 @Composable
 fun TTSAutoPlay(vm: ChatVM, setting: Settings, conversation: Conversation) {
@@ -34,12 +33,12 @@ fun TTSAutoPlay(vm: ChatVM, setting: Settings, conversation: Conversation) {
             val lastMessage = lastNode.messages.getOrNull(lastNode.selectIndex) ?: return@collect
             if (lastMessage.role != MessageRole.ASSISTANT) return@collect
 
-            val text = lastMessage.toText().stripTtsInternalMarkup()
-            val textToSpeak = if (display.ttsOnlyReadQuoted) {
-                text.extractQuotedContentAsText() ?: text
-            } else {
-                text
-            }
+            // 统一走 toChatTtsText：内部协议剥离、只读引用、去 Markdown、只读英文
+            // 四步的先后顺序都在那里定好了，这里不要再自己拼。
+            val textToSpeak = lastMessage.toText().toChatTtsText(
+                ttsOnlyReadQuoted = display.ttsOnlyReadQuoted,
+                ttsEnglishOnly = display.ttsEnglishOnly,
+            )
             if (textToSpeak.isBlank()) return@collect
 
             // 语音条优先：要留一条能回放的，就不再另外念一遍，否则同一句会响两次。

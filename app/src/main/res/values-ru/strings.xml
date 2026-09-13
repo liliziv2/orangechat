@@ -707,6 +707,8 @@
   <string name="setting_display_page_skip_crop_image_title">Пропустить редактирование изображения</string>
   <string name="setting_display_page_title">Настройки отображения</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">Если включено, TTS читает только текст в кавычках</string>
+    <string name="setting_display_page_tts_english_only_title">Только английский</string>
+    <string name="setting_display_page_tts_english_only_desc">Читать вслух только английские части текста, пропуская остальные</string>
   <string name="setting_display_page_tts_only_read_quoted_title">TTS читать только цитированный контент</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_desc">Использовать анимированный значок приложения вместо стандартного круглого индикатора загрузки</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_title">Использовать индикатор загрузки в стиле значка приложения</string>
@@ -956,6 +958,7 @@
   <string name="setting_tts_page_edit_provider">Редактировать поставщика</string>
   <string name="setting_tts_page_emotion">Эмоция</string>
   <string name="setting_tts_page_emotion_description">Эмоциональный стиль для синтеза речи</string>
+    <string name="setting_tts_page_emotion_unsupported">Общая эмоция требует модели speech-2.8</string>
   <string name="setting_tts_page_model">Модель</string>
   <string name="setting_tts_page_model_description">Модель TTS для использования</string>
   <string name="setting_tts_page_model_placeholder_gemini">gemini-2.5-flash-preview-tts</string>

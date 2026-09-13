@@ -707,6 +707,8 @@
   <string name="setting_display_page_skip_crop_image_title">이미지 편집 건너뛰기</string>
   <string name="setting_display_page_title">디스플레이 설정</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">활성화하면 TTS가 따옴표 안의 내용만 읽습니다</string>
+    <string name="setting_display_page_tts_english_only_title">영어만 읽기</string>
+    <string name="setting_display_page_tts_english_only_desc">텍스트의 영어 부분만 읽고 중국어 등은 건너뜁니다</string>
   <string name="setting_display_page_tts_only_read_quoted_title">TTS가 인용 콘텐츠만 읽기</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_desc">기본 원형 로딩 표시기 대신 앱 아이콘 애니메이션을 사용합니다</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_title">앱 아이콘 스타일 로딩 표시기 사용</string>
@@ -956,6 +958,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_tts_page_edit_provider">제공업체 편집</string>
   <string name="setting_tts_page_emotion">감정</string>
   <string name="setting_tts_page_emotion_description">음성 합성 감정 스타일</string>
+    <string name="setting_tts_page_emotion_unsupported">전체 감정에는 speech-2.8 모델이 필요합니다</string>
   <string name="setting_tts_page_model">모델</string>
   <string name="setting_tts_page_model_description">사용할 TTS 모델</string>
   <string name="setting_tts_page_model_placeholder_gemini">gemini-2.5-flash-preview-tts</string>

@@ -707,6 +707,8 @@
   <string name="setting_display_page_skip_crop_image_title">画像編集をスキップ</string>
   <string name="setting_display_page_title">表示設定</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">有効にすると、TTSは引用符内のコンテンツのみを読み上げます</string>
+    <string name="setting_display_page_tts_english_only_title">英語のみ読み上げ</string>
+    <string name="setting_display_page_tts_english_only_desc">テキスト内の英語部分のみを読み上げ、中国語などはスキップします</string>
   <string name="setting_display_page_tts_only_read_quoted_title">引用部分のみTTSで読み上げ</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_desc">デフォルトの円形読み込みインジケーターの代わりに、アプリアイコンのアニメーションを使用します</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_title">アプリアイコン風の読み込みインジケーターを使用</string>
@@ -956,6 +958,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_tts_page_edit_provider">プロバイダーを編集</string>
   <string name="setting_tts_page_emotion">感情</string>
   <string name="setting_tts_page_emotion_description">音声合成の感情スタイル</string>
+    <string name="setting_tts_page_emotion_unsupported">全体の感情には speech-2.8 モデルが必要です</string>
   <string name="setting_tts_page_model">モデル</string>
   <string name="setting_tts_page_model_description">使用するTTSモデル</string>
   <string name="setting_tts_page_model_placeholder_gemini">gemini-2.5-flash-preview-tts</string>

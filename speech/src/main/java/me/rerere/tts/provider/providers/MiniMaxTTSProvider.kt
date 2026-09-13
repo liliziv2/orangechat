@@ -66,7 +66,10 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
             })
             put("voice_setting", buildJsonObject {
                 put("voice_id", providerSetting.voiceId)
-                put("emotion", providerSetting.emotion)
+                // 整体情绪只有 speech-2.8 系列支持；2.6 上带这个字段会被服务端拒掉。
+                if (providerSetting.supportsEmotion && providerSetting.emotion.isNotBlank()) {
+                    put("emotion", providerSetting.emotion)
+                }
                 put("speed", providerSetting.speed)
             })
         }

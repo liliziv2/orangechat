@@ -216,6 +216,16 @@ fun VoiceCallPage(
                 )
             }
 
+            // 通话时长。只在真的开始计时后显示，免得刚进来先闪一下 0:00
+            if (uiState.durationSeconds > 0) {
+                Text(
+                    text = me.rerere.rikkahub.data.voice.formatCallDuration(uiState.durationSeconds),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
             // 中部: 流动光球 (颜色随状态变化)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

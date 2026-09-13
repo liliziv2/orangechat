@@ -32,6 +32,8 @@ data class VoiceCallUiState(
     val amplitudes: List<Float> = emptyList(),
     val isMuted: Boolean = false,
     val autoSendEnabled: Boolean = true,
+    /** 已通话秒数，由 Service 每秒推一次；0 表示还没开始。 */
+    val durationSeconds: Int = 0,
 ) {
     val isActive: Boolean
         get() = status != VoiceCallStatus.Idle

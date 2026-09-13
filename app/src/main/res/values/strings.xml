@@ -767,6 +767,8 @@
   <string name="setting_display_page_skip_crop_image_title">Skip Image Editing</string>
   <string name="setting_display_page_title">Display Settings</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">When enabled, TTS will only read content within quotation marks</string>
+    <string name="setting_display_page_tts_english_only_title">English Only</string>
+    <string name="setting_display_page_tts_english_only_desc">Read only the English parts aloud, skipping Chinese and other scripts</string>
   <string name="setting_display_page_tts_only_read_quoted_title">TTS Read Quoted Content Only</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_desc">Use the animated app icon instead of the default circular loading indicator</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_title">Use App Icon-Style Loading Indicator</string>
@@ -1014,6 +1016,7 @@
   <string name="setting_tts_page_edit_provider">Edit Provider</string>
   <string name="setting_tts_page_emotion">Emotion</string>
   <string name="setting_tts_page_emotion_description">Emotion style for speech synthesis</string>
+    <string name="setting_tts_page_emotion_unsupported">Overall emotion needs a speech-2.8 model</string>
   <string name="setting_tts_page_model">Model</string>
   <string name="setting_tts_page_model_description">TTS model to use</string>
   <string name="setting_tts_page_model_placeholder_gemini">gemini-2.5-flash-preview-tts</string>

@@ -707,6 +707,8 @@
   <string name="setting_display_page_skip_crop_image_title">跳過圖片編輯</string>
   <string name="setting_display_page_title">顯示設定</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">啟用後，TTS 只會朗讀引號內的內容</string>
+    <string name="setting_display_page_tts_english_only_title">只朗讀英文</string>
+    <string name="setting_display_page_tts_english_only_desc">只朗讀文字中的英文部分，中文等其他文字略過</string>
   <string name="setting_display_page_tts_only_read_quoted_title">僅朗讀引用的 TTS 內容</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_desc">使用應用程式圖示動畫取代預設的圓形載入指示器</string>
   <string name="setting_display_page_use_app_icon_style_loading_indicator_title">使用 APP 圖示風格的載入指示器</string>
@@ -954,6 +956,7 @@
   <string name="setting_tts_page_edit_provider">編輯提供商</string>
   <string name="setting_tts_page_emotion">情緒</string>
   <string name="setting_tts_page_emotion_description">語音合成的情感風格</string>
+    <string name="setting_tts_page_emotion_unsupported">整體情緒需要 speech-2.8 模型</string>
   <string name="setting_tts_page_model">模型</string>
   <string name="setting_tts_page_model_description">要使用的TTS模型</string>
   <string name="setting_tts_page_model_placeholder_gemini">gemini-2.5-flash-preview-tts</string>
