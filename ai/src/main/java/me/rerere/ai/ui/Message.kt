@@ -814,7 +814,90 @@ sealed class UIMessageAnnotation {
         val title: String,
         val url: String
     ) : UIMessageAnnotation()
+
+    /**
+     * 聊天回复里的语音条分段结果。
+     *
+     * 模型用分段标记写出一条混排回复，客户端解析成 [ChatVoiceReplySegment] 列表后挂在这里，
+     * 于是同一条 assistant 消息可以既有普通文本又有语音条。
+     */
+    @Serializable
+    @SerialName("chat_voice_reply")
+    data class ChatVoiceReply(
+        val segments: List<ChatVoiceReplySegment>,
+    ) : UIMessageAnnotation()
+
+    /**
+     * 一次 TTS 合成产生的音频，落在本地文件里以便重复播放而不用再次请求。
+     */
+    @Serializable
+    @SerialName("tts_audio")
+    data class TtsAudio(
+        val requestText: String,
+        val chunkText: String,
+        val audioUri: String,
+        val format: String,
+        val sampleRate: Int? = null,
+        val chunkIndex: Int = 0,
+        val totalChunks: Int = 1,
+    ) : UIMessageAnnotation()
+
+    /**
+     * 语音通话记录：时长、涉及的消息、以及已保存的音频段（用于通话结束后回放）。
+     */
+    @Serializable
+    @SerialName("voice_call_record")
+    data class VoiceCallRecord(
+        val callId: String,
+        val durationSeconds: Int,
+        val cardAnchor: Boolean = false,
+        val standalone: Boolean = false,
+        val audioSegments: List<VoiceCallAudioSegment> = emptyList(),
+        val messageIds: Set<String> = emptySet(),
+        val audioSegmentsByMessageId: Map<String, List<VoiceCallAudioSegment>> = emptyMap(),
+        val pendingEndedEvent: Boolean = false,
+    ) : UIMessageAnnotation()
 }
+
+@Serializable
+enum class ChatVoiceReplySegmentType {
+    TEXT,
+    VOICE,
+}
+
+/**
+ * 混排回复里的一段。VOICE 段会被合成为语音条，TEXT 段按普通聊天文本显示。
+ *
+ * [audioSegments] 为空表示还没合成（或合成失败）；一段长语音会被切成多个音频块，
+ * 按顺序播放，所以这里是列表而不是单个 uri。
+ */
+@Serializable
+data class ChatVoiceReplySegment(
+    val type: ChatVoiceReplySegmentType,
+    val text: String,
+    val audioSegments: List<ChatVoiceAudioSegment> = emptyList(),
+    val translation: String? = null,
+)
+
+@Serializable
+data class ChatVoiceAudioSegment(
+    val text: String,
+    val audioUri: String,
+    val format: String,
+    val sampleRate: Int? = null,
+)
+
+/**
+ * 通话中保存下来的一段音频，用于通话记录里的回放。
+ */
+@Serializable
+data class VoiceCallAudioSegment(
+    val text: String,
+    val audioUri: String,
+    val format: String,
+    val sampleRate: Int? = null,
+    val fromUser: Boolean = false,
+)
 
 @Serializable
 data class MessageChunk(

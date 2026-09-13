@@ -44,6 +44,8 @@
   <string name="assistant_page_add_header">ヘッダーを追加</string>
   <string name="assistant_page_allow_conversation_system_prompt">会話別システムプロンプト</string>
   <string name="assistant_page_allow_conversation_system_prompt_desc">会話ごとにシステムプロンプトを個別に設定可能にする</string>
+    <string name="assistant_page_allow_voice_reply_title">ボイスメッセージ</string>
+    <string name="assistant_page_allow_voice_reply_desc">返信にボイスメッセージを混在させることを許可します。TTS モデルの設定が必要です。</string>
   <string name="assistant_page_available_variables">"利用可能な変数: "</string>
   <string name="assistant_page_background_opacity">背景の透明度</string>
   <string name="assistant_page_background_opacity_desc">チャット背景画像の表示透明度を調整します</string>

@@ -44,6 +44,8 @@
   <string name="assistant_page_add_header">添加 Header</string>
   <string name="assistant_page_allow_conversation_system_prompt">独立对话系统提示</string>
   <string name="assistant_page_allow_conversation_system_prompt_desc">允许每个对话单独设置系统提示词</string>
+    <string name="assistant_page_allow_voice_reply_title">语音条回复</string>
+    <string name="assistant_page_allow_voice_reply_desc">允许助手在回复里混排语音条。需要先配置语音合成模型。</string>
   <string name="assistant_page_available_variables">"可用变量: "</string>
   <string name="assistant_page_background_opacity">背景透明度</string>
   <string name="assistant_page_background_opacity_desc">调整聊天背景图显示透明度</string>

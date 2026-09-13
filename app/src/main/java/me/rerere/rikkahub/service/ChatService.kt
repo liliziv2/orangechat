@@ -90,6 +90,9 @@ import me.rerere.rikkahub.data.ai.transformers.SystemHintTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.VoiceMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
+import me.rerere.rikkahub.data.datastore.getSelectedTTSProvider
+import me.rerere.rikkahub.data.voice.hasChatVoiceMarker
+import me.rerere.rikkahub.data.voice.materializeChatVoiceReply
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -173,6 +176,7 @@ class ChatService(
     private val workspaceRepository: WorkspaceRepository,
     private val memoryBankService: MemoryBankService,
     private val folderRepository: FolderRepository,
+    private val voiceMessageSynthesizer: me.rerere.rikkahub.data.voice.VoiceMessageSynthesizer,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -833,6 +837,59 @@ class ChatService(
         session.setJob(job)
     }
 
+    /**
+     * 把最后一条 assistant 回复里的 【语音条】 段合成成语音条 part。
+     *
+     * 只在助手开了 allowVoiceReply 且文本里真的出现了标记时才做，其它情况一次 IO 都不发生。
+     * 合成走 saveMutex 之外：TTS 请求可能要几秒，占着锁会挡住用户发下一条消息；
+     * 写回时重新读一次会话状态并按 id 定位，避免覆盖这期间产生的新消息。
+     */
+    private suspend fun materializeVoiceReplyIfNeeded(
+        conversationId: Uuid,
+        assistant: Assistant,
+    ) {
+        if (!assistant.allowVoiceReply) return
+        try {
+            val conversation = getConversationFlow(conversationId).value
+            val target = conversation.currentMessages
+                .lastOrNull { it.role == MessageRole.ASSISTANT }
+                ?.takeIf { it.hasChatVoiceMarker() }
+                ?: return
+
+            val settings = settingsStore.settingsFlow.first()
+            val provider = settings.getSelectedTTSProvider()
+            val materialized = materializeChatVoiceReply(target) { segmentText ->
+                // 没配 TTS 时返回 null，materializeChatVoiceReply 会整条退化成纯文本，
+                // 用户至少能读到内容，而不是看到一堆 【语音条】 标记。
+                provider?.let { voiceMessageSynthesizer.synthesize(segmentText, it) }
+            } ?: return
+
+            val session = getOrCreateSession(conversationId)
+            session.saveMutex.withLock {
+                val latest = getConversationFlow(conversationId).value
+                val updated = latest.copy(
+                    messageNodes = latest.messageNodes.map { node ->
+                        if (node.messages.none { it.id == materialized.id }) {
+                            node
+                        } else {
+                            node.copy(
+                                messages = node.messages.map { message ->
+                                    if (message.id == materialized.id) materialized else message
+                                }
+                            )
+                        }
+                    }
+                )
+                updateConversation(conversationId, updated)
+                saveConversation(conversationId, updated)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "materializeVoiceReplyIfNeeded failed", e)
+        }
+    }
+
     // ---- 处理消息补全 ----
 
     private suspend fun handleMessageComplete(
@@ -996,6 +1053,11 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                 saveConversation(conversationId, latest)
                 latest
             }
+
+            // 语音条混排：把 【语音条】 段合成成真正的语音条 part。
+            // 必须放在下面 [JUMP]／网易云等文本后处理之前 —— 那些逻辑读的是消息文本，
+            // 而这一步会重写 parts、去掉标记，先跑才能让它们看到干净的文本。
+            materializeVoiceReplyIfNeeded(conversationId, assistant)
 
             // 自动唤起网易云音乐：扫描刚完成的 assistant 文本中的 orpheus:// scheme
             try {

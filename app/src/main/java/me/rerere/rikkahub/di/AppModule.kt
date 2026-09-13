@@ -109,6 +109,10 @@ val appModule = module {
     }
 
     single {
+        me.rerere.rikkahub.data.voice.VoiceMessageSynthesizer(get(), get())
+    }
+
+    single {
         SoundEffectPlayer(get())
     }
 
@@ -143,6 +147,7 @@ val appModule = module {
             workspaceRepository = get(),
             memoryBankService = get(),
             folderRepository = get(),
+            voiceMessageSynthesizer = get(),
         )
     }
 

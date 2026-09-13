@@ -44,6 +44,8 @@
   <string name="assistant_page_add_header">Добавить заголовок</string>
   <string name="assistant_page_allow_conversation_system_prompt">Системный промпт для каждой беседы</string>
   <string name="assistant_page_allow_conversation_system_prompt_desc">Разрешить каждому разговору переопределять системный запрос ассистента</string>
+    <string name="assistant_page_allow_voice_reply_title">Голосовые сообщения</string>
+    <string name="assistant_page_allow_voice_reply_desc">Разрешить ассистенту вставлять голосовые сообщения в ответ. Требуется настроенная модель TTS.</string>
   <string name="assistant_page_available_variables">Доступные переменные:</string>
   <string name="assistant_page_background_opacity">Прозрачность фона</string>
   <string name="assistant_page_background_opacity_desc">Настройте видимость фонового изображения чата</string>

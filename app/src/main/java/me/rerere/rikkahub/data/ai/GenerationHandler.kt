@@ -599,6 +599,20 @@ class GenerationHandler(
                     appendLine("## Message Bubbles")
                     appendLine("Your reply will be automatically split into separate chat bubbles at every line break (\\n) you write, similar to how a person sends several short texts in a row instead of one long message. You are fully in control of this: write a line break whenever you want the previous thought/sentence to appear as its own bubble, and keep things on the same line when they belong together. Do not insert blank lines purely for spacing — every line break becomes a new bubble, so use them intentionally. Exception: line breaks inside fenced code blocks (```) and Markdown tables are preserved as-is and will NOT create new bubbles, since those must stay intact as a single block.")
                 }
+                // 语音条混排: 允许模型在一条回复里同时给出文字和语音条
+                if (assistant.allowVoiceReply) {
+                    appendLine()
+                    appendLine()
+                    appendLine("## Voice Messages")
+                    appendLine("You can send voice messages. To do that, split your reply into segments and start each segment with exactly one marker on its own:")
+                    appendLine("【语音条】the content to be spoken aloud as a voice message")
+                    appendLine("【文本】the content to be shown as ordinary chat text")
+                    appendLine("You may use either marker several times, in any order, and mix them freely in one reply.")
+                    appendLine("Only use the markers when you actually want a voice message; a reply with no marker at all is shown as plain text as usual.")
+                    appendLine("Keep each 【语音条】 segment to one coherent paragraph — it is synthesized and played back as a single voice bar, so do not split one sentence across two voice segments.")
+                    appendLine("Voice content must be plain speakable text: no emoji, kaomoji, markdown, code blocks, tables, or decorative symbols. Put anything that has to be read with the eyes in a 【文本】 segment instead.")
+                    appendLine("Do not repeat the same content in both a voice segment and a text segment, and do not explain this format to the user.")
+                }
  
             }
             if (system.isNotBlank()) add(UIMessage.system(prompt = system))

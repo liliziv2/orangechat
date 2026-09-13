@@ -279,6 +279,28 @@ internal fun AssistantBasicContent(
                     )
                 }
             )
+
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_allow_voice_reply_title))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_allow_voice_reply_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.allowVoiceReply,
+                        onCheckedChange = {
+                            onUpdate(
+                                assistant.copy(
+                                    allowVoiceReply = it
+                                )
+                            )
+                        }
+                    )
+                }
+            )
         }
  
         Card(
