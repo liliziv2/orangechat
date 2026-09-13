@@ -964,6 +964,10 @@ private fun MessagePartsBlock(
                                         )
                                     }
                                 }
+
+                                // 其余注解不在这里渲染：语音条走 parts 里的 VoiceMessage，
+                                // TTS 音频缓存和通话记录各有自己的展示位置。
+                                else -> Unit
                             }
                         }
                     }
