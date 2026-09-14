@@ -1267,7 +1267,10 @@ private fun BubbleSurface(
     //   3) 每层**等量极淡**，靠层数叠出衰减 —— 峰值贴着轮廓往外化开，而不是堆在轮廓上。
     //
     // spread 是向外扩散的距离，peakAlpha 是贴着轮廓处的峰值不透明度（昼夜各一套）。
-    val glassShadowModifier = { spread: Dp, offsetY: Dp, peakAlpha: Float ->
+    //
+    // 写成 fun 而不是 val + lambda：Kotlin 不允许给「函数类型」的调用传命名实参，
+    // 而 spread / offsetY / peakAlpha 这三个参数在调用点必须带名字才读得懂。
+    fun glassShadowModifier(spread: Dp, offsetY: Dp, peakAlpha: Float): Modifier =
         Modifier.drawWithCache {
             val spreadPx = spread.toPx()
             val offsetYPx = offsetY.toPx()
@@ -1300,7 +1303,6 @@ private fun BubbleSurface(
                 }
             }
         }
-    }
     // 实时模糊气泡专用：沿真实轮廓贴边的方向性硬高光（左上亮、向右下透明；昼夜强弱不同）
     //
     // 这是"发光塑料膜"的另一半来源：浅色主题原来给到 0.78，1dp 的白线几乎实心，
