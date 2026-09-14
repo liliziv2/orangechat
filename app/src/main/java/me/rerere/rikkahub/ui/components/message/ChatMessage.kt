@@ -1306,15 +1306,17 @@ private fun BubbleSurface(
             )
             onDrawBehind {
                 clipPath(silhouettePath, clipOp = ClipOp.Difference) {
-                    // 从外往内：宽度线性收窄，alpha 二次衰减 —— 贴边重、外侧快速化掉
+                    // 从外往内：宽度线性收窄，alpha 二次衰减 —— 贴边重、外侧快速化掉。
+                    // 不再乘补偿系数：4 层叠加本身就够，额外放大只会把"一丝"变回"一圈"。
                     for (i in layers downTo 1) {
                         val fraction = i.toFloat() / layers
                         val falloff = (1f - fraction) * (1f - fraction)
                         drawPath(
                             path = shadowPath,
                             brush = directionalBrush,
-                            alpha = peakAlpha * (0.25f + 0.75f * falloff) / layers * 2f,
+                            alpha = peakAlpha * (0.2f + 0.8f * falloff) / layers,
                             style = Stroke(width = spreadPx * fraction * 2f),
+                        )
                         )
                     }
                 }
@@ -1664,12 +1666,14 @@ private val GLASS_SHADOW_OFFSET_Y = 1.5.dp
 /**
  * 气泡投影的峰值不透明度（贴着轮廓最重处，往外二次衰减到 0）。
  *
- * 浅色主题：接触阴影只需要交代"气泡压在页面上"，一点点就够 —— 重了立刻变脏边。
- * 暗色主题：黑投影落在暗背景上几乎不可见，给大些补接触感，不指望它撑层次。
+ * 浅色主题：对照参考原型，正常聊天 UI 的气泡阴影是"几乎看不见，只在底边一丝"。
+ *   0.13 / 0.16 都还偏重，仍能读出一圈灰边，所以压到 0.09 —— 宁可弱到需要盯着看，
+ *   也不要让它成为一道可辨识的边。气泡的存在感交给填充和顶部反射，不靠阴影。
+ * 暗色主题：黑投影落在暗背景上本就不可见，给大些补接触感，不指望它撑层次。
  * 注意这个值现在还要乘 directionalBrush 的竖直渐变，实际底部峰值低于此数。
  */
-private const val SHADOW_PEAK_ALPHA_LIGHT = 0.16f
-private const val SHADOW_PEAK_ALPHA_DARK = 0.34f
+private const val SHADOW_PEAK_ALPHA_LIGHT = 0.09f
+private const val SHADOW_PEAK_ALPHA_DARK = 0.26f
 
 /**
  * 构造一个只改饱和度的颜色矩阵。
