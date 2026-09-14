@@ -6,6 +6,7 @@ on:
       - glass-fx-only
       - orangechat-ib-tg
       - feat/ib-inspired-six-fx
+      - fix/bubble-shadow-clip-order
   workflow_dispatch:
 
 permissions:
