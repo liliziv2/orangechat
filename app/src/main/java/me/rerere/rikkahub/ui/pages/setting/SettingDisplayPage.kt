@@ -52,13 +52,18 @@ fun SettingDisplayPage() {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // 分三组：外观 / 内容显示 / 个人。
+            //
+            // 之前十项全塞在一个组里平铺，每项一个大圆角卡片，一屏十个白盒子，
+            // 看不出「主题外观」和「通知与TTS」根本不是一个层级的东西。
+            // 分组标题承担层级，行本身退成轻量列表项。
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text(stringResource(R.string.setting_display_page_title)) },
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    title = { Text("外观") },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingDisplayTheme) },
@@ -81,6 +86,18 @@ fun SettingDisplayPage() {
                         supportingContent = { Text("输入框背景、侧边栏背景、头像挂件") },
                     )
                     item(
+                        onClick = { navController.navigate(Screen.SettingDisplayPreset) },
+                        headlineContent = { Text("外观预设") },
+                        supportingContent = { Text("保存 4 套外观方案，一键切换") },
+                    )
+                }
+            }
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    title = { Text("内容显示") },
+                ) {
+                    item(
                         onClick = { navController.navigate(Screen.SettingDisplayMessage) },
                         headlineContent = { Text("消息显示") },
                         supportingContent = { Text("头像、气泡、字体大小、自定义字体") },
@@ -91,20 +108,22 @@ fun SettingDisplayPage() {
                         supportingContent = { Text("代码块、回车发送、滚动、音量键等") },
                     )
                     item(
-                        onClick = { navController.navigate(Screen.SettingDisplayGeneral) },
-                        headlineContent = { Text("通用设置") },
-                        supportingContent = { Text("启动时新建对话、更新提醒") },
-                    )
-                    item(
                         onClick = { navController.navigate(Screen.SettingDisplayNotification) },
                         headlineContent = { Text("通知与TTS") },
                         supportingContent = { Text("消息生成通知、TTS 自动朗读") },
                     )
                     item(
-                        onClick = { navController.navigate(Screen.SettingDisplayPreset) },
-                        headlineContent = { Text("外观预设") },
-                        supportingContent = { Text("保存 4 套外观方案，一键切换") },
+                        onClick = { navController.navigate(Screen.SettingDisplayGeneral) },
+                        headlineContent = { Text("通用设置") },
+                        supportingContent = { Text("启动时新建对话、更新提醒") },
                     )
+                }
+            }
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    title = { Text("个人") },
+                ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingDisplayUserProfile) },
                         headlineContent = { Text("我的资料卡") },
