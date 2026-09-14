@@ -1359,13 +1359,15 @@ private fun BubbleSurface(
         // 实时背景模糊 + 均匀半透明填充 + 顶部折射反光 + 边缘高光描边
         Box(
             modifier = Modifier
-                .animateContentSize()
-                // 投影挂在外层节点上。
+                // 投影挂在外层节点，且必须排在 animateContentSize() **之前**。
                 //
-                // 原来投影和 clip(shape) 挂在同一个节点上，drawWithCache 的绘制会被归进
-                // clip 那一层，投影实际只有内侧一半画得出来：直边处看是一条贴着边的暗带，
-                // 外侧整个没了（真机上量气泡外面一点投影都读不到）。拆成两层后，投影所在的
-                // 节点没有 clip，才是一圈完整的、跟着圆角走的柔和投影。
+                // 两个坑，破一个投影就不完整：
+                // 1) 不能和 clip(shape) 同节点 —— drawWithCache 的绘制会被归进 clip 那一层，
+                //    投影只剩内侧一半，外侧整个没了。所以气泡本体拆到内层 Box 去 clip。
+                // 2) 不能排在 animateContentSize() 之后 —— 它内部是 `clipToBounds() then
+                //    尺寸动画`，会把后续绘制裁到**矩形**边界。投影是往轮廓外扩的，直边外侧
+                //    那段紧贴边界被裁掉，只剩「矩形角 ∩ 圆角外侧」四小块残留，看起来就是
+                //    圆角气泡的四个角各挂一块方形暗块。
                 .then(
                     glassShadowModifier(
                         spread = LIQUID_GLASS_SHADOW_SPREAD,
@@ -1373,6 +1375,7 @@ private fun BubbleSurface(
                         peakAlpha = if (isDarkTheme) SHADOW_PEAK_ALPHA_DARK else SHADOW_PEAK_ALPHA_LIGHT,
                     )
                 )
+                .animateContentSize()
         ) {
             // 内层：气泡本体，圆角裁剪只作用在这里
             Box(
@@ -1460,8 +1463,8 @@ private fun BubbleSurface(
     } else if (materialMode == DisplayMaterialMode.GLASS) {
         Box(
             modifier = Modifier
-                .animateContentSize()
-                // 同液态玻璃：投影挂在外层节点，clip 只作用于内层气泡本体
+                // 同液态玻璃：投影挂在外层节点、且排在 animateContentSize() 之前，
+                // clip 只作用于内层气泡本体。顺序反了会被 clipToBounds 裁出四个方角。
                 .then(
                     glassShadowModifier(
                         spread = GLASS_SHADOW_SPREAD,
@@ -1469,6 +1472,7 @@ private fun BubbleSurface(
                         peakAlpha = if (isDarkTheme) SHADOW_PEAK_ALPHA_DARK else SHADOW_PEAK_ALPHA_LIGHT,
                     )
                 )
+                .animateContentSize()
         ) {
             // 内层：气泡本体，圆角裁剪只作用在这里
             Box(
