@@ -1317,7 +1317,6 @@ private fun BubbleSurface(
                             alpha = peakAlpha * (0.2f + 0.8f * falloff) / layers,
                             style = Stroke(width = spreadPx * fraction * 2f),
                         )
-                        )
                     }
                 }
             }
