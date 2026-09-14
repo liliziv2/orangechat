@@ -1255,18 +1255,25 @@ private fun BubbleSurface(
     val bubbleLayoutDirection = LocalLayoutDirection.current
     // 气泡投影。
     //
-    // 这里以前是「5 层居中描边」，读起来不是"气泡浮在页面上"，而是"气泡自带一圈厚塑料边"：
-    //   · 描边以轮廓为中心 —— 一半压在气泡**内侧**。气泡是半透明的，内侧那半会透出来，
-    //     于是轮廓两侧各糊一条暗带，看着就是硬塑料壳；
-    //   · 没有偏移 —— 四周等量，是"发光"而不是"投影"；
-    //   · 最内层又最窄又最重（alpha 0.064），在轮廓上压出一条硬边。
+    // 演进到这一版之前有两轮失败，原因值得写下来：
+    //   v1「5 层居中描边」—— 描边一半压在气泡内侧，半透明气泡透出来，轮廓两侧各一条暗带；
+    //   v2「clipPath 只留外侧 + 6 层等宽描边」—— 内侧那半修掉了，但**仍是环状 halo**：
+    //      同心描边天然四周等量，offsetY 1~1.5dp 相对 spread 5dp 太小，压不出方向感。
+    //      结果左右和底部一圈宽度均匀的灰边，读成"气泡套了个塑料壳"。
     //
-    // 现在按真实投影画，三件事分开控制：
-    //   1) 只在轮廓**之外**画（clipPath Difference），内侧那半直接不要；
-    //   2) 整体**下移** offsetY，光源在上方才读得出"浮起来"；
-    //   3) 每层**等量极淡**，靠层数叠出衰减 —— 峰值贴着轮廓往外化开，而不是堆在轮廓上。
+    // 真实的接触阴影不是"绕轮廓一圈"，而是"物体压在纸面上，光被挡住的那一小块"：
+    //   · 集中在**底部**，左右只在贴近底部处有一点，顶部几乎没有；
+    //   · **短距离**，2~3dp 就化掉，不是 5dp 慢慢晕开；
+    //   · 轮廓边缘最重，往外快速衰减（二次曲线，不是线性）。
     //
-    // spread 是向外扩散的距离，peakAlpha 是贴着轮廓处的峰值不透明度（昼夜各一套）。
+    // 所以这一版换掉几何：不再画同心描边，改成
+    //   1) 阴影轮廓下移 offsetY（这次给足，是 spread 的量级而不是零头）；
+    //   2) 用**竖直渐变 Brush** 填充下移后的轮廓 —— 顶部完全透明、底部才有颜色，
+    //      方向感由 Brush 提供，而不是靠 offset 那点位移；
+    //   3) clipPath Difference 挖掉气泡本体，只留露在外面的那一小圈；
+    //   4) alpha 随层数二次衰减，贴边重、外侧快速化掉。
+    //
+    // spread 是向外扩散距离（保持小），offsetY 是下移量，peakAlpha 是贴边峰值（昼夜各一套）。
     //
     // 写成 fun 而不是 val + lambda：Kotlin 不允许给「函数类型」的调用传命名实参，
     // 而 spread / offsetY / peakAlpha 这三个参数在调用点必须带名字才读得懂。
@@ -1274,9 +1281,7 @@ private fun BubbleSurface(
         Modifier.drawWithCache {
             val spreadPx = spread.toPx()
             val offsetYPx = offsetY.toPx()
-            val layers = 6
-            // 等量分摊：峰值落在轮廓边缘，往外逐层线性衰减
-            val perLayerAlpha = peakAlpha / layers
+            val layers = 4
             val outline = shape.createOutline(
                 size = size,
                 layoutDirection = bubbleLayoutDirection,
@@ -1284,19 +1289,31 @@ private fun BubbleSurface(
             )
             // 气泡真实轮廓：只负责裁掉"内侧"，不参与偏移
             val silhouettePath = Path().apply { addOutline(outline) }
-            // 投影轮廓：整体下移，让投影落在气泡下方
+            // 投影轮廓：整体下移，让投影只落在气泡下方
             val shadowPath = Path().apply {
                 addOutline(outline)
                 translate(Offset(0f, offsetYPx))
             }
+            // 方向性遮罩：上半段完全透明，只有接近底部才出颜色。
+            // 这是"接触阴影"和"环状 halo"的分界 —— 顶部和左右上段直接没有阴影可画。
+            val directionalBrush = Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0f to Color.Transparent,
+                    0.55f to Color.Transparent,
+                    0.78f to Color.Black.copy(alpha = 0.35f),
+                    1f to Color.Black,
+                ),
+            )
             onDrawBehind {
                 clipPath(silhouettePath, clipOp = ClipOp.Difference) {
-                    // 从外往内：每层都极淡，叠加出平滑衰减
+                    // 从外往内：宽度线性收窄，alpha 二次衰减 —— 贴边重、外侧快速化掉
                     for (i in layers downTo 1) {
                         val fraction = i.toFloat() / layers
+                        val falloff = (1f - fraction) * (1f - fraction)
                         drawPath(
                             path = shadowPath,
-                            color = Color.Black.copy(alpha = perLayerAlpha),
+                            brush = directionalBrush,
+                            alpha = peakAlpha * (0.25f + 0.75f * falloff) / layers * 2f,
                             style = Stroke(width = spreadPx * fraction * 2f),
                         )
                     }
@@ -1628,30 +1645,31 @@ private const val LIQUID_GLASS_SATURATION = 1.35f
 /**
  * 气泡投影向外扩散的距离。
  *
- * 就是"投影能铺多远"。原来 6dp / 4dp 配的是居中多层描边，同样的距离视觉上糊成一圈厚边；
- * 现在只在轮廓外画、并且整体下移，这个距离才是柔和的落地投影。
+ * 接触阴影要的是"短" —— 物体贴着纸面，阴影只在边缘那一小圈，2~3dp 就该化掉。
+ * 之前 5dp / 3.5dp 配同心描边，铺得又远又均匀，正是环状 halo 的一半原因。
  */
-private val LIQUID_GLASS_SHADOW_SPREAD = 5.dp
-private val GLASS_SHADOW_SPREAD = 3.5.dp
+private val LIQUID_GLASS_SHADOW_SPREAD = 2.5.dp
+private val GLASS_SHADOW_SPREAD = 2.dp
 
 /**
  * 气泡投影的下移量。
  *
- * 光源默认在上方，投影整体下移一点，眼睛才会读成"气泡浮在页面上"；
- * 四周等量只会读成"气泡在发光"。取值不超过 spread 的三分之一，
- * 再大顶部就完全收不到投影，反而像悬空。
+ * 这次给足：和 spread 同量级，而不是它的零头。阴影轮廓整体下移接近一个 spread，
+ * 配合 directionalBrush（上半段透明）把阴影彻底赶到气泡底部 ——
+ * 顶部和左右上段不该有阴影，那是"包围光晕"的读法，不是"压在纸上"。
  */
-private val LIQUID_GLASS_SHADOW_OFFSET_Y = 1.5.dp
-private val GLASS_SHADOW_OFFSET_Y = 1.dp
+private val LIQUID_GLASS_SHADOW_OFFSET_Y = 2.dp
+private val GLASS_SHADOW_OFFSET_Y = 1.5.dp
 
 /**
- * 气泡投影的峰值不透明度（贴着轮廓处，往外线性衰减到 0）。
+ * 气泡投影的峰值不透明度（贴着轮廓最重处，往外二次衰减到 0）。
  *
- * 浅色主题：投影是"浮起来"的主要线索，够交代清楚轮廓就行 —— 再重就成了一圈脏边。
- * 暗色主题：黑投影落在暗背景上几乎不可见，给大一点只是补个接触感，不指望它撑层次。
+ * 浅色主题：接触阴影只需要交代"气泡压在页面上"，一点点就够 —— 重了立刻变脏边。
+ * 暗色主题：黑投影落在暗背景上几乎不可见，给大些补接触感，不指望它撑层次。
+ * 注意这个值现在还要乘 directionalBrush 的竖直渐变，实际底部峰值低于此数。
  */
-private const val SHADOW_PEAK_ALPHA_LIGHT = 0.13f
-private const val SHADOW_PEAK_ALPHA_DARK = 0.30f
+private const val SHADOW_PEAK_ALPHA_LIGHT = 0.16f
+private const val SHADOW_PEAK_ALPHA_DARK = 0.34f
 
 /**
  * 构造一个只改饱和度的颜色矩阵。
