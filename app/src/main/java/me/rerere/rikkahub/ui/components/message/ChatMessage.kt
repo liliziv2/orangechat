@@ -69,12 +69,14 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -1107,6 +1109,8 @@ private fun BubbleSurface(
         val base = color.copy(alpha = LIQUID_GLASS_FILL_ALPHA * bubbleAlpha)
         onDrawBehind { drawRect(color = base) }
     }
+    // 无实时模糊时的静态玻璃高光。三处一起调低：顶部泛白、底部反光、顶沿镜面线。
+    // 它们和贴边高光、顶沿内高光叠在同一个边缘上，原来四层加起来能把气泡边缘糊成一层亮膜。
     val glassHighlightModifier = Modifier.drawWithCache {
         val topHighlightDepth = 6.dp.toPx()
         val bottomHighlightDepth = 4.dp.toPx()
@@ -1114,8 +1118,8 @@ private fun BubbleSurface(
         val specularHighlightHeight = 1.dp.toPx()
         val glassTopHighlightBrush = Brush.verticalGradient(
             colorStops = arrayOf(
-                0f to Color.White.copy(alpha = 0.22f),
-                0.5f to Color.White.copy(alpha = 0.08f),
+                0f to Color.White.copy(alpha = 0.14f),
+                0.5f to Color.White.copy(alpha = 0.05f),
                 1f to Color.Transparent,
             ),
             endY = topHighlightDepth,
@@ -1123,8 +1127,8 @@ private fun BubbleSurface(
         val glassBottomHighlightBrush = Brush.verticalGradient(
             colorStops = arrayOf(
                 0f to Color.Transparent,
-                0.5f to Color.White.copy(alpha = 0.05f),
-                1f to Color.White.copy(alpha = 0.12f),
+                0.5f to Color.White.copy(alpha = 0.025f),
+                1f to Color.White.copy(alpha = 0.06f),
             ),
             startY = size.height - bottomHighlightDepth,
             endY = size.height,
@@ -1132,10 +1136,10 @@ private fun BubbleSurface(
         val glassSpecularHighlightBrush = Brush.linearGradient(
             colorStops = arrayOf(
                 0f to Color.Transparent,
-                0.10f to Color.White.copy(alpha = 0.14f),
-                0.28f to Color.White.copy(alpha = 0.42f),
-                0.52f to Color.White.copy(alpha = 0.24f),
-                0.78f to Color.White.copy(alpha = 0.08f),
+                0.10f to Color.White.copy(alpha = 0.08f),
+                0.28f to Color.White.copy(alpha = 0.22f),
+                0.52f to Color.White.copy(alpha = 0.12f),
+                0.78f to Color.White.copy(alpha = 0.04f),
                 1f to Color.Transparent,
             ),
             start = Offset.Zero,
@@ -1174,14 +1178,14 @@ private fun BubbleSurface(
         val highlightBrush = Brush.radialGradient(
             colorStops = if (isDarkTheme) {
                 arrayOf(
-                    0f to Color.White.copy(alpha = 0.06f),
-                    0.45f to Color.White.copy(alpha = 0.02f),
+                    0f to Color.White.copy(alpha = 0.05f),
+                    0.45f to Color.White.copy(alpha = 0.015f),
                     1f to Color.Transparent,
                 )
             } else {
                 arrayOf(
-                    0f to Color.White.copy(alpha = 0.18f),
-                    0.42f to Color.White.copy(alpha = 0.07f),
+                    0f to Color.White.copy(alpha = 0.10f),
+                    0.42f to Color.White.copy(alpha = 0.03f),
                     1f to Color.Transparent,
                 )
             },
@@ -1210,12 +1214,23 @@ private fun BubbleSurface(
     // 顶沿内高光：紧贴上边缘的 1px 亮线，模拟玻璃板的厚度切面。
     // CSS 里就是 box-shadow 的 inset 0 1px 0 —— 它跟 border 的区别在于只有顶边一条，
     // 眼睛会把它读成"这块板有厚度"，而四边均匀的描边只会读成"一个框"。
+    //
+    // 但这条线原来是等宽实心白（浅色 0.62），横贯整个顶边 —— 加上上面那道贴边高光，
+    // 气泡顶部就有两条亮线，一起读成"发光边框"。改成横向渐变，从左上起亮、向右化掉，
+    // 强度也压下来，才是"上切面反光"而不是"一条描边"。
     val glassInsetTopHighlightModifier = Modifier.drawWithCache {
         val lineHeight = 1.dp.toPx()
-        val lineAlpha = if (isDarkTheme) 0.20f else 0.62f
+        val lineAlpha = if (isDarkTheme) 0.10f else 0.20f
+        val lineBrush = Brush.horizontalGradient(
+            colorStops = arrayOf(
+                0f to Color.White.copy(alpha = lineAlpha),
+                0.45f to Color.White.copy(alpha = lineAlpha * 0.45f),
+                1f to Color.Transparent,
+            ),
+        )
         onDrawBehind {
             drawRect(
-                color = Color.White.copy(alpha = lineAlpha),
+                brush = lineBrush,
                 size = Size(size.width, minOf(lineHeight, size.height)),
             )
         }
@@ -1238,46 +1253,69 @@ private fun BubbleSurface(
         )
     }
     val bubbleLayoutDirection = LocalLayoutDirection.current
-    // 玻璃气泡的投影。
+    // 气泡投影。
     //
-    // 不能用 Modifier.shadow：那条路必须配 clip=false（半透明气泡的阴影得落在自身之外），
-    // 而 clip=false 时 elevation 阴影是按 graphicsLayer 的矩形边界渲染的，圆角外侧会
-    // 漏出四个方形暗角。这里改成自己画：按真实轮廓生成 Path，用几层递减的半透明黑
-    // 描边往外扩，得到一圈跟着圆角走的柔和投影。
-    val glassShadowModifier = { elevation: Dp ->
+    // 这里以前是「5 层居中描边」，读起来不是"气泡浮在页面上"，而是"气泡自带一圈厚塑料边"：
+    //   · 描边以轮廓为中心 —— 一半压在气泡**内侧**。气泡是半透明的，内侧那半会透出来，
+    //     于是轮廓两侧各糊一条暗带，看着就是硬塑料壳；
+    //   · 没有偏移 —— 四周等量，是"发光"而不是"投影"；
+    //   · 最内层又最窄又最重（alpha 0.064），在轮廓上压出一条硬边。
+    //
+    // 现在按真实投影画，三件事分开控制：
+    //   1) 只在轮廓**之外**画（clipPath Difference），内侧那半直接不要；
+    //   2) 整体**下移** offsetY，光源在上方才读得出"浮起来"；
+    //   3) 每层**等量极淡**，靠层数叠出衰减 —— 峰值贴着轮廓往外化开，而不是堆在轮廓上。
+    //
+    // spread 是向外扩散的距离，peakAlpha 是贴着轮廓处的峰值不透明度（昼夜各一套）。
+    val glassShadowModifier = { spread: Dp, offsetY: Dp, peakAlpha: Float ->
         Modifier.drawWithCache {
-            val spread = elevation.toPx()
-            val layers = 5
+            val spreadPx = spread.toPx()
+            val offsetYPx = offsetY.toPx()
+            val layers = 6
+            // 等量分摊：峰值落在轮廓边缘，往外逐层线性衰减
+            val perLayerAlpha = peakAlpha / layers
             val outline = shape.createOutline(
                 size = size,
                 layoutDirection = bubbleLayoutDirection,
                 density = this@drawWithCache,
             )
-            val shadowPath = Path().apply { addOutline(outline) }
+            // 气泡真实轮廓：只负责裁掉"内侧"，不参与偏移
+            val silhouettePath = Path().apply { addOutline(outline) }
+            // 投影轮廓：整体下移，让投影落在气泡下方
+            val shadowPath = Path().apply {
+                addOutline(outline)
+                translate(Offset(0f, offsetYPx))
+            }
             onDrawBehind {
-                // 从外往内画：最外层最淡最宽，逐层收窄加深，叠出渐变的衰减
-                for (i in layers downTo 1) {
-                    val fraction = i.toFloat() / layers
-                    drawPath(
-                        path = shadowPath,
-                        color = Color.Black.copy(alpha = 0.055f * (1f - fraction) + 0.02f),
-                        style = Stroke(width = spread * fraction * 2f),
-                    )
+                clipPath(silhouettePath, clipOp = ClipOp.Difference) {
+                    // 从外往内：每层都极淡，叠加出平滑衰减
+                    for (i in layers downTo 1) {
+                        val fraction = i.toFloat() / layers
+                        drawPath(
+                            path = shadowPath,
+                            color = Color.Black.copy(alpha = perLayerAlpha),
+                            style = Stroke(width = spreadPx * fraction * 2f),
+                        )
+                    }
                 }
             }
         }
     }
     // 实时模糊气泡专用：沿真实轮廓贴边的方向性硬高光（左上亮、向右下透明；昼夜强弱不同）
+    //
+    // 这是"发光塑料膜"的另一半来源：浅色主题原来给到 0.78，1dp 的白线几乎实心，
+    // 又正好贴在投影的暗边上 —— 一亮一暗两条紧挨着的边，就是塑料壳的读法。
+    // 它本来的作用只是"左上角拐弯处有一点反光"，所以压到能看见轮廓就够，并且更早化掉。
     val liveBubbleEdgeHighlightModifier = Modifier.drawWithCache {
         val strokeWidthPx = 1.dp.toPx()
         val halfStroke = strokeWidthPx / 2f
-        val edgeStartAlpha = if (isDarkTheme) 0.38f else 0.78f
-        val edgeMidAlpha = if (isDarkTheme) 0.133f else 0.273f
+        val edgeStartAlpha = if (isDarkTheme) 0.22f else 0.32f
+        val edgeMidAlpha = if (isDarkTheme) 0.07f else 0.11f
         val edgeBrush = Brush.linearGradient(
             colorStops = arrayOf(
                 0f to Color.White.copy(alpha = edgeStartAlpha),
-                0.45f to Color.White.copy(alpha = edgeMidAlpha),
-                0.75f to Color.Transparent,
+                0.35f to Color.White.copy(alpha = edgeMidAlpha),
+                0.62f to Color.Transparent,
                 1f to Color.Transparent,
             ),
             start = Offset.Zero,
@@ -1326,7 +1364,13 @@ private fun BubbleSurface(
                 // clip 那一层，投影实际只有内侧一半画得出来：直边处看是一条贴着边的暗带，
                 // 外侧整个没了（真机上量气泡外面一点投影都读不到）。拆成两层后，投影所在的
                 // 节点没有 clip，才是一圈完整的、跟着圆角走的柔和投影。
-                .then(glassShadowModifier(LIQUID_GLASS_SHADOW_ELEVATION))
+                .then(
+                    glassShadowModifier(
+                        spread = LIQUID_GLASS_SHADOW_SPREAD,
+                        offsetY = LIQUID_GLASS_SHADOW_OFFSET_Y,
+                        peakAlpha = if (isDarkTheme) SHADOW_PEAK_ALPHA_DARK else SHADOW_PEAK_ALPHA_LIGHT,
+                    )
+                )
         ) {
             // 内层：气泡本体，圆角裁剪只作用在这里
             Box(
@@ -1416,7 +1460,13 @@ private fun BubbleSurface(
             modifier = Modifier
                 .animateContentSize()
                 // 同液态玻璃：投影挂在外层节点，clip 只作用于内层气泡本体
-                .then(glassShadowModifier(GLASS_SHADOW_ELEVATION))
+                .then(
+                    glassShadowModifier(
+                        spread = GLASS_SHADOW_SPREAD,
+                        offsetY = GLASS_SHADOW_OFFSET_Y,
+                        peakAlpha = if (isDarkTheme) SHADOW_PEAK_ALPHA_DARK else SHADOW_PEAK_ALPHA_LIGHT,
+                    )
+                )
         ) {
             // 内层：气泡本体，圆角裁剪只作用在这里
             Box(
@@ -1570,19 +1620,32 @@ private const val GLASS_BUBBLE_BORDER_ALPHA = 0.24f
 private const val LIQUID_GLASS_SATURATION = 1.35f
 
 /**
- * 液态玻璃气泡的投影高度。
+ * 气泡投影向外扩散的距离。
  *
- * 玻璃片应当浮在背景之上而不是印在上面，一点投影就能把这层关系交代清楚。
- * 数值刻意压得低：气泡是密集重复的元素，投影稍重整屏就会显得脏。
+ * 就是"投影能铺多远"。原来 6dp / 4dp 配的是居中多层描边，同样的距离视觉上糊成一圈厚边；
+ * 现在只在轮廓外画、并且整体下移，这个距离才是柔和的落地投影。
  */
-private val LIQUID_GLASS_SHADOW_ELEVATION = 6.dp
+private val LIQUID_GLASS_SHADOW_SPREAD = 5.dp
+private val GLASS_SHADOW_SPREAD = 3.5.dp
 
 /**
- * GLASS 材质气泡的投影高度。
+ * 气泡投影的下移量。
  *
- * 比液态玻璃稍轻：GLASS 模式的填充本身更实（不透明度更高），投影再重就显得笨。
+ * 光源默认在上方，投影整体下移一点，眼睛才会读成"气泡浮在页面上"；
+ * 四周等量只会读成"气泡在发光"。取值不超过 spread 的三分之一，
+ * 再大顶部就完全收不到投影，反而像悬空。
  */
-private val GLASS_SHADOW_ELEVATION = 4.dp
+private val LIQUID_GLASS_SHADOW_OFFSET_Y = 1.5.dp
+private val GLASS_SHADOW_OFFSET_Y = 1.dp
+
+/**
+ * 气泡投影的峰值不透明度（贴着轮廓处，往外线性衰减到 0）。
+ *
+ * 浅色主题：投影是"浮起来"的主要线索，够交代清楚轮廓就行 —— 再重就成了一圈脏边。
+ * 暗色主题：黑投影落在暗背景上几乎不可见，给大一点只是补个接触感，不指望它撑层次。
+ */
+private const val SHADOW_PEAK_ALPHA_LIGHT = 0.13f
+private const val SHADOW_PEAK_ALPHA_DARK = 0.30f
 
 /**
  * 构造一个只改饱和度的颜色矩阵。
