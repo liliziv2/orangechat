@@ -343,6 +343,8 @@
   <string name="db_migrating">Migrating database...</string>
   <string name="deep_thinking">Deep Thinking</string>
   <string name="deep_thinking_seconds">Thought for %1$.1f seconds</string>
+  <string name="reasoning_status_thinking">Thinking…</string>
+  <string name="reasoning_status_thinking_named">%1$s is thinking…</string>
   <string name="delete">Delete</string>
   <string name="donate_page_afdian_desc">For 🇨🇳 users</string>
   <string name="donate_page_donation_methods">Donation Methods</string>
