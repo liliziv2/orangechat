@@ -51,7 +51,8 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
-import me.rerere.rikkahub.ui.components.ui.icons.OrangePetalIcon
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.extractThinkingTitle
@@ -203,24 +204,42 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
         expanded = state.expandState == ReasoningCardState.Expanded,
         onExpandedChange = { state.onExpandedChange(it, loading) },
         icon = {
+            // 中性线性图标替代 OrangePetalIcon。
+            //
+            // 橘瓣是产品标识，不该出现在「思考中」这种通用状态里 —— 它让每条
+            // 推理都像在给自己打 logo。OrangePetalIcon 本身保留不动（别处仍在用），
+            // 这里只是不再引用它。
             Icon(
-                imageVector = OrangePetalIcon,
+                imageVector = HugeIcons.Brain02,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.secondary,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         label = {
             if (showThinkingTitle) {
                 ReasoningTitle(title = thinkingTitle!!)
             } else {
+                // 自然语言状态，而不是「Thinking + 秒数」。
+                //
+                // 生成中读作「栖 is thinking…」，结束后才交代耗时。
+                // 助手名为空时退回中性主语，不硬塞产品名。
+                val who = assistant?.name?.takeIf { it.isNotBlank() }
                 Text(
-                    text = stringResource(
-                        R.string.deep_thinking_seconds,
-                        state.duration.toDouble(DurationUnit.SECONDS).toFloat()
-                    ),
+                    text = if (loading) {
+                        if (who != null) {
+                            stringResource(R.string.reasoning_status_thinking_named, who)
+                        } else {
+                            stringResource(R.string.reasoning_status_thinking)
+                        }
+                    } else {
+                        stringResource(
+                            R.string.deep_thinking_seconds,
+                            state.duration.toDouble(DurationUnit.SECONDS).toFloat()
+                        )
+                    },
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.shimmer(isLoading = loading),
                 )
             }
@@ -230,7 +249,7 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
                 Text(
                     text = state.duration.toString(DurationUnit.SECONDS, 1),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.shimmer(isLoading = loading),
                 )
             }
