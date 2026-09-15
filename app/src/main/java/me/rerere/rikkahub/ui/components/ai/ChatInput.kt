@@ -505,16 +505,20 @@ fun ChatInput(
         inputBgBitmap != null || useRealtimeBlur -> Color.Transparent
         else -> {
             val baseColor = settings.displaySetting.inputFieldColor?.let { it.toComposeColor() } ?: hazeTintColor
+            // 输入框不该是"玻璃板"。它是常驻控件，底下透出的页面纹理会跟文字抢读，
+            // 参考正常聊天 App：输入区是一块安静的浅底，不参与材质表演。
+            // 0.78/0.56 → 0.94/0.88，保留一点透，但文字对比度稳住。
             when (materialMode) {
-                DisplayMaterialMode.TRANSLUCENT -> baseColor.copy(alpha = 0.78f)
-                DisplayMaterialMode.GLASS -> baseColor.copy(alpha = 0.56f)
+                DisplayMaterialMode.TRANSLUCENT -> baseColor.copy(alpha = 0.94f)
+                DisplayMaterialMode.GLASS -> baseColor.copy(alpha = 0.88f)
                 DisplayMaterialMode.FOLLOW_THEME,
                 DisplayMaterialMode.FLAT -> baseColor
             }
         }
     }
     val inputContainerBorder = if (useMaterialBorder) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f))
+        // 与 MaterialMode.kt 的全局边框同步降到 0.07
+        BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
     } else {
         null
     }
@@ -529,11 +533,14 @@ fun ChatInput(
             val highlightY = 0.75.dp.toPx()
 
             onDrawBehind {
+                // 三层玻璃高光整体压低。原来斜向 0.07/0.025 + 竖向 0.04 + 顶线 0.14，
+                // 叠在一起让输入框看着像一块打了光的亚克力板，浮在页面上方。
+                // 现在只留很淡的一点顶部提亮，交代"这是个可输入的浅底"就够。
                 drawRect(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            glassSurfaceTint.copy(alpha = 0.07f),
-                            glassSurfaceTint.copy(alpha = 0.025f),
+                            glassSurfaceTint.copy(alpha = 0.022f),
+                            glassSurfaceTint.copy(alpha = 0.008f),
                             Color.Transparent,
                         ),
                         start = Offset.Zero,
@@ -543,14 +550,14 @@ fun ChatInput(
                 drawRect(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            glassHighlight.copy(alpha = 0.04f),
+                            glassHighlight.copy(alpha = 0.012f),
                             Color.Transparent,
                         ),
                         endY = topLayerHeight,
                     )
                 )
                 drawLine(
-                    color = glassHighlight.copy(alpha = 0.14f),
+                    color = glassHighlight.copy(alpha = 0.05f),
                     start = Offset(highlightInset, highlightY),
                     end = Offset(size.width - highlightInset, highlightY),
                     strokeWidth = 0.75.dp.toPx(),
@@ -848,10 +855,15 @@ private fun ActionIconButton(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    // 圆形 → 圆角方形。
+    //
+    // 一排等距圆形按钮读起来是"工具面板"，正常聊天 App 的输入栏动作
+    // 是一排图标，形状不该抢注意力。底色本来就是透明的，改形状后
+    // 点击涟漪也跟着变成圆角矩形，不再有"玻璃球被按下"的观感。
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(30.dp),
-        shape = CircleShape,
+        modifier = Modifier.size(32.dp),
+        shape = RoundedCornerShape(10.dp),
         tonalElevation = 0.dp,
         color = Color.Transparent,
     ) {
