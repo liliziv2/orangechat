@@ -113,69 +113,38 @@ fun <T> ChainOfThought(
         disabledContainerColor = cardColors.disabledContainerColor,
         disabledContentColor = cardColors.disabledContentColor,
     )
-    val border = if (useTranslucentSurface) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = THINKING_BORDER_ALPHA))
-    } else {
-        null
-    }
-    val glassSurfaceTint = MaterialTheme.colorScheme.surface
-    val glassHighlight = MaterialTheme.colorScheme.onSurface
-    val glassModifier = if (materialMode == DisplayMaterialMode.GLASS) {
-        Modifier.drawWithCache {
-            val topGlowHeight = size.height * 0.24f
-            val highlightInset = 14.dp.toPx()
-            val highlightY = 0.75.dp.toPx()
-
-            onDrawBehind {
-                drawRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            glassSurfaceTint.copy(alpha = 0.075f * thinkingAlpha),
-                            glassSurfaceTint.copy(alpha = 0.025f * thinkingAlpha),
-                            Color.Transparent,
-                        ),
-                        start = Offset.Zero,
-                        end = Offset(size.width, size.height),
-                    )
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            glassHighlight.copy(alpha = 0.045f * thinkingAlpha),
-                            Color.Transparent,
-                        ),
-                        endY = topGlowHeight,
-                    )
-                )
-                drawLine(
-                    color = glassHighlight.copy(alpha = 0.16f * thinkingAlpha),
-                    start = Offset(highlightInset, highlightY),
-                    end = Offset(size.width - highlightInset, highlightY),
-                    strokeWidth = 0.75.dp.toPx(),
-                )
-            }
-        }
-    } else {
-        Modifier
-    }
+    // 边框与玻璃三层随卡片容器一起去掉：思考不再是独立卡片，就没有"材质"可言。
+    // useTranslucentSurface / materialBaseAlpha 仍用于 thinkingBubbleColor 的透明度合成。
 
     CompositionLocalProvider(
         LocalCardColor provides cardColors.containerColor
     ) {
-    Card(
-            modifier = modifier,
-            colors = effectiveCardColors,
-            shape = RoundedCornerShape(16.dp),
-            border = border,
+        // 思考状态融入消息流，而不是做成一张独立卡片。
+        //
+        // 原来这里是 Card（16dp 圆角 + 边框 + GLASS 玻璃三层），于是每次思考
+        // 都在对话里插进一个「AI 卡片」，视觉重量跟消息气泡平级甚至更重。
+        // 但思考是过程信息，不是一条消息 —— 它应该像旁注一样贴在消息流里。
+        //
+        // 现在去掉卡片容器：无背景、无边框、无圆角、无玻璃层。
+        // 保留全部行为（展开/收起、实时内容、计时、自动关闭）和缩进对齐。
+        // 用户自定义的 thinkingBubbleColor 仍然生效——只是不再默认画一张卡。
+        val hasCustomSurface = thinkingBubbleColor != null
+        Column(
+            modifier = modifier
+                .then(
+                    if (hasCustomSurface) {
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(effectiveCardColors.containerColor)
+                    } else {
+                        Modifier
+                    }
+                )
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .animateContentSize(
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
+                ),
         ) {
-            Column(
-                modifier = Modifier
-                    .then(glassModifier)
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-                    .animateContentSize(
-                        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec()
-                    ),
-            ) {
                 val visibleSteps = if (expanded || !canCollapse) {
                     steps
                 } else {
@@ -249,13 +218,11 @@ fun <T> ChainOfThought(
                     }
                 }
             }
-        }
     }
 }
 
 private const val TRANSLUCENT_THINKING_BASE_ALPHA = 0.78f
 private const val GLASS_THINKING_BASE_ALPHA = 0.56f
-private const val THINKING_BORDER_ALPHA = 0.18f
 
 /**
  * [ChainOfThought] 内部使用的步骤渲染作用域。
