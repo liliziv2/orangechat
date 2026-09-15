@@ -369,21 +369,17 @@ private fun ChatListNormal(
                     }
                 },
         ) {
-            // 上下文用量条。
-            // 有上限数据时按老规矩只在 85% 之后出现: 常态下比例条是没人看的装饰, 还挤占位置。
-            // 查不到上限时(自建 provider 的模型多数如此)没有比例可判断, 此时改为常显纯用量 ——
-            // 否则这类模型永远看不到任何读数, 而它们恰恰是最容易撞上超限报错的。
-            val usageRatio = sizeInfo.contextUsageRatio
-            val showUsageBar = if (usageRatio != null) {
-                usageRatio >= CONTEXT_USAGE_WARN_RATIO
-            } else {
-                sizeInfo.lastAssistantInputTokens > 0
-            }
-            if (showUsageBar) {
-                item(key = "context-usage-bar") {
-                    ContextUsageBar(sizeInfo = sizeInfo)
-                }
-            }
+            // 顶部上下文用量条已移除。
+            //
+            // 它依赖 ModelRegistry.MODEL_CONTEXT_LENGTH 查表拿上下文上限，而自建
+            // provider / 第三方网关的模型基本都不在表里 —— 拿不到分母就算不出比例，
+            // 于是既画不出进度条也永远触发不了红色警戒线，只剩一行「已用 69.2k」
+            // 占着聊天区顶部。展示不可靠数据不如不展示。
+            //
+            // 底层数据链路全部保留：ConversationSizeInfo / contextUsageRatio /
+            // CONTEXT_USAGE_WARN_RATIO / ContextUsageBar 都还在，节点数超限的
+            // ConversationSizeWarningDialog 也照常工作（见下方 showSizeWarningDialog）。
+            // 每条消息底部的 token 明细（ChatMessageNerdLine）不受影响。
             itemsIndexed(
                 items = displayNodes,
                 key = { index, item -> item.id },
