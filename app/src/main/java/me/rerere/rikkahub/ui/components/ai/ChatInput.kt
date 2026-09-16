@@ -575,14 +575,18 @@ fun ChatInput(
             modifier = modifier
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                // 8dp → 6dp：左右留白越大，输入框越像一块「浮在页面上的独立面板」。
+                // 收紧后它更贴近屏幕边缘，读作「页面底部的输入区」。
+                .padding(horizontal = 6.dp),
+            // 12dp → 6dp：输入框与下方工具行之间的间隙。原来的大间距让两者
+            // 看着像上下两层浮层，收紧后是同一个输入区的两行。
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Input area with optional background image
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.largeIncreased)
+                    .clip(InputContainerShape)
                     .then(
                         if (useRealtimeBlur) Modifier.hazeEffect(
                             state = hazeState,
@@ -590,7 +594,7 @@ fun ChatInput(
                         )
                         else Modifier
                     ),
-                shape = MaterialTheme.shapes.largeIncreased,
+                shape = InputContainerShape,
                 tonalElevation = 0.dp,
                 color = inputContainerColor,
                 border = inputContainerBorder,
@@ -604,7 +608,7 @@ fun ChatInput(
                             contentDescription = null,
                             modifier = Modifier
                                 .matchParentSize()
-                                .clip(MaterialTheme.shapes.largeIncreased),
+                                .clip(InputContainerShape),
                             contentScale = ContentScale.Crop,
                             alpha = 1f,
                         )
@@ -960,7 +964,7 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = MaterialTheme.shapes.largeIncreased,
+            shape = InputContainerShape,
             placeholder = {
                 Text(stringResource(R.string.chat_input_placeholder))
             },
@@ -1114,3 +1118,14 @@ private fun FullScreenEditor(
         }
     }
 }
+
+/**
+ * 输入区容器圆角。
+ *
+ * 原来用 MaterialTheme.shapes.largeIncreased（M3 默认约 20dp）。那么大的圆角
+ * 配上四周留白，输入框读起来是一块「悬浮在页面上的胶囊面板」，而不是
+ * 页面底部的输入区 —— 这是「双层浮层」感的几何来源。
+ *
+ * 16dp：仍然是明确的圆角控件，但不再往胶囊方向走。
+ */
+private val InputContainerShape = RoundedCornerShape(16.dp)
