@@ -897,8 +897,8 @@ private fun DrawerItemSurface(
         DisplayMaterialMode.GLASS -> color.copy(alpha = drawerItemAlpha)
     }
     val borderColor = when (materialMode) {
-        DisplayMaterialMode.TRANSLUCENT -> contentColor.copy(alpha = 0.14f * drawerItemAlpha)
-        DisplayMaterialMode.GLASS -> contentColor.copy(alpha = 0.1f * drawerItemAlpha)
+        DisplayMaterialMode.TRANSLUCENT -> contentColor.copy(alpha = 0.05f * drawerItemAlpha)
+        DisplayMaterialMode.GLASS -> contentColor.copy(alpha = 0.04f * drawerItemAlpha)
         DisplayMaterialMode.FLAT,
         DisplayMaterialMode.FOLLOW_THEME -> Color.Transparent
     }
@@ -935,6 +935,15 @@ private fun BoxScope.DrawerItemGlassLayers(
     drawerItemAlpha: Float,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    // 抽屉条目的玻璃三层整体压低。
+    //
+    // Material cleanup 的原则：玻璃是「消息气泡效果」，不是整个 App 的材质主题。
+    // 这三层（斜向渐变 0.1/0.07、竖向渐变 0.13/0.035、渐变描边 0.2/0.045）
+    // 叠在每一个抽屉条目和底栏按钮上，是「一排玻璃球」观感的直接来源。
+    //
+    // 全部约 ×0.3：保留一点材质暗示，不再让普通导航元件跟气泡抢材质表现。
+    // 气泡自己的 glassShadowModifier / liveBubbleEdgeHighlightModifier /
+    // glassInsetTopHighlightModifier 与 liquid glass 均不受影响。
     Box(
         modifier = Modifier
             .matchParentSize()
@@ -942,8 +951,8 @@ private fun BoxScope.DrawerItemGlassLayers(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.1f * drawerItemAlpha),
-                        colorScheme.primary.copy(alpha = 0.07f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.03f * drawerItemAlpha),
+                        colorScheme.primary.copy(alpha = 0.02f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 )
@@ -956,8 +965,8 @@ private fun BoxScope.DrawerItemGlassLayers(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.13f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.035f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.04f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.01f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 )
@@ -970,8 +979,8 @@ private fun BoxScope.DrawerItemGlassLayers(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.2f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.045f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.06f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.015f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 ),
@@ -993,7 +1002,12 @@ private fun DrawerAction(
         onClick = onClick,
         modifier = modifier,
         color = MaterialTheme.colorScheme.primaryContainer,
-        shape = CircleShape,
+        // 圆形 → 圆角方形。
+        //
+        // 五个等距圆形按钮排一行，读起来是「橘瓣自己的工具面板」而不是导航。
+        // 正常移动端底栏是图标 + 可选文字，形状不参与表达。12dp 圆角保留了
+        // 可点击的暗示，但不再是一排玻璃球。onClick 与全部功能不变。
+        shape = RoundedCornerShape(12.dp),
         drawerItemAlpha = drawerItemAlpha,
         materialMode = materialMode,
     ) {
