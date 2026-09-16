@@ -424,13 +424,13 @@ private fun ConversationListMaterialContainer(
     val borderModifier = when (materialMode) {
         DisplayMaterialMode.TRANSLUCENT -> Modifier.border(
             width = 1.dp,
-            color = onSurface.copy(alpha = 0.14f * drawerItemAlpha),
+            color = onSurface.copy(alpha = 0.05f * drawerItemAlpha),
             shape = shape,
         )
 
         DisplayMaterialMode.GLASS -> Modifier.border(
             width = 1.dp,
-            color = onSurface.copy(alpha = 0.1f * drawerItemAlpha),
+            color = onSurface.copy(alpha = 0.04f * drawerItemAlpha),
             shape = shape,
         )
 
@@ -475,8 +475,8 @@ private fun BoxScope.ConversationListGlassLayers(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.1f * drawerItemAlpha),
-                        colorScheme.primary.copy(alpha = 0.07f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.03f * drawerItemAlpha),
+                        colorScheme.primary.copy(alpha = 0.02f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 )
@@ -489,8 +489,8 @@ private fun BoxScope.ConversationListGlassLayers(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.13f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.035f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.04f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.01f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 )
@@ -503,8 +503,8 @@ private fun BoxScope.ConversationListGlassLayers(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.2f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.045f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.06f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.015f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 ),
