@@ -7,7 +7,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -39,10 +37,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -197,24 +191,15 @@ fun <T> ChainOfThought(
                     }
                 }
 
-                val lineColor = MaterialTheme.colorScheme.outlineVariant
+                // 时间轴装饰线已移除。
+                //
+                // 思考状态不再是"时间线组件"：去掉步骤左侧那条竖直连线后，
+                // 每一步就是消息流里独立的一行状态，不再暗示"这些步骤串成一条链"。
+                // 多步骤时靠间距区分，层级由文字本身的缩进交代。
                 val scope = remember { ChainOfThoughtScopeImpl() }
-                Box(
-                    modifier = Modifier.drawBehind {
-                        val x = 12.dp.toPx()
-                        val offsetPx = 18.dp.toPx()
-                        drawLine(
-                            color = lineColor,
-                            start = Offset(x, offsetPx),
-                            end = Offset(x, size.height - offsetPx),
-                            strokeWidth = 1.dp.toPx()
-                        )
-                    }
-                ) {
-                    Column {
-                        visibleSteps.fastForEach { step ->
-                            scope.content(step)
-                        }
+                Column {
+                    visibleSteps.fastForEach { step ->
+                        scope.content(step)
                     }
                 }
             }
@@ -380,32 +365,20 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Icon（不透明背景遮住背后的连线）
-                Box(
-                    modifier = Modifier.width(24.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
+                // 节点视觉已移除：不再画"方形背景块 + 圆点"。
+                //
+                // 那个 20dp 不透明方块原本的职责是遮住背后的时间轴连线，连线删掉后
+                // 它就只剩一个突兀的色块；里面的 8dp 圆点则是"流程节点"的暗示。
+                // 两者一起构成了节点式视觉，跟"自然嵌入聊天流的一行状态"是冲突的。
+                //
+                // 现在：有 icon 就直接渲染（调用方自己决定画什么，例如头像），
+                // 没有 icon 就完全不占位，文字直接顶到行首。
+                if (icon != null) {
                     Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(LocalCardColor.current),
+                        modifier = Modifier.size(20.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (icon != null) {
-                            Box(
-                                modifier = Modifier.size(14.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                icon()
-                            }
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.onSurfaceVariant)
-                            )
-                        }
+                        icon()
                     }
                 }
 
@@ -456,7 +429,9 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
                                 Modifier
                             }
                         )
-                        .padding(start = 32.dp, top = 4.dp, bottom = 8.dp)
+                        // 缩进 32dp → 4dp：原来是为了让内容跟时间轴节点右侧的 label 对齐，
+                        // 节点和连线都删了之后，深缩进只会让思考内容看着像被挂在某根轴上。
+                        .padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
                 ) {
                     content()
                 }
