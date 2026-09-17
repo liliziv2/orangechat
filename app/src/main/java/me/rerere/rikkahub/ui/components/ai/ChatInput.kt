@@ -612,8 +612,8 @@ fun ChatInput(
                         )
                     }
                     Column(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
                     ) {
                         if (state.messageContent.isNotEmpty()) {
                             MediaFileInputRow(state = state)
@@ -624,80 +624,103 @@ fun ChatInput(
                             onSendMessage = { sendMessage() }
                         )
 
+                        // 底部操作行:明确的左右两个操作区。
+                        // 左侧 = + / 模型 / 搜索 / 提示·思考(功能组),右侧 = 语音 + 发送。
+                        // 发送按钮固定在整行最右,不再和功能按钮混排平均铺满。
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 4.dp),
+                                .padding(horizontal = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                // Model Picker
-                                ModelSelector(
-                                    modelId = assistant.chatModelId ?: settings.chatModelId,
-                                    providers = settings.providers,
-                                    onSelect = {
-                                        onUpdateChatModel(it)
-                                        dismissExpand()
-                                    },
-                                    type = ModelType.CHAT,
-                                    onlyIcon = true,
-                                    modifier = Modifier,
-                                )
-
-                                // Search
-                                val enableSearchMsg = stringResource(R.string.web_search_enabled)
-                                val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                                val chatModel = settings.getCurrentChatModel()
-                                SearchPickerButton(
-                                    enableSearch = enableSearch,
-                                    settings = settings,
-                                    onToggleSearch = { enabled ->
-                                        onToggleSearch(enabled)
-                                        toaster.show(
-                                            message = if (enabled) enableSearchMsg else disableSearchMsg,
-                                            duration = 1.seconds,
-                                            type = if (enabled) {
-                                                ToastType.Success
-                                            } else {
-                                                ToastType.Normal
-                                            }
-                                        )
-                                    },
-                                    onUpdateSearchService = onUpdateSearchService,
-                                    model = chatModel,
-                                )
-
-                                // Reasoning
-                                val model = settings.getCurrentChatModel()
-                                if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                    ReasoningButton(
-                                        reasoningLevel = assistant.reasoningLevel,
-                                        onUpdateReasoningLevel = {
-                                            onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                        },
-                                        onlyIcon = true,
-                                    )
-                                }
-
-                            }
-
+                            // 「+」作为附件/扩展入口固定在左端:它是这一排的起点,
+                            // 不会因为功能按钮变多被滚动挤出视野,也不再单独漂在最右侧。
                             ActionIconButton(
                                 onClick = {
                                     expandToggle(ExpandState.Files)
                                 }) {
                                 Icon(
                                     imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
-                                    contentDescription = stringResource(R.string.more_options)
+                                    contentDescription = stringResource(R.string.more_options),
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
 
+                            // 左侧功能组:模型、搜索、提示·思考。空间不足时组内横向滚动,
+                            // 不会把右侧的语音与发送按钮挤走。
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .horizontalScroll(rememberScrollState()),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                // Model Picker
+                                Box(
+                                    modifier = Modifier.size(ActionButtonSize),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    ModelSelector(
+                                        modelId = assistant.chatModelId ?: settings.chatModelId,
+                                        providers = settings.providers,
+                                        onSelect = {
+                                            onUpdateChatModel(it)
+                                            dismissExpand()
+                                        },
+                                        type = ModelType.CHAT,
+                                        onlyIcon = true,
+                                        modifier = Modifier,
+                                    )
+                                }
 
+                                // Search
+                                val enableSearchMsg = stringResource(R.string.web_search_enabled)
+                                val disableSearchMsg = stringResource(R.string.web_search_disabled)
+                                val chatModel = settings.getCurrentChatModel()
+                                Box(
+                                    modifier = Modifier.size(ActionButtonSize),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    SearchPickerButton(
+                                        enableSearch = enableSearch,
+                                        settings = settings,
+                                        onToggleSearch = { enabled ->
+                                            onToggleSearch(enabled)
+                                            toaster.show(
+                                                message = if (enabled) enableSearchMsg else disableSearchMsg,
+                                                duration = 1.seconds,
+                                                type = if (enabled) {
+                                                    ToastType.Success
+                                                } else {
+                                                    ToastType.Normal
+                                                }
+                                            )
+                                        },
+                                        onUpdateSearchService = onUpdateSearchService,
+                                        model = chatModel,
+                                    )
+                                }
+
+                                // Reasoning
+                                val model = settings.getCurrentChatModel()
+                                if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
+                                    Box(
+                                        modifier = Modifier.size(ActionButtonSize),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        ReasoningButton(
+                                            reasoningLevel = assistant.reasoningLevel,
+                                            onUpdateReasoningLevel = {
+                                                onUpdateAssistant(assistant.copy(reasoningLevel = it))
+                                            },
+                                            onlyIcon = true,
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 右侧操作区:语音固定在发送左边,与发送同尺寸。
                             // Voice button: click to record, click again to stop and send
                             // 通话进行中禁用, 避免两路麦克风冲突
                             if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
@@ -732,12 +755,15 @@ fun ChatInput(
                                             imageVector = HugeIcons.Voice,
                                             contentDescription = "Voice",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
                             }
 
+                            // 发送按钮:整行唯一使用主题强调色的实心按钮,固定在最右,
+                            // 与左侧一组低权重图标形成明确的左右操作区。
+                            // 空输入态降低透明度而不是换成灰色,保持可辨识但仍读作不可用。
                             AnimatedVisibility(
                                 visible = !asrState.isRecording,
                                 enter = fadeIn() + scaleIn(),
@@ -746,7 +772,7 @@ fun ChatInput(
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .size(30.dp)
+                                        .size(ActionButtonSize)
                                         .clip(CircleShape)
                                         .combinedClickable(
                                             enabled = loading || !state.isEmpty(),
@@ -761,12 +787,11 @@ fun ChatInput(
                                 ) {
                                     val containerColor = when {
                                         loading -> MaterialTheme.colorScheme.errorContainer
-                                        state.isEmpty() -> MaterialTheme.colorScheme.surfaceContainerHigh
+                                        state.isEmpty() -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
                                         else -> MaterialTheme.colorScheme.primary
                                     }
                                     val contentColor = when {
                                         loading -> MaterialTheme.colorScheme.onErrorContainer
-                                        state.isEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                         else -> MaterialTheme.colorScheme.onPrimary
                                     }
                                     Surface(
@@ -780,14 +805,14 @@ fun ChatInput(
                                             imageVector = HugeIcons.Cancel01,
                                             contentDescription = stringResource(R.string.stop),
                                             tint = contentColor,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     } else {
                                         Icon(
                                             imageVector = HugeIcons.ArrowUp02,
                                             contentDescription = stringResource(R.string.send),
                                             tint = contentColor,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
@@ -858,14 +883,15 @@ private fun ActionIconButton(
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    // 圆形 → 圆角方形。
+    // 功能按钮统一尺寸与形状。
     //
-    // 一排等距圆形按钮读起来是"工具面板"，正常聊天 App 的输入栏动作
-    // 是一排图标，形状不该抢注意力。底色本来就是透明的，改形状后
-    // 点击涟漪也跟着变成圆角矩形，不再有"玻璃球被按下"的观感。
+    // 之前模型/搜索/思考走各自的 IconButton(M3 最小触摸区 48dp)与 ToggleSurface
+    // (内 padding 8dp + 24dp 图标盒 = 40dp),而 + 与语音是 32dp,一排里出现
+    // 三种尺寸,读起来是散的。现在全部收到 ActionButtonSize,
+    // 这一行的高度也随最高者从 48dp 降到 40dp。
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(32.dp),
+        modifier = Modifier.size(ActionButtonSize),
         shape = RoundedCornerShape(10.dp),
         tonalElevation = 0.dp,
         color = Color.Transparent,
@@ -964,8 +990,13 @@ private fun TextInputRow(
                     isFocused = it.isFocused
                 },
             shape = InputContainerShape,
+            // 输入与占位文字降一级:输入框是常驻控件,文字不该跟消息正文同级抢读。
+            textStyle = MaterialTheme.typography.bodyMedium,
             placeholder = {
-                Text(stringResource(R.string.chat_input_placeholder))
+                Text(
+                    text = stringResource(R.string.chat_input_placeholder),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             },
             lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
             keyboardOptions = KeyboardOptions(
@@ -1117,6 +1148,9 @@ private fun FullScreenEditor(
         }
     }
 }
+
+/** 输入区底部功能按钮的统一尺寸(功能按钮与发送按钮共用)。 */
+private val ActionButtonSize = 40.dp
 
 /**
  * 输入区容器圆角。
