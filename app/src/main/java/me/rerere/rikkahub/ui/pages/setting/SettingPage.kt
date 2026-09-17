@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
@@ -47,20 +48,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
-import me.rerere.hugeicons.stroke.Book01
-import me.rerere.hugeicons.stroke.Bookshelf01
-import me.rerere.hugeicons.stroke.Brain02
-import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Database02
-import me.rerere.hugeicons.stroke.GlobalSearch
-import me.rerere.hugeicons.stroke.ImageUpload
-import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LookTop
-import me.rerere.hugeicons.stroke.Megaphone01
+import me.rerere.hugeicons.stroke.MessageMultiple01
 import me.rerere.hugeicons.stroke.Package
-import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Shield02
-import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.hugeicons.stroke.WavingHand01
 import me.rerere.rikkahub.R
@@ -161,11 +153,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("外观") },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.Sun01, null, modifier = Modifier.size(18.dp))
+                            Text("外观")
+                        }
+                    },
                 ) {
                     // 高频简单选项直接放首页，用下拉，不再进二级页面。
                     item(
-                        leadingContent = { Icon(HugeIcons.Sun01, null) },
                         trailingContent = {
                             Select(
                                 options = ColorMode.entries,
@@ -194,7 +193,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     // 原「显示设置」这一层删除，其下条目直接归入「外观」。
                     item(
                         onClick = { navController.navigate(Screen.SettingDisplayTheme) },
-                        leadingContent = { Icon(HugeIcons.Settings03, null) },
                         headlineContent = { Text("主题外观") },
                         supportingContent = { Text("动态色、预设主题、AMOLED 暗黑模式") },
                     )
@@ -229,7 +227,15 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("chat") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("聊天") },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.MessageMultiple01, null, modifier = Modifier.size(18.dp))
+                            Text("聊天")
+                        }
+                    },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingDisplayMessage) },
@@ -257,29 +263,33 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("modelServices") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text(stringResource(R.string.setting_page_model_and_services)) },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.AiMagic, null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.setting_page_model_and_services))
+                        }
+                    },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingModels) },
-                        leadingContent = { Icon(HugeIcons.AiMagic, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_default_model)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingProvider) },
-                        leadingContent = { Icon(HugeIcons.Brain02, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_providers_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_providers)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSearch) },
-                        leadingContent = { Icon(HugeIcons.GlobalSearch, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_search_service_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_search_service)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingSpeech) },
-                        leadingContent = { Icon(HugeIcons.Megaphone01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
                     )
@@ -289,15 +299,29 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("extension") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("扩展") },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.Package, null, modifier = Modifier.size(18.dp))
+                            Text("扩展")
+                        }
+                    },
                 ) {
-                    // 「插件管理」与「扩展管理」不再并列：统一为「扩展」，
-                    // 进入后再区分插件、技能、接入渠道等。
+                    // 插件与技能/扩展各自是独立页面,不再并列成两个一级入口,
+                    // 也不再为合并而在中间加一层「扩展总页面」。
+                    // 插件管理直达插件页;技能、快捷消息、提示词等确实是一组子设置,
+                    // 才进入下一页,不在此处再塞图标。
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPlugins) },
+                        supportingContent = { Text("管理本地插件,导入 ZIP 插件包") },
+                        headlineContent = { Text("插件管理") },
+                    )
                     item(
                         onClick = { navController.navigate(Screen.Extensions) },
-                        leadingContent = { Icon(HugeIcons.Package, null) },
-                        supportingContent = { Text("插件、技能、快捷消息、记忆、接入渠道与自动化") },
-                        headlineContent = { Text(stringResource(R.string.setting_page_extensions)) },
+                        supportingContent = { Text("技能、快捷消息、提示词、进阶记忆、工作区") },
+                        headlineContent = { Text("技能与扩展") },
                     )
                 }
             }
@@ -305,17 +329,23 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("security") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("安全") },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.Shield02, null, modifier = Modifier.size(18.dp))
+                            Text("安全")
+                        }
+                    },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.SettingSecurity) },
-                        leadingContent = { Icon(HugeIcons.Shield02, null) },
                         supportingContent = { Text("工具调用确认、自动批准、工作流拦截等安全选项") },
                         headlineContent = { Text("安全设置") },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SecurityAudit) },
-                        leadingContent = { Icon(HugeIcons.Alert01, null) },
                         supportingContent = { Text("查看插件安装、工作流拦截、敏感操作等安全事件记录") },
                         headlineContent = { Text("安全审计日志") },
                     )
@@ -325,11 +355,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("assistant") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("助手") },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.LookTop, null, modifier = Modifier.size(18.dp))
+                            Text("助手")
+                        }
+                    },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.Assistant) },
-                        leadingContent = { Icon(HugeIcons.LookTop, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_assistant_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_assistant)) },
                     )
@@ -346,18 +383,24 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 val noShareApp = stringResource(R.string.setting_page_no_share_app)
                 CollapsibleCardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("通用") },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.Database02, null, modifier = Modifier.size(18.dp))
+                            Text("通用")
+                        }
+                    },
                     summary = { Text("数据・备份・关于") },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.Backup) },
-                        leadingContent = { Icon(HugeIcons.Database02, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_data_backup)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingFiles) },
-                        leadingContent = { Icon(HugeIcons.ImageUpload, null) },
                         supportingContent = {
                             if (storageState.first == -1) {
                                 Text(stringResource(R.string.calculating))
@@ -375,7 +418,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingAbout) },
-                        leadingContent = { Icon(HugeIcons.Clapping01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
                         trailingContent = {
                             Row(
@@ -410,19 +452,16 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     )
                     item(
                         onClick = { context.openUrl("https://github.com/sue1231513/orangechat") },
-                        leadingContent = { Icon(HugeIcons.Book01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_documentation_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_documentation)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Log) },
-                        leadingContent = { Icon(HugeIcons.Bookshelf01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_request_logs)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingDonate) },
-                        leadingContent = { Icon(HugeIcons.InLove, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_donate_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_donate)) },
                     )
@@ -437,9 +476,44 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
                             }
                         },
-                        leadingContent = { Icon(HugeIcons.Share04, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_share)) },
+                    )
+                    // 接入与自动化条目多且低频,归入「通用」。
+                    item(
+                        onClick = { navController.navigate(Screen.SettingMcp) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingWeb) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingSystemTools) },
+                        supportingContent = { Text("位置、通知、日历、闹钟等系统工具") },
+                        headlineContent = { Text("系统工具") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingProactiveMessage) },
+                        supportingContent = { Text("AI 在设定间隔内主动发消息,有记忆有上下文") },
+                        headlineContent = { Text("主动消息") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingWeixinBot) },
+                        supportingContent = { Text("把微信号变成 AI 入口,扫码登录后用微信收发消息") },
+                        headlineContent = { Text("微信 Bot") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingQqBot) },
+                        supportingContent = { Text("填 AppID/Secret,用 QQ 私聊跟 AI 对话") },
+                        headlineContent = { Text("QQ Bot") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Workflows) },
+                        supportingContent = { Text("Tasker 风格自动化:触发器 + 条件 -> 执行动作,由 AI 编写") },
+                        headlineContent = { Text("工作流") },
                     )
                 }
             }

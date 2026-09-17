@@ -421,12 +421,24 @@ fun ChatDrawerContent(
                 }
             )
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+            // 底部导航做成独立的悬浮大圆角栏:与抽屉底部留出空间,栏本身是
+            // 一块完整的圆角容器。原先每个条目各带一块 primaryContainer 底色,
+            // 一屏读成「一排小方块」;现在底色统一收到栏容器上,条目退成
+            // 无底色的图标 + 文字,层级只由这一块栏承担。
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
+                    .padding(top = 4.dp, bottom = 12.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 0.dp,
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                ) {
                 DrawerAction(
                     modifier = Modifier.weight(1f),
                     icon = {
@@ -556,6 +568,7 @@ fun ChatDrawerContent(
                     drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
                     materialMode = settings.displaySetting.materialMode,
                 )
+                }
             }
         }
         }
@@ -1025,15 +1038,13 @@ private fun DrawerAction(
     DrawerItemSurface(
         onClick = onClick,
         modifier = modifier,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        // 圆形 → 圆角方形。
-        //
-        // 五个等距圆形按钮排一行，读起来是「橘瓣自己的工具面板」而不是导航。
-        // 正常移动端底栏是图标 + 可选文字，形状不参与表达。12dp 圆角保留了
-        // 可点击的暗示，但不再是一排玻璃球。onClick 与全部功能不变。
+        color = Color.Transparent,
+        // 底栏已整体收进一块悬浮圆角容器,条目本身不再画任何边框或玻璃层,
+        // 否则栏里会出现五个小方框,和「一整条导航」的读法冲突。
+        // 传 FLAT 只影响这里的材质绘制,点击行为与图标全部不变。
         shape = RoundedCornerShape(12.dp),
         drawerItemAlpha = drawerItemAlpha,
-        materialMode = materialMode,
+        materialMode = DisplayMaterialMode.FLAT,
     ) {
         Column(
             modifier = Modifier

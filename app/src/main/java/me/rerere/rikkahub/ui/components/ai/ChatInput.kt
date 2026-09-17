@@ -107,7 +107,6 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.FullScreen
-import me.rerere.hugeicons.stroke.Smile
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -122,7 +121,6 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.service.VoiceCallService
-import me.rerere.rikkahub.ui.components.ui.EmojiPicker
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
@@ -147,7 +145,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 enum class ExpandState {
-    Collapsed, Files, Emoji,
+    Collapsed, Files,
 }
 
 @Composable
@@ -490,10 +488,8 @@ fun ChatInput(
 
     // Collapse when ime is visible
     val imeVisile = WindowInsets.isImeVisible
-    LaunchedEffect(imeVisile, showInjectionSheet, showCompressDialog, expand) {
-        // 表情面板自带搜索框,聚焦它会让 IME 可见。那种情况不能把面板收掉,
-        // 否则用户刚点进搜索框面板就消失。
-        if (imeVisile && expand != ExpandState.Emoji && !showInjectionSheet && !showCompressDialog) {
+    LaunchedEffect(imeVisile, showInjectionSheet, showCompressDialog) {
+        if (imeVisile && !showInjectionSheet && !showCompressDialog) {
             dismissExpand()
         }
     }
@@ -579,11 +575,9 @@ fun ChatInput(
             modifier = modifier
                 .imePadding()
                 .navigationBarsPadding()
-                // 8dp → 6dp：左右留白越大，输入框越像一块「浮在页面上的独立面板」。
-                // 收紧后它更贴近屏幕边缘，读作「页面底部的输入区」。
-                .padding(horizontal = 6.dp),
-            // 12dp → 6dp：输入框与下方工具行之间的间隙。原来的大间距让两者
-            // 看着像上下两层浮层，收紧后是同一个输入区的两行。
+                // 输入区是一块独立的悬浮容器:与屏幕底部、左右边缘都留出空间,
+                // 让它读作「浮在页面上的输入组件」,而不是贴底的一行工具栏。
+                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Input area with optional background image
@@ -703,17 +697,6 @@ fun ChatInput(
                                 )
                             }
 
-                            // 表情入口与附件入口并列,同样留在输入框内部。
-                            ActionIconButton(
-                                onClick = {
-                                    keyboardController?.hide()
-                                    expandToggle(ExpandState.Emoji)
-                                }) {
-                                Icon(
-                                    imageVector = if (expand == ExpandState.Emoji) HugeIcons.Cancel01 else HugeIcons.Smile,
-                                    contentDescription = "表情",
-                                )
-                            }
 
                             // Voice button: click to record, click again to stop and send
                             // 通话进行中禁用, 避免两路麦克风冲突
@@ -862,23 +845,6 @@ fun ChatInput(
                             onPickVideo = { videoPickerLauncher.launch("video/*") },
                             onPickAudio = { audioPickerLauncher.launch("audio/*") },
                             onPickFile = { filePickerLauncher.launch(arrayOf("*/*")) },
-                        )
-                    }
-                }
-                if (expand == ExpandState.Emoji) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp)),
-                        shape = RoundedCornerShape(20.dp),
-                        tonalElevation = 0.dp,
-                        color = popupContainerColor(hazeTintColor),
-                    ) {
-                        EmojiPicker(
-                            modifier = Modifier.fillMaxWidth(),
-                            onEmojiSelected = { emoji -> state.appendText(emoji.emoji) },
-                            showSearch = true,
-                            height = 300,
                         )
                     }
                 }

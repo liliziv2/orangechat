@@ -8,8 +8,10 @@ package me.rerere.rikkahub.ui.pages.extensions
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
@@ -17,24 +19,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.rikkahub.R
-import me.rerere.hugeicons.stroke.Book03
-import me.rerere.hugeicons.stroke.Brain01
-import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.McpServer
-import me.rerere.hugeicons.stroke.Message01
-import me.rerere.hugeicons.stroke.MessageMultiple01
-import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Puzzle
-import me.rerere.hugeicons.stroke.ServerStack01
-import me.rerere.hugeicons.stroke.SmartPhone01
-import me.rerere.hugeicons.stroke.WavingHand01
-import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -65,106 +57,50 @@ fun ExtensionsPage() {
             contentPadding = innerPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 「插件管理」不再和「扩展」并列成两个一级入口，统一收进这里。
+            // 这一页只承担「技能与扩展」这一组子设置。
+            //
+            // 「插件管理」已作为独立页面直接挂在 设置 → 扩展 下,
+            // 「接入与自动化」已归入 设置 → 通用,两者都不在这里重复出现,
+            // 也不为合并再造一层中间页。
+            //
+            // 视觉规则与设置页一致:分组标题带图标,组内条目是无图标的文字列表。
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("插件") },
-                ) {
-                    item(
-                        onClick = { navController.navigate(Screen.SettingPlugins) },
-                        leadingContent = { Icon(HugeIcons.Package, null) },
-                        headlineContent = { Text("插件管理") },
-                        supportingContent = { Text("管理本地插件，导入 ZIP 插件包") },
-                    )
-                }
-            }
-
-            item {
-                CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text(stringResource(R.string.extensions_page_section_extensions)) },
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.Puzzle, null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.extensions_page_section_extensions))
+                        }
+                    },
                 ) {
                     item(
                         onClick = { navController.navigate(Screen.QuickMessages) },
-                        leadingContent = { Icon(HugeIcons.Zap, null) },
                         headlineContent = { Text(stringResource(R.string.assistant_page_quick_messages)) },
                         supportingContent = { Text(stringResource(R.string.extensions_page_quick_messages_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Prompts) },
-                        leadingContent = { Icon(HugeIcons.Book03, null) },
                         headlineContent = { Text(stringResource(R.string.extensions_page_prompts)) },
                         supportingContent = { Text(stringResource(R.string.extensions_page_prompts_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Skills) },
-                        leadingContent = { Icon(HugeIcons.Puzzle, null) },
                         headlineContent = { Text(stringResource(R.string.extensions_page_agent_skills)) },
                         supportingContent = { Text(stringResource(R.string.extensions_page_agent_skills_desc)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.ExternalMemories) },
-                        leadingContent = { Icon(HugeIcons.Brain01, null) },
                         headlineContent = { Text("进阶记忆") },
                         supportingContent = { Text("管理外置记忆库，为助手配置独立的长期记忆") },
                     )
                     item(
                         onClick = { navController.navigate(Screen.Workspaces) },
-                        leadingContent = { Icon(HugeIcons.Folder01, null) },
                         headlineContent = { Text(stringResource(R.string.extensions_page_workspace)) },
                         supportingContent = { Text(stringResource(R.string.extensions_page_workspace_desc)) },
-                    )
-                }
-            }
-
-            // 接入渠道与自动化：条目多且低频，归入「扩展」下统一管理。
-            item {
-                CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("接入与自动化") },
-                ) {
-                    item(
-                        onClick = { navController.navigate(Screen.SettingMcp) },
-                        leadingContent = { Icon(HugeIcons.McpServer, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingWeb) },
-                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingSystemTools) },
-                        leadingContent = { Icon(HugeIcons.SmartPhone01, null) },
-                        supportingContent = { Text("位置、通知、日历、闹钟等系统工具") },
-                        headlineContent = { Text("系统工具") },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingProactiveMessage) },
-                        leadingContent = { Icon(HugeIcons.WavingHand01, null) },
-                        supportingContent = { Text("AI 在设定间隔内主动发消息，有记忆有上下文") },
-                        headlineContent = { Text("主动消息") },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingWeixinBot) },
-                        leadingContent = { Icon(HugeIcons.MessageMultiple01, null) },
-                        supportingContent = { Text("把微信号变成 AI 入口，扫码登录后用微信收发消息") },
-                        headlineContent = { Text("微信 Bot") },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingQqBot) },
-                        leadingContent = { Icon(HugeIcons.Message01, null) },
-                        supportingContent = { Text("填 AppID/Secret，用 QQ 私聊跟 AI 对话") },
-                        headlineContent = { Text("QQ Bot") },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.Workflows) },
-                        leadingContent = { Icon(HugeIcons.SmartPhone01, null) },
-                        supportingContent = { Text("Tasker 风格自动化：触发器 + 条件 -> 执行动作，由 AI 编写") },
-                        headlineContent = { Text("工作流") },
                     )
                 }
             }
