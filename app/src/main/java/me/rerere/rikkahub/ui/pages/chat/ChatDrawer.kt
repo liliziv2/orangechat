@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +37,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerDefaults
 import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -104,7 +104,6 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
-import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -423,13 +422,13 @@ fun ChatDrawerContent(
             )
 
             Row(
-                horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
             ) {
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(
                             imageVector = HugeIcons.LookTop,
@@ -437,7 +436,11 @@ fun ChatDrawerContent(
                         )
                     },
                     label = {
-                        Text(stringResource(R.string.assistant_page_title))
+                        Text(
+                            text = stringResource(R.string.assistant_page_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     onClick = {
                         navController.navigate(Screen.Assistant)
@@ -446,13 +449,18 @@ fun ChatDrawerContent(
                     materialMode = settings.displaySetting.materialMode,
                 )
 
-                Box {
+                Box(modifier = Modifier.weight(1f)) {
                     DrawerAction(
+                        modifier = Modifier.fillMaxWidth(),
                         icon = {
                             Icon(HugeIcons.Sparkles, "Menu")
                         },
                         label = {
-                            Text(stringResource(R.string.menu))
+                            Text(
+                                text = stringResource(R.string.menu),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         },
                         onClick = {
                             showMenuPopup = true
@@ -493,11 +501,16 @@ fun ChatDrawerContent(
                 }
 
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(HugeIcons.InLove, stringResource(R.string.favorite_page_title))
                     },
                     label = {
-                        Text(stringResource(R.string.favorite_page_title))
+                        Text(
+                            text = stringResource(R.string.favorite_page_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     onClick = {
                         navController.navigate(Screen.Favorite)
@@ -507,11 +520,16 @@ fun ChatDrawerContent(
                 )
 
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(HugeIcons.ChartColumn, "统计数据")
                     },
                     label = {
-                        Text("统计数据")
+                        Text(
+                            text = "统计数据",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     onClick = {
                         navController.navigate(Screen.Stats)
@@ -520,13 +538,18 @@ fun ChatDrawerContent(
                     materialMode = settings.displaySetting.materialMode,
                 )
 
-                Spacer(Modifier.weight(1f))
-
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(HugeIcons.Settings03, null)
                     },
-                    label = { Text(stringResource(R.string.settings)) },
+                    label = {
+                        Text(
+                            text = stringResource(R.string.settings),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                     onClick = {
                         navController.navigate(Screen.Setting)
                     },
@@ -1012,17 +1035,28 @@ private fun DrawerAction(
         drawerItemAlpha = drawerItemAlpha,
         materialMode = materialMode,
     ) {
-        Tooltip(
-            tooltip = {
-                label()
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .padding(10.dp)
-                    .size(20.dp),
+                modifier = Modifier.size(20.dp),
             ) {
                 icon()
+            }
+            // 图标 + 文字的多入口底栏:五格等宽,图标在上、说明文字在下。
+            // 文字统一收成 labelSmall 并居中,底栏文字是辅助信息,
+            // 不该跟内容标题同级。onClick 与全部图标均保持原样。
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                ProvideTextStyle(MaterialTheme.typography.labelSmall) {
+                    label()
+                }
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * 橘瓣 OrangeChat
  * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
  * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
@@ -107,6 +107,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.FullScreen
+import me.rerere.hugeicons.stroke.Smile
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -121,6 +122,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.service.VoiceCallService
+import me.rerere.rikkahub.ui.components.ui.EmojiPicker
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
@@ -145,7 +147,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 enum class ExpandState {
-    Collapsed, Files,
+    Collapsed, Files, Emoji,
 }
 
 @Composable
@@ -488,8 +490,10 @@ fun ChatInput(
 
     // Collapse when ime is visible
     val imeVisile = WindowInsets.isImeVisible
-    LaunchedEffect(imeVisile, showInjectionSheet, showCompressDialog) {
-        if (imeVisile && !showInjectionSheet && !showCompressDialog) {
+    LaunchedEffect(imeVisile, showInjectionSheet, showCompressDialog, expand) {
+        // 表情面板自带搜索框,聚焦它会让 IME 可见。那种情况不能把面板收掉,
+        // 否则用户刚点进搜索框面板就消失。
+        if (imeVisile && expand != ExpandState.Emoji && !showInjectionSheet && !showCompressDialog) {
             dismissExpand()
         }
     }
@@ -699,6 +703,18 @@ fun ChatInput(
                                 )
                             }
 
+                            // 表情入口与附件入口并列,同样留在输入框内部。
+                            ActionIconButton(
+                                onClick = {
+                                    keyboardController?.hide()
+                                    expandToggle(ExpandState.Emoji)
+                                }) {
+                                Icon(
+                                    imageVector = if (expand == ExpandState.Emoji) HugeIcons.Cancel01 else HugeIcons.Smile,
+                                    contentDescription = "表情",
+                                )
+                            }
+
                             // Voice button: click to record, click again to stop and send
                             // 通话进行中禁用, 避免两路麦克风冲突
                             if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
@@ -849,6 +865,23 @@ fun ChatInput(
                         )
                     }
                 }
+                if (expand == ExpandState.Emoji) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp)),
+                        shape = RoundedCornerShape(20.dp),
+                        tonalElevation = 0.dp,
+                        color = popupContainerColor(hazeTintColor),
+                    ) {
+                        EmojiPicker(
+                            modifier = Modifier.fillMaxWidth(),
+                            onEmojiSelected = { emoji -> state.appendText(emoji.emoji) },
+                            showSearch = true,
+                            height = 300,
+                        )
+                    }
+                }
             }
         }
     }
@@ -980,8 +1013,8 @@ private fun TextInputRow(
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
             ),
             trailingIcon = {
                 if (isFocused) {
@@ -1122,10 +1155,8 @@ private fun FullScreenEditor(
 /**
  * 输入区容器圆角。
  *
- * 原来用 MaterialTheme.shapes.largeIncreased（M3 默认约 20dp）。那么大的圆角
- * 配上四周留白，输入框读起来是一块「悬浮在页面上的胶囊面板」，而不是
- * 页面底部的输入区 —— 这是「双层浮层」感的几何来源。
- *
- * 16dp：仍然是明确的圆角控件，但不再往胶囊方向走。
+ * 参考用户给的输入框截图:输入区是一块独立的、圆角明显的区域。
+ * 24dp 让它读作「页面底部一块完整的输入区」,而不是普通表单控件;
+ * 同时没有走到全胶囊,保持本项目自己的控件语言。
  */
-private val InputContainerShape = RoundedCornerShape(16.dp)
+private val InputContainerShape = RoundedCornerShape(24.dp)
