@@ -26,7 +26,14 @@ import me.rerere.rikkahub.R
 import me.rerere.hugeicons.stroke.Book03
 import me.rerere.hugeicons.stroke.Brain01
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.McpServer
+import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.MessageMultiple01
+import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Puzzle
+import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.SmartPhone01
+import me.rerere.hugeicons.stroke.WavingHand01
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -58,6 +65,21 @@ fun ExtensionsPage() {
             contentPadding = innerPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // 「插件管理」不再和「扩展」并列成两个一级入口，统一收进这里。
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("插件") },
+                ) {
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPlugins) },
+                        leadingContent = { Icon(HugeIcons.Package, null) },
+                        headlineContent = { Text("插件管理") },
+                        supportingContent = { Text("管理本地插件，导入 ZIP 插件包") },
+                    )
+                }
+            }
+
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
@@ -92,6 +114,57 @@ fun ExtensionsPage() {
                         leadingContent = { Icon(HugeIcons.Folder01, null) },
                         headlineContent = { Text(stringResource(R.string.extensions_page_workspace)) },
                         supportingContent = { Text(stringResource(R.string.extensions_page_workspace_desc)) },
+                    )
+                }
+            }
+
+            // 接入渠道与自动化：条目多且低频，归入「扩展」下统一管理。
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("接入与自动化") },
+                ) {
+                    item(
+                        onClick = { navController.navigate(Screen.SettingMcp) },
+                        leadingContent = { Icon(HugeIcons.McpServer, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingWeb) },
+                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingSystemTools) },
+                        leadingContent = { Icon(HugeIcons.SmartPhone01, null) },
+                        supportingContent = { Text("位置、通知、日历、闹钟等系统工具") },
+                        headlineContent = { Text("系统工具") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingProactiveMessage) },
+                        leadingContent = { Icon(HugeIcons.WavingHand01, null) },
+                        supportingContent = { Text("AI 在设定间隔内主动发消息，有记忆有上下文") },
+                        headlineContent = { Text("主动消息") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingWeixinBot) },
+                        leadingContent = { Icon(HugeIcons.MessageMultiple01, null) },
+                        supportingContent = { Text("把微信号变成 AI 入口，扫码登录后用微信收发消息") },
+                        headlineContent = { Text("微信 Bot") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingQqBot) },
+                        leadingContent = { Icon(HugeIcons.Message01, null) },
+                        supportingContent = { Text("填 AppID/Secret，用 QQ 私聊跟 AI 对话") },
+                        headlineContent = { Text("QQ Bot") },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Workflows) },
+                        leadingContent = { Icon(HugeIcons.SmartPhone01, null) },
+                        supportingContent = { Text("Tasker 风格自动化：触发器 + 条件 -> 执行动作，由 AI 编写") },
+                        headlineContent = { Text("工作流") },
                     )
                 }
             }
