@@ -428,9 +428,18 @@ fun ChatDrawerContent(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 12.dp),
+                    .padding(top = 4.dp, bottom = 12.dp)
+                    .then(
+                        Modifier.border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(24.dp),
+                        )
+                    ),
                 shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                // 抽屉容器本身就是 surfaceContainer,底栏若用同色会看不出浮起。
+                // 抬一层到 surfaceContainerHigh,再加一条极淡边框界定这块栏。
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 0.dp,
             ) {
                 Row(
