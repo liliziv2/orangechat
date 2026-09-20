@@ -29,6 +29,15 @@ android {
         }
     }
 
+    // JVM 单元测试里 android.util.Log 默认是「未 mock」的：一调用就抛
+    // RuntimeException("Method w in android.util.Log not mocked")。
+    // 后果是任何顺手写了条日志的生产代码都没法被单测覆盖 ——
+    // ChatVoiceReplyMaterializer 的兜底分支就是这么被挡在门外的。
+    // 打开之后 android.jar 里的方法返回默认值，测试才跑得下去。
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     splits {
         abi {
             // AppBundle tasks usually contain "bundle" in their name

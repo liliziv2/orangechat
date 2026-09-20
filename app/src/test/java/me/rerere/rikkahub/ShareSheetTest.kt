@@ -46,8 +46,11 @@ class ShareSheetTest {
         assertEquals("Test OpenAI", decodedOpenAI.name)
         assertEquals("sk-test-key", decodedOpenAI.apiKey)
         assertEquals("https://api.openai.com/v1", decodedOpenAI.baseUrl)
-        assertEquals(1, decodedOpenAI.models.size)
-        assertEquals("gpt-4", decodedOpenAI.models[0].displayName)
+        // 共享出去的是「连接信息」，模型列表是被刻意剥掉的：
+        // encodeForShare() 里明确写了 copyProvider(models = emptyList())。
+        // 一个 provider 的模型列表动辄几十项，带上它二维码根本放不下。
+        // 所以这里锁的是「不共享模型」，而不是「模型能往返」—— 旧断言写反了。
+        assertEquals(0, decodedOpenAI.models.size)
     }
 
     @Test
