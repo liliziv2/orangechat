@@ -146,7 +146,6 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDisplayMessagePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayNotificationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPresetPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayUserProfilePage
-import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayTransparencyPage
 import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
@@ -649,10 +648,6 @@ class RouteActivity : ComponentActivity() {
                                 WebViewPage(key.url, key.content)
                             }
 
-                            entry<Screen.SettingDisplay> {
-                                SettingDisplayPage()
-                            }
-
                             entry<Screen.SettingTheme> {
                                 SettingThemePage()
                             }
@@ -1117,9 +1112,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class WebView(val url: String = "", val content: String = "") : Screen
-
-    @Serializable
-    data object SettingDisplay : Screen
 
     @Serializable
     data object SettingTheme : Screen

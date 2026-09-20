@@ -63,9 +63,18 @@ import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.LocalMaterialMode
 
-private val CardGroupCorner = 20.dp
-private val CardGroupItemSpacing = 2.dp
-private val CardGroupInnerCorner = 4.dp
+// 轻量 Settings 的几何。
+//
+// 之前是 20dp 圆角 + 每项之间留 2dp 间隔 —— 每一行都成了独立的圆角容器，
+// 一屏下来十几个白盒子平级排开，看不出哪个更重要。真正的层级应该是
+// 「页面背景 → 分组标题 → 列表行 → 很弱的分隔」，容器只留给需要强调的东西。
+//
+// 现在整组共用一个外圆角（首行顶部、末行底部），组内各行不再各自成盒：
+// 间隔归零、内圆角归零，靠一条很弱的分隔线区分行。
+private val CardGroupCorner = 12.dp
+private val CardGroupInnerCorner = 0.dp
+// 组内行分隔线：只在相邻两行之间画，透明度压到刚好能看见
+private const val CardGroupDividerAlpha = 0.07f
 
 data class CardGroupItem(
     val onClick: (() -> Unit)?,
@@ -206,6 +215,25 @@ private fun CardGroupListItem(
     )
 }
 
+/**
+ * 组内行分隔：替代原来的 2dp 空隙。
+ *
+ * 空隙会把每一行切成独立的盒子，分隔线则让整组读成"一张列表"。
+ * 左右留出 16dp 内缩，线不顶到边 —— 顶边的线看着像表格框。
+ * 玻璃模式下不画：那里的行本身是透明的，画线会破坏通透感。
+ */
+@Composable
+private fun CardGroupDivider() {
+    if (LocalMaterialMode.current == DisplayMaterialMode.GLASS) return
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = CardGroupDividerAlpha))
+    )
+}
+
 @Composable
 fun CardGroup(
     modifier: Modifier = Modifier,
@@ -228,7 +256,7 @@ fun CardGroup(
         scope.items.fastForEachIndexed { index, item ->
             CardGroupListItem(item = item, count = count, index = index)
             if (index != count - 1) {
-                Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                CardGroupDivider()
             }
         }
     }
@@ -306,7 +334,7 @@ fun CollapsibleCardGroup(
                 scope.items.fastForEachIndexed { index, item ->
                     CardGroupListItem(item = item, count = count, index = index)
                     if (index != count - 1) {
-                        Spacer(modifier = Modifier.height(CardGroupItemSpacing))
+                        CardGroupDivider()
                     }
                 }
             }

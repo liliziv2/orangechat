@@ -1109,8 +1109,6 @@ private fun BubbleSurface(
         val base = color.copy(alpha = LIQUID_GLASS_FILL_ALPHA * bubbleAlpha)
         onDrawBehind { drawRect(color = base) }
     }
-    // 无实时模糊时的静态玻璃高光。三处一起调低：顶部泛白、底部反光、顶沿镜面线。
-    // 它们和贴边高光、顶沿内高光叠在同一个边缘上，原来四层加起来能把气泡边缘糊成一层亮膜。
     val glassHighlightModifier = Modifier.drawWithCache {
         val topHighlightDepth = 6.dp.toPx()
         val bottomHighlightDepth = 4.dp.toPx()
@@ -1118,8 +1116,8 @@ private fun BubbleSurface(
         val specularHighlightHeight = 1.dp.toPx()
         val glassTopHighlightBrush = Brush.verticalGradient(
             colorStops = arrayOf(
-                0f to Color.White.copy(alpha = 0.14f),
-                0.5f to Color.White.copy(alpha = 0.05f),
+                0f to Color.White.copy(alpha = 0.22f),
+                0.5f to Color.White.copy(alpha = 0.08f),
                 1f to Color.Transparent,
             ),
             endY = topHighlightDepth,
@@ -1127,8 +1125,8 @@ private fun BubbleSurface(
         val glassBottomHighlightBrush = Brush.verticalGradient(
             colorStops = arrayOf(
                 0f to Color.Transparent,
-                0.5f to Color.White.copy(alpha = 0.025f),
-                1f to Color.White.copy(alpha = 0.06f),
+                0.5f to Color.White.copy(alpha = 0.05f),
+                1f to Color.White.copy(alpha = 0.12f),
             ),
             startY = size.height - bottomHighlightDepth,
             endY = size.height,
@@ -1136,10 +1134,10 @@ private fun BubbleSurface(
         val glassSpecularHighlightBrush = Brush.linearGradient(
             colorStops = arrayOf(
                 0f to Color.Transparent,
-                0.10f to Color.White.copy(alpha = 0.08f),
-                0.28f to Color.White.copy(alpha = 0.22f),
-                0.52f to Color.White.copy(alpha = 0.12f),
-                0.78f to Color.White.copy(alpha = 0.04f),
+                0.10f to Color.White.copy(alpha = 0.14f),
+                0.28f to Color.White.copy(alpha = 0.42f),
+                0.52f to Color.White.copy(alpha = 0.24f),
+                0.78f to Color.White.copy(alpha = 0.08f),
                 1f to Color.Transparent,
             ),
             start = Offset.Zero,
@@ -1178,14 +1176,14 @@ private fun BubbleSurface(
         val highlightBrush = Brush.radialGradient(
             colorStops = if (isDarkTheme) {
                 arrayOf(
-                    0f to Color.White.copy(alpha = 0.05f),
-                    0.45f to Color.White.copy(alpha = 0.015f),
+                    0f to Color.White.copy(alpha = 0.06f),
+                    0.45f to Color.White.copy(alpha = 0.02f),
                     1f to Color.Transparent,
                 )
             } else {
                 arrayOf(
-                    0f to Color.White.copy(alpha = 0.10f),
-                    0.42f to Color.White.copy(alpha = 0.03f),
+                    0f to Color.White.copy(alpha = 0.18f),
+                    0.42f to Color.White.copy(alpha = 0.07f),
                     1f to Color.Transparent,
                 )
             },
@@ -1214,23 +1212,12 @@ private fun BubbleSurface(
     // 顶沿内高光：紧贴上边缘的 1px 亮线，模拟玻璃板的厚度切面。
     // CSS 里就是 box-shadow 的 inset 0 1px 0 —— 它跟 border 的区别在于只有顶边一条，
     // 眼睛会把它读成"这块板有厚度"，而四边均匀的描边只会读成"一个框"。
-    //
-    // 但这条线原来是等宽实心白（浅色 0.62），横贯整个顶边 —— 加上上面那道贴边高光，
-    // 气泡顶部就有两条亮线，一起读成"发光边框"。改成横向渐变，从左上起亮、向右化掉，
-    // 强度也压下来，才是"上切面反光"而不是"一条描边"。
     val glassInsetTopHighlightModifier = Modifier.drawWithCache {
         val lineHeight = 1.dp.toPx()
-        val lineAlpha = if (isDarkTheme) 0.10f else 0.20f
-        val lineBrush = Brush.horizontalGradient(
-            colorStops = arrayOf(
-                0f to Color.White.copy(alpha = lineAlpha),
-                0.45f to Color.White.copy(alpha = lineAlpha * 0.45f),
-                1f to Color.Transparent,
-            ),
-        )
+        val lineAlpha = if (isDarkTheme) 0.20f else 0.62f
         onDrawBehind {
             drawRect(
-                brush = lineBrush,
+                color = Color.White.copy(alpha = lineAlpha),
                 size = Size(size.width, minOf(lineHeight, size.height)),
             )
         }
@@ -1253,71 +1240,62 @@ private fun BubbleSurface(
         )
     }
     val bubbleLayoutDirection = LocalLayoutDirection.current
-    // 气泡投影。
+    // 玻璃气泡的投影。
     //
-    // 这里以前是「5 层居中描边」，读起来不是"气泡浮在页面上"，而是"气泡自带一圈厚塑料边"：
-    //   · 描边以轮廓为中心 —— 一半压在气泡**内侧**。气泡是半透明的，内侧那半会透出来，
-    //     于是轮廓两侧各糊一条暗带，看着就是硬塑料壳；
-    //   · 没有偏移 —— 四周等量，是"发光"而不是"投影"；
-    //   · 最内层又最窄又最重（alpha 0.064），在轮廓上压出一条硬边。
+    // 不能用 Modifier.shadow：那条路必须配 clip=false（半透明气泡的阴影得落在自身之外），
+    // 而 clip=false 时 elevation 阴影是按 graphicsLayer 的矩形边界渲染的，圆角外侧会
+    // 漏出四个方形暗角。这里改成自己画：按真实轮廓生成 Path，用几层递减的半透明黑
+    // 描边往外扩，得到一圈跟着圆角走的柔和投影。
     //
-    // 现在按真实投影画，三件事分开控制：
-    //   1) 只在轮廓**之外**画（clipPath Difference），内侧那半直接不要；
-    //   2) 整体**下移** offsetY，光源在上方才读得出"浮起来"；
-    //   3) 每层**等量极淡**，靠层数叠出衰减 —— 峰值贴着轮廓往外化开，而不是堆在轮廓上。
-    //
-    // spread 是向外扩散的距离，peakAlpha 是贴着轮廓处的峰值不透明度（昼夜各一套）。
-    //
-    // 写成 fun 而不是 val + lambda：Kotlin 不允许给「函数类型」的调用传命名实参，
-    // 而 spread / offsetY / peakAlpha 这三个参数在调用点必须带名字才读得懂。
-    fun glassShadowModifier(spread: Dp, offsetY: Dp, peakAlpha: Float): Modifier =
+    // 两个关键约束，破一个就会出现"圆角气泡配方角投影"：
+    // 1) 这个 modifier 必须挂在 animateContentSize() 之前。animateContentSize 内部是
+    //    `clipToBounds() then 尺寸动画`，它会把之后所有绘制裁到矩形边界内。阴影是往
+    //    轮廓外扩的，直边外侧那段正好贴着边界被裁掉，只剩"矩形角 ∩ 圆角外侧"的四小块
+    //    残留 —— 看起来就是四个角各挂一块方形暗块。
+    // 2) 描边只保留轮廓外侧那一半（clipPath + Difference 把气泡内部挖掉）。居中描边的
+    //    内半段会压在半透明玻璃填充下面，把边缘一圈染深，那就是"发光塑料膜"的来源。
+    val glassShadowModifier = { elevation: Dp ->
         Modifier.drawWithCache {
-            val spreadPx = spread.toPx()
-            val offsetYPx = offsetY.toPx()
-            val layers = 6
-            // 等量分摊：峰值落在轮廓边缘，往外逐层线性衰减
-            val perLayerAlpha = peakAlpha / layers
+            val spread = elevation.toPx()
+            val layers = 5
             val outline = shape.createOutline(
                 size = size,
                 layoutDirection = bubbleLayoutDirection,
                 density = this@drawWithCache,
             )
-            // 气泡真实轮廓：只负责裁掉"内侧"，不参与偏移
-            val silhouettePath = Path().apply { addOutline(outline) }
-            // 投影轮廓：整体下移，让投影落在气泡下方
+            // 气泡自身轮廓：用来把内部挖掉，保证阴影不侵入填充
+            val bubblePath = Path().apply { addOutline(outline) }
+            // 阴影轮廓：整体下移一点，让光源看起来在上方，投影才有"浮起"的方向感
             val shadowPath = Path().apply {
                 addOutline(outline)
-                translate(Offset(0f, offsetYPx))
+                translate(Offset(0f, spread * 0.3f))
             }
             onDrawBehind {
-                clipPath(silhouettePath, clipOp = ClipOp.Difference) {
-                    // 从外往内：每层都极淡，叠加出平滑衰减
+                clipPath(path = bubblePath, clipOp = ClipOp.Difference) {
+                    // 从外往内画：最外层最淡最宽，逐层收窄加深，叠出渐变的衰减
                     for (i in layers downTo 1) {
                         val fraction = i.toFloat() / layers
                         drawPath(
                             path = shadowPath,
-                            color = Color.Black.copy(alpha = perLayerAlpha),
-                            style = Stroke(width = spreadPx * fraction * 2f),
+                            color = Color.Black.copy(alpha = 0.055f * (1f - fraction) + 0.02f),
+                            style = Stroke(width = spread * fraction * 2f),
                         )
                     }
                 }
             }
         }
+    }
     // 实时模糊气泡专用：沿真实轮廓贴边的方向性硬高光（左上亮、向右下透明；昼夜强弱不同）
-    //
-    // 这是"发光塑料膜"的另一半来源：浅色主题原来给到 0.78，1dp 的白线几乎实心，
-    // 又正好贴在投影的暗边上 —— 一亮一暗两条紧挨着的边，就是塑料壳的读法。
-    // 它本来的作用只是"左上角拐弯处有一点反光"，所以压到能看见轮廓就够，并且更早化掉。
     val liveBubbleEdgeHighlightModifier = Modifier.drawWithCache {
         val strokeWidthPx = 1.dp.toPx()
         val halfStroke = strokeWidthPx / 2f
-        val edgeStartAlpha = if (isDarkTheme) 0.22f else 0.32f
-        val edgeMidAlpha = if (isDarkTheme) 0.07f else 0.11f
+        val edgeStartAlpha = if (isDarkTheme) 0.38f else 0.78f
+        val edgeMidAlpha = if (isDarkTheme) 0.133f else 0.273f
         val edgeBrush = Brush.linearGradient(
             colorStops = arrayOf(
                 0f to Color.White.copy(alpha = edgeStartAlpha),
-                0.35f to Color.White.copy(alpha = edgeMidAlpha),
-                0.62f to Color.Transparent,
+                0.45f to Color.White.copy(alpha = edgeMidAlpha),
+                0.75f to Color.Transparent,
                 1f to Color.Transparent,
             ),
             start = Offset.Zero,
@@ -1359,196 +1337,155 @@ private fun BubbleSurface(
         // 实时背景模糊 + 均匀半透明填充 + 顶部折射反光 + 边缘高光描边
         Box(
             modifier = Modifier
+                // 投影必须排在 animateContentSize 之前：它内部的 clipToBounds 会把
+                // 外扩的圆角投影裁成矩形，只在四角留下方形残块。
+                .then(glassShadowModifier(LIQUID_GLASS_SHADOW_ELEVATION))
                 .animateContentSize()
-                // 投影挂在外层节点上。
-                //
-                // 原来投影和 clip(shape) 挂在同一个节点上，drawWithCache 的绘制会被归进
-                // clip 那一层，投影实际只有内侧一半画得出来：直边处看是一条贴着边的暗带，
-                // 外侧整个没了（真机上量气泡外面一点投影都读不到）。拆成两层后，投影所在的
-                // 节点没有 clip，才是一圈完整的、跟着圆角走的柔和投影。
-                .then(
-                    glassShadowModifier(
-                        spread = LIQUID_GLASS_SHADOW_SPREAD,
-                        offsetY = LIQUID_GLASS_SHADOW_OFFSET_Y,
-                        peakAlpha = if (isDarkTheme) SHADOW_PEAK_ALPHA_DARK else SHADOW_PEAK_ALPHA_LIGHT,
-                    )
-                )
+                .clip(shape)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .border(1.dp, frostedBorderColor, shape)
         ) {
-            // 内层：气泡本体，圆角裁剪只作用在这里
-            Box(
-                modifier = Modifier
-                    .clip(shape)
-                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                    .border(1.dp, frostedBorderColor, shape)
-            ) {
-                if (finalLiveBubbleBlurEnabled) {
-                    // 背景模糊片段：仅模糊背景层，文字保持清晰
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            // 显式按圆角裁剪 —— 这块方形暗角就是这一层漏出来的。
-                            //
-                            // 它是带 RenderEffect 的离屏模糊层，父级的 clip(shape) 兜不住它，于是整块按
-                            // 矩形画了出来。气泡内部有半透明填充压在上面、会被提亮，圆角外侧那一小块
-                            // 没有填充，露出的就是没被提亮的原始背景 —— 看着就是四个角的方形暗块。
-                            .clip(shape)
-                            .then(liveFragmentModifier)
-                    )
-                }
-                // 自定义气泡背景图。以前这个模式遇到背景图就整段退化成普通气泡，
-                // 玻璃质感全丢；现在图铺在玻璃填充之下，高光和描边照常叠加。
-                if (hasImage) {
-                    AsyncImage(
-                        model = imagePath,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize()
-                    )
-                }
-                if (isDarkTheme && finalLiveBubbleBlurEnabled) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            // 同上：这是一层深色遮罩，漏出去会直接在圆角外留下暗块。
-                            .clip(shape)
-                            .then(liveBubbleNightReadabilityModifier)
-                    )
-                }
+            if (finalLiveBubbleBlurEnabled) {
+                // 背景模糊片段：仅模糊背景层，文字保持清晰
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .then(liquidGlassFillModifier)
+                        .then(liveFragmentModifier)
                 )
-                if (finalLiveBubbleBlurEnabled) {
-                    // 径向光泽：左上亮，模拟玻璃对光的折射
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(liveBubbleRadialHighlightModifier)
-                    )
-                    // 顶部折射反光带
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(liveBubbleEdgeHighlightModifier)
-                    )
-                } else {
-                    // 无实时模糊时的降级：静态高光 + 顶部反光，保证液态玻璃观感
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(glassHighlightModifier)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(liveBubbleEdgeHighlightModifier)
-                    )
-                }
-                // 顶沿内高光压在所有层之上：它代表玻璃板的上切面，被任何东西盖住就没意义了
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(glassInsetTopHighlightModifier)
-                )
-                Column(modifier = Modifier.padding(8.dp)) {
-                    content()
-                    MessageTimeLabel(messageTimeText)
-                }
             }
-        }
-    } else if (materialMode == DisplayMaterialMode.GLASS) {
-        Box(
-            modifier = Modifier
-                .animateContentSize()
-                // 同液态玻璃：投影挂在外层节点，clip 只作用于内层气泡本体
-                .then(
-                    glassShadowModifier(
-                        spread = GLASS_SHADOW_SPREAD,
-                        offsetY = GLASS_SHADOW_OFFSET_Y,
-                        peakAlpha = if (isDarkTheme) SHADOW_PEAK_ALPHA_DARK else SHADOW_PEAK_ALPHA_LIGHT,
-                    )
+            // 自定义气泡背景图。以前这个模式遇到背景图就整段退化成普通气泡，
+            // 玻璃质感全丢；现在图铺在玻璃填充之下，高光和描边照常叠加。
+            if (hasImage) {
+                AsyncImage(
+                    model = imagePath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
                 )
-        ) {
-            // 内层：气泡本体，圆角裁剪只作用在这里
+            }
+            if (isDarkTheme && finalLiveBubbleBlurEnabled) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleNightReadabilityModifier)
+                )
+            }
             Box(
                 modifier = Modifier
-                    .clip(shape)
-                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                    .border(1.dp, glassBorderColor, shape)
-            ) {
-                if (finalLiveBubbleBlurEnabled) {
-                    // 背景图片片段层：仅模糊此子层，文字等前景内容保持清晰。
-                    // matchParentSize 只覆盖父 Box 已确定尺寸，不参与父 Box 测量，
-                    // 因此气泡宽度仍由文字内容 + padding + 宽度上限决定。
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            // 显式按圆角裁剪 —— 这块方形暗角就是这一层漏出来的。
-                            //
-                            // 它是带 RenderEffect 的离屏模糊层，父级的 clip(shape) 兜不住它，于是整块按
-                            // 矩形画了出来。气泡内部有半透明填充压在上面、会被提亮，圆角外侧那一小块
-                            // 没有填充，露出的就是没被提亮的原始背景 —— 看着就是四个角的方形暗块。
-                            .clip(shape)
-                            .then(liveFragmentModifier)
-                    )
-                }
-                if (hasImage) {
-                    AsyncImage(
-                        model = imagePath,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize()
-                    )
-                }
-                if (finalLiveBubbleBlurEnabled && isDarkTheme) {
-                    // 夜间深色识读遮罩：位于模糊背景之上、glass fill 之下，压暗亮背景保证白字可读
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            // 同上：这是一层深色遮罩，漏出去会直接在圆角外留下暗块。
-                            .clip(shape)
-                            .then(liveBubbleNightReadabilityModifier)
-                    )
-                }
-                if (!hasImage || overlayEnabled) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(glassFillModifier)
-                    )
-                }
-                if (finalLiveBubbleBlurEnabled) {
-                    // 白色径向渐变高光遮罩：位于 glass fill 上方、玻璃高光下方，受气泡圆角裁剪
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(liveBubbleRadialHighlightModifier)
-                    )
-                }
+                    .matchParentSize()
+                    .then(liquidGlassFillModifier)
+            )
+            if (finalLiveBubbleBlurEnabled) {
+                // 径向光泽：左上亮，模拟玻璃对光的折射
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleRadialHighlightModifier)
+                )
+                // 顶部折射反光带
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleEdgeHighlightModifier)
+                )
+            } else {
+                // 无实时模糊时的降级：静态高光 + 顶部反光，保证液态玻璃观感
                 Box(
                     modifier = Modifier
                         .matchParentSize()
                         .then(glassHighlightModifier)
                 )
-                if (finalLiveBubbleBlurEnabled) {
-                    // 沿真实圆角贴边的方向性硬高光：位于渲染层外、content 之下；仅左上/顶部可见，向右下透明
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .then(liveBubbleEdgeHighlightModifier)
-                    )
-                }
-                // 顶沿内高光：同液态玻璃，压在所有层之上代表玻璃上切面
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .then(glassInsetTopHighlightModifier)
+                        .then(liveBubbleEdgeHighlightModifier)
                 )
-                Column(modifier = Modifier.padding(8.dp)) {
-                    content()
-                    MessageTimeLabel(messageTimeText)
-                }
+            }
+            // 顶沿内高光压在所有层之上：它代表玻璃板的上切面，被任何东西盖住就没意义了
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(glassInsetTopHighlightModifier)
+            )
+            Column(modifier = Modifier.padding(8.dp)) {
+                content()
+                MessageTimeLabel(messageTimeText)
+            }
+        }
+    } else if (materialMode == DisplayMaterialMode.GLASS) {
+        Box(
+            modifier = Modifier
+                // 同液态玻璃：手绘圆角投影，且必须排在 animateContentSize 之前，
+                // 否则外扩投影会被它的 clipToBounds 裁成四个方角。
+                .then(glassShadowModifier(GLASS_SHADOW_ELEVATION))
+                .animateContentSize()
+                .clip(shape)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .border(1.dp, glassBorderColor, shape)
+        ) {
+            if (finalLiveBubbleBlurEnabled) {
+                // 背景图片片段层：仅模糊此子层，文字等前景内容保持清晰。
+                // matchParentSize 只覆盖父 Box 已确定尺寸，不参与父 Box 测量，
+                // 因此气泡宽度仍由文字内容 + padding + 宽度上限决定。
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveFragmentModifier)
+                )
+            }
+            if (hasImage) {
+                AsyncImage(
+                    model = imagePath,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+            }
+            if (finalLiveBubbleBlurEnabled && isDarkTheme) {
+                // 夜间深色识读遮罩：位于模糊背景之上、glass fill 之下，压暗亮背景保证白字可读
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleNightReadabilityModifier)
+                )
+            }
+            if (!hasImage || overlayEnabled) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(glassFillModifier)
+                )
+            }
+            if (finalLiveBubbleBlurEnabled) {
+                // 白色径向渐变高光遮罩：位于 glass fill 上方、玻璃高光下方，受气泡圆角裁剪
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleRadialHighlightModifier)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(glassHighlightModifier)
+            )
+            if (finalLiveBubbleBlurEnabled) {
+                // 沿真实圆角贴边的方向性硬高光：位于渲染层外、content 之下；仅左上/顶部可见，向右下透明
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(liveBubbleEdgeHighlightModifier)
+                )
+            }
+            // 顶沿内高光：同液态玻璃，压在所有层之上代表玻璃上切面
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(glassInsetTopHighlightModifier)
+            )
+            Column(modifier = Modifier.padding(8.dp)) {
+                content()
+                MessageTimeLabel(messageTimeText)
             }
         }
     } else if (hasImage) {
@@ -1622,32 +1559,19 @@ private const val GLASS_BUBBLE_BORDER_ALPHA = 0.24f
 private const val LIQUID_GLASS_SATURATION = 1.35f
 
 /**
- * 气泡投影向外扩散的距离。
+ * 液态玻璃气泡的投影高度。
  *
- * 就是"投影能铺多远"。原来 6dp / 4dp 配的是居中多层描边，同样的距离视觉上糊成一圈厚边；
- * 现在只在轮廓外画、并且整体下移，这个距离才是柔和的落地投影。
+ * 玻璃片应当浮在背景之上而不是印在上面，一点投影就能把这层关系交代清楚。
+ * 数值刻意压得低：气泡是密集重复的元素，投影稍重整屏就会显得脏。
  */
-private val LIQUID_GLASS_SHADOW_SPREAD = 5.dp
-private val GLASS_SHADOW_SPREAD = 3.5.dp
+private val LIQUID_GLASS_SHADOW_ELEVATION = 6.dp
 
 /**
- * 气泡投影的下移量。
+ * GLASS 材质气泡的投影高度。
  *
- * 光源默认在上方，投影整体下移一点，眼睛才会读成"气泡浮在页面上"；
- * 四周等量只会读成"气泡在发光"。取值不超过 spread 的三分之一，
- * 再大顶部就完全收不到投影，反而像悬空。
+ * 比液态玻璃稍轻：GLASS 模式的填充本身更实（不透明度更高），投影再重就显得笨。
  */
-private val LIQUID_GLASS_SHADOW_OFFSET_Y = 1.5.dp
-private val GLASS_SHADOW_OFFSET_Y = 1.dp
-
-/**
- * 气泡投影的峰值不透明度（贴着轮廓处，往外线性衰减到 0）。
- *
- * 浅色主题：投影是"浮起来"的主要线索，够交代清楚轮廓就行 —— 再重就成了一圈脏边。
- * 暗色主题：黑投影落在暗背景上几乎不可见，给大一点只是补个接触感，不指望它撑层次。
- */
-private const val SHADOW_PEAK_ALPHA_LIGHT = 0.13f
-private const val SHADOW_PEAK_ALPHA_DARK = 0.30f
+private val GLASS_SHADOW_ELEVATION = 4.dp
 
 /**
  * 构造一个只改饱和度的颜色矩阵。

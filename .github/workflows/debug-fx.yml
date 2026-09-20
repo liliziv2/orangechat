@@ -5,7 +5,6 @@ on:
     branches:
       - glass-fx-only
       - orangechat-ib-tg
-      - feat/ib-inspired-six-fx
   workflow_dispatch:
 
 permissions:

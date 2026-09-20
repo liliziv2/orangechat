@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,11 +31,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerDefaults
 import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -103,7 +104,6 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
-import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -421,14 +421,35 @@ fun ChatDrawerContent(
                 }
             )
 
-            Row(
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically,
+            // 底部导航做成独立的悬浮大圆角栏:与抽屉底部留出空间,栏本身是
+            // 一块完整的圆角容器。原先每个条目各带一块 primaryContainer 底色,
+            // 一屏读成「一排小方块」;现在底色统一收到栏容器上,条目退成
+            // 无底色的图标 + 文字,层级只由这一块栏承担。
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
+                    .padding(top = 4.dp, bottom = 12.dp)
+                    .then(
+                        Modifier.border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(24.dp),
+                        )
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                // 抽屉容器本身就是 surfaceContainer,底栏若用同色会看不出浮起。
+                // 抬一层到 surfaceContainerHigh,再加一条极淡边框界定这块栏。
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 0.dp,
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 6.dp)
+                ) {
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(
                             imageVector = HugeIcons.LookTop,
@@ -436,7 +457,11 @@ fun ChatDrawerContent(
                         )
                     },
                     label = {
-                        Text(stringResource(R.string.assistant_page_title))
+                        Text(
+                            text = stringResource(R.string.assistant_page_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     onClick = {
                         navController.navigate(Screen.Assistant)
@@ -445,13 +470,18 @@ fun ChatDrawerContent(
                     materialMode = settings.displaySetting.materialMode,
                 )
 
-                Box {
+                Box(modifier = Modifier.weight(1f)) {
                     DrawerAction(
+                        modifier = Modifier.fillMaxWidth(),
                         icon = {
                             Icon(HugeIcons.Sparkles, "Menu")
                         },
                         label = {
-                            Text(stringResource(R.string.menu))
+                            Text(
+                                text = stringResource(R.string.menu),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         },
                         onClick = {
                             showMenuPopup = true
@@ -492,11 +522,16 @@ fun ChatDrawerContent(
                 }
 
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(HugeIcons.InLove, stringResource(R.string.favorite_page_title))
                     },
                     label = {
-                        Text(stringResource(R.string.favorite_page_title))
+                        Text(
+                            text = stringResource(R.string.favorite_page_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     onClick = {
                         navController.navigate(Screen.Favorite)
@@ -506,11 +541,16 @@ fun ChatDrawerContent(
                 )
 
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(HugeIcons.ChartColumn, "统计数据")
                     },
                     label = {
-                        Text("统计数据")
+                        Text(
+                            text = "统计数据",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     onClick = {
                         navController.navigate(Screen.Stats)
@@ -519,19 +559,25 @@ fun ChatDrawerContent(
                     materialMode = settings.displaySetting.materialMode,
                 )
 
-                Spacer(Modifier.weight(1f))
-
                 DrawerAction(
+                    modifier = Modifier.weight(1f),
                     icon = {
                         Icon(HugeIcons.Settings03, null)
                     },
-                    label = { Text(stringResource(R.string.settings)) },
+                    label = {
+                        Text(
+                            text = stringResource(R.string.settings),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                     onClick = {
                         navController.navigate(Screen.Setting)
                     },
                     drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
                     materialMode = settings.displaySetting.materialMode,
                 )
+                }
             }
         }
         }
@@ -897,8 +943,8 @@ private fun DrawerItemSurface(
         DisplayMaterialMode.GLASS -> color.copy(alpha = drawerItemAlpha)
     }
     val borderColor = when (materialMode) {
-        DisplayMaterialMode.TRANSLUCENT -> contentColor.copy(alpha = 0.14f * drawerItemAlpha)
-        DisplayMaterialMode.GLASS -> contentColor.copy(alpha = 0.1f * drawerItemAlpha)
+        DisplayMaterialMode.TRANSLUCENT -> contentColor.copy(alpha = 0.05f * drawerItemAlpha)
+        DisplayMaterialMode.GLASS -> contentColor.copy(alpha = 0.04f * drawerItemAlpha)
         DisplayMaterialMode.FLAT,
         DisplayMaterialMode.FOLLOW_THEME -> Color.Transparent
     }
@@ -935,6 +981,15 @@ private fun BoxScope.DrawerItemGlassLayers(
     drawerItemAlpha: Float,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    // 抽屉条目的玻璃三层整体压低。
+    //
+    // Material cleanup 的原则：玻璃是「消息气泡效果」，不是整个 App 的材质主题。
+    // 这三层（斜向渐变 0.1/0.07、竖向渐变 0.13/0.035、渐变描边 0.2/0.045）
+    // 叠在每一个抽屉条目和底栏按钮上，是「一排玻璃球」观感的直接来源。
+    //
+    // 全部约 ×0.3：保留一点材质暗示，不再让普通导航元件跟气泡抢材质表现。
+    // 气泡自己的 glassShadowModifier / liveBubbleEdgeHighlightModifier /
+    // glassInsetTopHighlightModifier 与 liquid glass 均不受影响。
     Box(
         modifier = Modifier
             .matchParentSize()
@@ -942,8 +997,8 @@ private fun BoxScope.DrawerItemGlassLayers(
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.1f * drawerItemAlpha),
-                        colorScheme.primary.copy(alpha = 0.07f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.03f * drawerItemAlpha),
+                        colorScheme.primary.copy(alpha = 0.02f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 )
@@ -956,8 +1011,8 @@ private fun BoxScope.DrawerItemGlassLayers(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.13f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.035f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.04f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.01f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 )
@@ -970,8 +1025,8 @@ private fun BoxScope.DrawerItemGlassLayers(
                 width = 1.dp,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.2f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.045f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.06f * drawerItemAlpha),
+                        colorScheme.onSurface.copy(alpha = 0.015f * drawerItemAlpha),
                         Color.Transparent,
                     )
                 ),
@@ -992,22 +1047,36 @@ private fun DrawerAction(
     DrawerItemSurface(
         onClick = onClick,
         modifier = modifier,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shape = CircleShape,
+        color = Color.Transparent,
+        // 底栏已整体收进一块悬浮圆角容器,条目本身不再画任何边框或玻璃层,
+        // 否则栏里会出现五个小方框,和「一整条导航」的读法冲突。
+        // 传 FLAT 只影响这里的材质绘制,点击行为与图标全部不变。
+        shape = RoundedCornerShape(12.dp),
         drawerItemAlpha = drawerItemAlpha,
-        materialMode = materialMode,
+        materialMode = DisplayMaterialMode.FLAT,
     ) {
-        Tooltip(
-            tooltip = {
-                label()
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Box(
-                modifier = Modifier
-                    .padding(10.dp)
-                    .size(20.dp),
+                modifier = Modifier.size(20.dp),
             ) {
                 icon()
+            }
+            // 图标 + 文字的多入口底栏:五格等宽,图标在上、说明文字在下。
+            // 文字统一收成 labelSmall 并居中,底栏文字是辅助信息,
+            // 不该跟内容标题同级。onClick 与全部图标均保持原样。
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                ProvideTextStyle(MaterialTheme.typography.labelSmall) {
+                    label()
+                }
             }
         }
     }
