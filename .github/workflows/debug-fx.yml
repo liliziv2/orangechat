@@ -5,6 +5,7 @@ on:
     branches:
       - glass-fx-only
       - orangechat-ib-tg
+      - feat/ib-inspired-six-fx
   workflow_dispatch:
 
 permissions:
@@ -118,6 +119,37 @@ jobs:
           git commit -m "ci: 提交共享 debug keystore，固定 CI 包签名 [skip ci]" \
                      -m "避免每次 CI 现生成随机 keystore 导致新包与已装 APK 签名冲突（覆盖安装被拒）。debug keystore 密码为公开约定值 android，不含敏感信息；release 签名仍走 local.properties，不受影响。"
           git push origin HEAD:${GITHUB_REF_NAME}
+
+      # 单元测试。以前这个 workflow 只 assembleDebug，于是"加了回归测试"实际上从没被执行过 ——
+      # ProactiveMessageRequestAssemblyTest 这类纯逻辑测试必须真的跑起来才算数。
+      # 暂不设成硬门槛（continue-on-error）：先拿到一份基线结果，确认历史用例本来就是绿的，
+      # 再把它改成 gate，免得无关的既有失败把构建卡红。
+      - name: Run unit tests
+        id: unit_tests
+        continue-on-error: true
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --no-daemon
+
+      # 不管上一步成败都打一份汇总，方便直接从日志里读结果。
+      - name: Summarise unit test results
+        if: always()
+        run: |
+          echo "== test result files =="
+          find app/build/test-results -name '*.xml' 2>/dev/null | head -50 || true
+          echo "== totals =="
+          python3 - <<'PY' || true
+          import glob, re
+          t = f = e = s = 0
+          for p in glob.glob("app/build/test-results/**/*.xml", recursive=True):
+              head = open(p, encoding="utf-8", errors="replace").read(2000)
+              m = re.search(r'tests="(\d+)".*?skipped="(\d+)".*?failures="(\d+)".*?errors="(\d+)"', head)
+              if m:
+                  t += int(m.group(1)); s += int(m.group(2)); f += int(m.group(3)); e += int(m.group(4))
+          print(f"tests={t} skipped={s} failures={f} errors={e}")
+          PY
+          echo "== failures =="
+          grep -rh -A3 "<failure\|<error" app/build/test-results/**/*.xml 2>/dev/null | head -80 || true
 
       - name: Build Debug APK
         run: |
