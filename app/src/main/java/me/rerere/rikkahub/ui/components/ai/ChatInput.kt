@@ -9,11 +9,9 @@ package me.rerere.rikkahub.ui.components.ai
 import android.net.Uri
 import android.os.Build
 import android.util.Log
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -55,12 +53,14 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -197,6 +197,10 @@ fun ChatInput(
     var expand by remember { mutableStateOf(ExpandState.Collapsed) }
     var showInjectionSheet by remember { mutableStateOf(false) }
     var showCompressDialog by remember { mutableStateOf(false) }
+    // 附件面板的 sheet 状态提到这里而不是写在 if 里面：条件式 remember 会在每次开关时
+    // 重建状态，导致重新打开时残留上一次的展开/收起进度。skipPartiallyExpanded
+    // 让它直接到全高，不做半展开中间态。
+    val filesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     fun dismissExpand() {
         expand = ExpandState.Collapsed
         showInjectionSheet = false
@@ -827,58 +831,44 @@ fun ChatInput(
                 }
             }
 
-            // Expanded content
-            Box(
-                modifier = Modifier
-                    .animateContentSize()
-                    .fillMaxWidth()
-            ) {
-                BackHandler(
-                    enabled = expand != ExpandState.Collapsed,
-                ) {
-                    dismissExpand()
-                }
-                if (expand == ExpandState.Files) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .then(
-                                if (useRealtimeBlur) Modifier.hazeEffect(
-                                    state = hazeState,
-                                    style = HazeMaterials.ultraThin()
-                                )
-                                else Modifier
-                            ),
-                        shape = RoundedCornerShape(20.dp),
-                        tonalElevation = 0.dp,
-                        color = if (useRealtimeBlur) {
-                            Color.Transparent
-                        } else {
-                            popupContainerColor(hazeTintColor)
-                        },
-                    ) {
-                        FilesPicker(
-                            conversation = conversation,
-                            state = state,
-                            assistant = assistant,
-                            mcpManager = mcpManager,
-                            onCompressContext = onCompressContext,
-                            onUpdateAssistant = onUpdateAssistant,
-                            showInjectionSheet = showInjectionSheet,
-                            onShowInjectionSheetChange = { showInjectionSheet = it },
-                            showCompressDialog = showCompressDialog,
-                            onShowCompressDialogChange = { showCompressDialog = it },
-                            onDismiss = { dismissExpand() },
-                            onTakePic = onLaunchCamera,
-                            onPickImage = { imagePickerLauncher.launch("image/*") },
-                            onPickVideo = { videoPickerLauncher.launch("video/*") },
-                            onPickAudio = { audioPickerLauncher.launch("audio/*") },
-                            onPickFile = { filePickerLauncher.launch(arrayOf("*/*")) },
-                        )
-                    }
-                }
-            }
+        }
+    }
+
+    // 附件/扩展面板：从「输入框下面的一个 Box」改成 ModalBottomSheet。
+    //
+    // 以前它和输入框是同一个 Column 里的两个大圆角容器：展开时把输入框整个往上顶，
+    // 面板高度还被输入框挤着，内容只能在一个矮窗口里滚。改成 bottom sheet 之后
+    // 输入框位置不动，面板从底部盖上来，能拿到整屏高度。
+    //
+    // 返回键交给 ModalBottomSheet 自己处理，原来那个 BackHandler 一并去掉。
+    if (expand == ExpandState.Files) {
+        ModalBottomSheet(
+            onDismissRequest = { dismissExpand() },
+            sheetState = filesSheetState,
+            containerColor = if (useRealtimeBlur) {
+                Color.Transparent
+            } else {
+                popupContainerColor(hazeTintColor)
+            },
+        ) {
+            FilesPicker(
+                conversation = conversation,
+                state = state,
+                assistant = assistant,
+                mcpManager = mcpManager,
+                onCompressContext = onCompressContext,
+                onUpdateAssistant = onUpdateAssistant,
+                showInjectionSheet = showInjectionSheet,
+                onShowInjectionSheetChange = { showInjectionSheet = it },
+                showCompressDialog = showCompressDialog,
+                onShowCompressDialogChange = { showCompressDialog = it },
+                onDismiss = { dismissExpand() },
+                onTakePic = onLaunchCamera,
+                onPickImage = { imagePickerLauncher.launch("image/*") },
+                onPickVideo = { videoPickerLauncher.launch("video/*") },
+                onPickAudio = { audioPickerLauncher.launch("audio/*") },
+                onPickFile = { filePickerLauncher.launch(arrayOf("*/*")) },
+            )
         }
     }
 }
