@@ -640,21 +640,15 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     assistant = assistant,
                     settings = settings
                 )
-                // 注入生成的 SYSTEM 内容并入系统提示词，不参与对话轮次
-                val injectedSystemText = transformedMessages
-                    .filter { it.role == MessageRole.SYSTEM }
-                    .joinToString("\n") { it.toText() }
-                    .trim()
+                // 注入生成的 SYSTEM 内容并入系统提示词，不参与对话轮次；
                 // 其余消息保留，但必须保证合成指令仍是最后一条：
                 // 它才是模型这一轮要回答的问题，结尾放注入内容会让模型去续写而不是发新消息。
-                val nonSystemMessages = transformedMessages.filter { it.role != MessageRole.SYSTEM }
-                val instructionIndex = nonSystemMessages.indexOfFirst { it.id == userMessage.id }
-                val processedUserMessages = if (instructionIndex >= 0) {
-                    nonSystemMessages.filterIndexed { index, _ -> index != instructionIndex } +
-                        nonSystemMessages[instructionIndex]
-                } else {
-                    nonSystemMessages + userMessage
-                }
+                // 拆分逻辑提取为纯函数 splitInjectedSystemAndUserTurns，便于回归测试锁住
+                // 「注入内容不得顶替指令 / 不得混进对话轮次」这条不变量。
+                val (injectedSystemText, processedUserMessages) = splitInjectedSystemAndUserTurns(
+                    transformedMessages = transformedMessages,
+                    userMessage = userMessage,
+                )
 
                 // 组合完整消息列表：System + History + User Context
                 // 关键：SYSTEM 不参与同角色合并。只对「历史 + 合成 USER」做合并，
@@ -743,12 +737,10 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 // 如果这一轮没生成出任何东西，只按角色取会捞到上一条旧回复，
                 // 然后当成"新的主动消息"再推送一遍通知。
                 val initialMessageIds = messages.map { it.id }.toSet()
-                val aiMessage = finalMessages.lastOrNull {
-                    it.role == MessageRole.ASSISTANT && it.id !in initialMessageIds
-                } ?: UIMessage(
-                    role = MessageRole.ASSISTANT,
-                    parts = emptyList()
-                )
+                // 选取逻辑提取为纯函数 pickNewAssistantMessage，便于回归测试锁住
+                // 「只按本轮新生成的 ASSISTANT 选取，宁可不发也不能捞错消息落库」这条不变量。
+                val aiMessage = pickNewAssistantMessage(finalMessages, initialMessageIds)
+                    ?: UIMessage(role = MessageRole.ASSISTANT, parts = emptyList())
 
                 // 解析 [JUMP] 标记（AI总是可以跳转，不需要开关）
                 val rawText = aiMessage.parts.filterIsInstance<UIMessagePart.Text>()
@@ -1393,4 +1385,52 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
     }
 
     override fun onBind(intent: Intent?): android.os.IBinder? = null
+}
+
+/**
+ * 把输入转换器处理后的消息列表拆成「注入 SYSTEM 内容」和「对话轮次」（可测试的纯函数）。
+ *
+ * 主动消息流程历史上直接取 transformedMessages.first() 当指令，结果被提示词注入
+ * （[BEHAVIOR GUARDRAILS] 这类条款）顶替：模型收不到真正的指令，注入条款还顺着
+ * streamMessages 被当成 AI 回复落库，最终以用户气泡的形式暴露在聊天界面上。
+ * 修复后的不变量（见 ProactiveMessageRequestAssemblyTest）：
+ * - 注入生成的 SYSTEM 内容只并入系统提示词，不参与对话轮次；
+ * - 合成指令（userMessage）必须是列表最后一条，注入内容只能以独立消息出现在它之前；
+ * - 找不到合成指令时（防御路径），原样保留并把它补到最后。
+ */
+internal fun splitInjectedSystemAndUserTurns(
+    transformedMessages: List<UIMessage>,
+    userMessage: UIMessage,
+): Pair<String, List<UIMessage>> {
+    val injectedSystemText = transformedMessages
+        .filter { it.role == MessageRole.SYSTEM }
+        .joinToString("\n") { it.toText() }
+        .trim()
+    val nonSystemMessages = transformedMessages.filter { it.role != MessageRole.SYSTEM }
+    val instructionIndex = nonSystemMessages.indexOfFirst { it.id == userMessage.id }
+    val processedUserMessages = if (instructionIndex >= 0) {
+        nonSystemMessages.filterIndexed { index, _ -> index != instructionIndex } +
+            nonSystemMessages[instructionIndex]
+    } else {
+        nonSystemMessages + userMessage
+    }
+    return injectedSystemText to processedUserMessages
+}
+
+/**
+ * 从生成结束的消息列表里挑出"这一轮新生成的 AI 回复"（可测试的纯函数）。
+ *
+ * finalMessages 以本轮请求的消息打头，最后一条不一定是 AI 回复（工具链末尾可能是
+ * TOOL 结果，异常路径下可能是合成的 USER 指令）。修复后的不变量
+ * （见 ProactiveMessageRequestAssemblyTest）：
+ * - 只接受 ASSISTANT 角色且 id 不在本轮 initialMessages 里的消息；
+ * - 拿不到时返回 null，由调用方决定兜底（宁可不发，也不能捞历史旧回复落库）。
+ */
+internal fun pickNewAssistantMessage(
+    finalMessages: List<UIMessage>,
+    initialMessageIds: Set<Uuid>,
+): UIMessage? {
+    return finalMessages.lastOrNull {
+        it.role == MessageRole.ASSISTANT && it.id !in initialMessageIds
+    }
 }
