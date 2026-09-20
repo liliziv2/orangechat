@@ -122,11 +122,10 @@ jobs:
 
       # 单元测试。以前这个 workflow 只 assembleDebug，于是"加了回归测试"实际上从没被执行过 ——
       # ProactiveMessageRequestAssemblyTest 这类纯逻辑测试必须真的跑起来才算数。
-      # 暂不设成硬门槛（continue-on-error）：先拿到一份基线结果，确认历史用例本来就是绿的，
-      # 再把它改成 gate，免得无关的既有失败把构建卡红。
+      # 基线已经全绿（141 tests / 0 failures），所以这里是硬门槛：
+      # 单测挂了就挂构建，不再有「红了也没人看」的空间。
       - name: Run unit tests
         id: unit_tests
-        continue-on-error: true
         run: |
           chmod +x gradlew
           ./gradlew :app:testDebugUnitTest --no-daemon
