@@ -580,6 +580,29 @@ fun ChatInput(
                 .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // 当前模型：从输入框内部的功能行里挪出来，单独做成输入框上方的小 pill。
+            //
+            // 它回答的是「现在在跟哪个模型说话」——属于上下文信息，和 + / 搜索 / 思考
+            // 那些「操作」不是一类东西。混在操作行里会同时踩两个坑：抢走发送按钮的视觉权重，
+            // 以及功能按钮一多就和附件入口挤在同一条横向滚动里。
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                modifier = Modifier.padding(start = 4.dp),
+            ) {
+                ModelSelector(
+                    modelId = assistant.chatModelId ?: settings.chatModelId,
+                    providers = settings.providers,
+                    onSelect = {
+                        onUpdateChatModel(it)
+                        dismissExpand()
+                    },
+                    type = ModelType.CHAT,
+                    // false = 显示模型名而不是只显示图标；pill 的意义就在于把名字亮出来
+                    onlyIcon = false,
+                )
+            }
+
             // Input area with optional background image
             Surface(
                 modifier = Modifier
@@ -647,7 +670,7 @@ fun ChatInput(
                                 )
                             }
 
-                            // 左侧功能组:模型、搜索、提示·思考。空间不足时组内横向滚动,
+                            // 左侧功能组:搜索、提示·思考。空间不足时组内横向滚动,
                             // 不会把右侧的语音与发送按钮挤走。
                             Row(
                                 modifier = Modifier
@@ -656,24 +679,6 @@ fun ChatInput(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                // Model Picker
-                                Box(
-                                    modifier = Modifier.size(ActionButtonSize),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    ModelSelector(
-                                        modelId = assistant.chatModelId ?: settings.chatModelId,
-                                        providers = settings.providers,
-                                        onSelect = {
-                                            onUpdateChatModel(it)
-                                            dismissExpand()
-                                        },
-                                        type = ModelType.CHAT,
-                                        onlyIcon = true,
-                                        modifier = Modifier,
-                                    )
-                                }
-
                                 // Search
                                 val enableSearchMsg = stringResource(R.string.web_search_enabled)
                                 val disableSearchMsg = stringResource(R.string.web_search_disabled)
