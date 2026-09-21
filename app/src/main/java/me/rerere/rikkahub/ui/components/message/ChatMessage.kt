@@ -1092,10 +1092,13 @@ private fun BubbleSurface(
         val gradientCenter = Offset(size.width / 2f, size.height / 2f)
         val glassFillBrush = Brush.radialGradient(
             colorStops = arrayOf(
-                0f to color.copy(alpha = 0.82f * bubbleAlpha),
-                0.55f to color.copy(alpha = 0.80f * bubbleAlpha),
-                0.82f to color.copy(alpha = 0.56f * bubbleAlpha),
-                1f to color.copy(alpha = 0.40f * bubbleAlpha),
+                // 0.82/0.80/0.56/0.40 -> 0.72/0.70/0.58/0.48。
+                // 原来中心到边缘掉了 0.42，这个落差读起来是"一块有厚度的板" ——
+                // 助手气泡的卡片感就出在这里。收窄之后是"一层薄玻璃"，透而不空。
+                0f to color.copy(alpha = 0.72f * bubbleAlpha),
+                0.55f to color.copy(alpha = 0.70f * bubbleAlpha),
+                0.82f to color.copy(alpha = 0.58f * bubbleAlpha),
+                1f to color.copy(alpha = 0.48f * bubbleAlpha),
             ),
             center = gradientCenter,
             radius = gradientCenter.getDistance(),
@@ -1109,6 +1112,9 @@ private fun BubbleSurface(
         val base = color.copy(alpha = LIQUID_GLASS_FILL_ALPHA * bubbleAlpha)
         onDrawBehind { drawRect(color = base) }
     }
+    // 静态玻璃高光：顶部泛白 / 底部反光 / 顶沿镜面线三处一起压下去。
+    // 它们是"塑料包边"的直接来源 —— 叠在同一圈边缘上时，眼睛读到的是"包边"
+    // 而不是"玻璃"。减 FX 就减在这里：不新增层，只把现有层的强度降下来。
     val glassHighlightModifier = Modifier.drawWithCache {
         val topHighlightDepth = 6.dp.toPx()
         val bottomHighlightDepth = 4.dp.toPx()
@@ -1116,8 +1122,8 @@ private fun BubbleSurface(
         val specularHighlightHeight = 1.dp.toPx()
         val glassTopHighlightBrush = Brush.verticalGradient(
             colorStops = arrayOf(
-                0f to Color.White.copy(alpha = 0.22f),
-                0.5f to Color.White.copy(alpha = 0.08f),
+                0f to Color.White.copy(alpha = 0.09f),
+                0.5f to Color.White.copy(alpha = 0.03f),
                 1f to Color.Transparent,
             ),
             endY = topHighlightDepth,
@@ -1125,8 +1131,8 @@ private fun BubbleSurface(
         val glassBottomHighlightBrush = Brush.verticalGradient(
             colorStops = arrayOf(
                 0f to Color.Transparent,
-                0.5f to Color.White.copy(alpha = 0.05f),
-                1f to Color.White.copy(alpha = 0.12f),
+                0.5f to Color.White.copy(alpha = 0.02f),
+                1f to Color.White.copy(alpha = 0.045f),
             ),
             startY = size.height - bottomHighlightDepth,
             endY = size.height,
@@ -1134,10 +1140,10 @@ private fun BubbleSurface(
         val glassSpecularHighlightBrush = Brush.linearGradient(
             colorStops = arrayOf(
                 0f to Color.Transparent,
-                0.10f to Color.White.copy(alpha = 0.14f),
-                0.28f to Color.White.copy(alpha = 0.42f),
-                0.52f to Color.White.copy(alpha = 0.24f),
-                0.78f to Color.White.copy(alpha = 0.08f),
+                0.10f to Color.White.copy(alpha = 0.05f),
+                0.28f to Color.White.copy(alpha = 0.15f),
+                0.52f to Color.White.copy(alpha = 0.08f),
+                0.78f to Color.White.copy(alpha = 0.025f),
                 1f to Color.Transparent,
             ),
             start = Offset.Zero,
@@ -1176,14 +1182,14 @@ private fun BubbleSurface(
         val highlightBrush = Brush.radialGradient(
             colorStops = if (isDarkTheme) {
                 arrayOf(
-                    0f to Color.White.copy(alpha = 0.06f),
-                    0.45f to Color.White.copy(alpha = 0.02f),
+                    0f to Color.White.copy(alpha = 0.035f),
+                    0.45f to Color.White.copy(alpha = 0.012f),
                     1f to Color.Transparent,
                 )
             } else {
                 arrayOf(
-                    0f to Color.White.copy(alpha = 0.18f),
-                    0.42f to Color.White.copy(alpha = 0.07f),
+                    0f to Color.White.copy(alpha = 0.10f),
+                    0.42f to Color.White.copy(alpha = 0.04f),
                     1f to Color.Transparent,
                 )
             },
@@ -1214,7 +1220,7 @@ private fun BubbleSurface(
     // 眼睛会把它读成"这块板有厚度"，而四边均匀的描边只会读成"一个框"。
     val glassInsetTopHighlightModifier = Modifier.drawWithCache {
         val lineHeight = 1.dp.toPx()
-        val lineAlpha = if (isDarkTheme) 0.20f else 0.62f
+        val lineAlpha = if (isDarkTheme) 0.09f else 0.30f
         onDrawBehind {
             drawRect(
                 color = Color.White.copy(alpha = lineAlpha),
@@ -1224,19 +1230,29 @@ private fun BubbleSurface(
     }
     // 气泡实际轮廓：玻璃/液态玻璃的贴边高光必须照它走，否则会在圆角处错位并被父级 clip 切掉一截。
     // 非对称造型：用户气泡右下角收窄、助手气泡左下角收窄，指向各自的头像一侧。
+    // 圆角保留，但要封顶。
+    //
+    // 半径一旦够到气泡高度的一半，短消息整体就读成"胶囊"了 —— 那是输入框的语言，
+    // 不是气泡的语言。单行气泡高约 36dp（半高 18dp），上限取 14dp 时边缘依然圆润，
+    // 但始终留着一段直边，形状明确是"圆角矩形"。下限 6dp 兜住任何过小的设置值，
+    // 避免退化成直角。
+    //
+    // 注意不要沿用设置里的字段名（bubbleCornerRadius 是 DisplaySettings 的属性），
+    // 这里必须是一个独立的局部值。
+    val clampedCornerRadius = cornerRadius.coerceIn(6.dp, 14.dp)
     val shape = if (isUser) {
         RoundedCornerShape(
-            topStart = cornerRadius,
-            topEnd = cornerRadius,
-            bottomEnd = cornerRadius * 0.25f,
-            bottomStart = cornerRadius,
+            topStart = clampedCornerRadius,
+            topEnd = clampedCornerRadius,
+            bottomEnd = clampedCornerRadius * 0.25f,
+            bottomStart = clampedCornerRadius,
         )
     } else {
         RoundedCornerShape(
-            topStart = cornerRadius,
-            topEnd = cornerRadius,
-            bottomEnd = cornerRadius,
-            bottomStart = cornerRadius * 0.25f,
+            topStart = clampedCornerRadius,
+            topEnd = clampedCornerRadius,
+            bottomEnd = clampedCornerRadius,
+            bottomStart = clampedCornerRadius * 0.25f,
         )
     }
     val bubbleLayoutDirection = LocalLayoutDirection.current
@@ -1257,10 +1273,8 @@ private fun BubbleSurface(
     val glassShadowModifier = { elevation: Dp ->
         Modifier.drawWithCache {
             val spread = elevation.toPx()
-            // 层数从 5 提到 6、每层透明度砍到约 1/2.6。
-            // 阴影是「密集重复元素」上的东西，层少而每层重会在直边处留下一圈
-            // 看得见的暗带（就是那个灰黑外圈 + 气泡下方的压影）；层多而每层极淡，
-            // 叠出来才是一圈读不到边界的柔光。
+            // 6 层、每层极淡。阴影在这里只负责"让气泡脱离背景一点点"，
+            // 不参与材质表达 —— 那件事交给玻璃面自己。
             val layers = 6
             val outline = shape.createOutline(
                 size = size,
@@ -1281,7 +1295,7 @@ private fun BubbleSurface(
                         val fraction = i.toFloat() / layers
                         drawPath(
                             path = shadowPath,
-                            color = Color.Black.copy(alpha = 0.024f * (1f - fraction) + 0.007f),
+                            color = Color.Black.copy(alpha = 0.014f * (1f - fraction) + 0.004f),
                             style = Stroke(width = spread * fraction * 2f),
                         )
                     }
@@ -1293,8 +1307,8 @@ private fun BubbleSurface(
     val liveBubbleEdgeHighlightModifier = Modifier.drawWithCache {
         val strokeWidthPx = 1.dp.toPx()
         val halfStroke = strokeWidthPx / 2f
-        val edgeStartAlpha = if (isDarkTheme) 0.38f else 0.78f
-        val edgeMidAlpha = if (isDarkTheme) 0.133f else 0.273f
+        val edgeStartAlpha = if (isDarkTheme) 0.18f else 0.36f
+        val edgeMidAlpha = if (isDarkTheme) 0.06f else 0.13f
         val edgeBrush = Brush.linearGradient(
             colorStops = arrayOf(
                 0f to Color.White.copy(alpha = edgeStartAlpha),
@@ -1411,7 +1425,10 @@ private fun BubbleSurface(
                     .matchParentSize()
                     .then(glassInsetTopHighlightModifier)
             )
-            Column(modifier = Modifier.padding(8.dp)) {
+            // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
+            // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
+            // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
+            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1487,7 +1504,10 @@ private fun BubbleSurface(
                     .matchParentSize()
                     .then(glassInsetTopHighlightModifier)
             )
-            Column(modifier = Modifier.padding(8.dp)) {
+            // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
+            // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
+            // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
+            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1519,7 +1539,10 @@ private fun BubbleSurface(
                         .background(color.copy(alpha = effectiveAlpha))
                 )
             }
-            Column(modifier = Modifier.padding(8.dp)) {
+            // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
+            // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
+            // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
+            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1528,18 +1551,33 @@ private fun BubbleSurface(
         Surface(
             modifier = Modifier.animateContentSize(),
             shape = shape,
-            color = color.copy(alpha = effectiveAlpha),
+            // 用户气泡与助手气泡在这里吃同一个 PLAIN_BUBBLE_ALPHA，
+            // 两种气泡的"底"由此对齐到同一套材质语言。
+            color = color.copy(
+                alpha = if (materialMode == DisplayMaterialMode.TRANSLUCENT) {
+                    effectiveAlpha
+                } else {
+                    effectiveAlpha * PLAIN_BUBBLE_ALPHA
+                },
+            ),
             border = if (materialMode == DisplayMaterialMode.TRANSLUCENT) {
                 BorderStroke(1.dp, translucentBorderColor)
             } else if (outlined) {
-                // 助手气泡默认背景时补一道细描边，把气泡从纯色底上区分出来
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                // 助手气泡默认背景时的一道细描边。
+                // 0.5 -> 0.18：这一圈正是"塑料包边"的来源，而且只有助手气泡有，
+                // 于是又成了两种气泡材质不统一的地方。留一点点即可 —— 助手气泡的
+                // 填充色本来就接近背景，需要一根发丝把它托起来；用户气泡的填充色
+                // 已经自带对比，就不需要描边。描边与否取决于填充对比度，而不是发送方。
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
             } else {
                 null
             },
             onClick = onClick ?: {},
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
+            // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
+            // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
+            // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
+            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1547,11 +1585,26 @@ private fun BubbleSurface(
     }
 }
 
-private const val LIQUID_GLASS_FILL_ALPHA = 0.58f
-private const val LIQUID_GLASS_BORDER_ALPHA = 0.12f
+private const val LIQUID_GLASS_FILL_ALPHA = 0.54f
+// 三种材质的描边统一到 0.07。描边在这里只有一个职责：把气泡从同色背景上
+// 轻轻托起来。0.12~0.24 那一档已经能被看成"一圈边"，而三种材质各自不同的
+// 数值正是"用户/助手材质不统一"的来源之一。
+private const val LIQUID_GLASS_BORDER_ALPHA = 0.07f
 private const val TRANSLUCENT_BUBBLE_BASE_ALPHA = 0.72f
-private const val TRANSLUCENT_BUBBLE_BORDER_ALPHA = 0.18f
-private const val GLASS_BUBBLE_BORDER_ALPHA = 0.24f
+private const val TRANSLUCENT_BUBBLE_BORDER_ALPHA = 0.07f
+private const val GLASS_BUBBLE_BORDER_ALPHA = 0.07f
+
+/**
+ * 实心模式（FLAT / FOLLOW_THEME）下气泡填充的额外透度。
+ *
+ * 完全不透明会把气泡读成"一块贴在背景上的色卡" —— 用户气泡的"胶囊感"、
+ * 助手气泡的"卡片感"都来自这里。0.92 让底下页面极淡地透过来一点，气泡于是
+ * 变成"带材质色的玻璃片"，同时几乎不影响文字对比度。
+ *
+ * 只在实心模式下生效：TRANSLUCENT 的 effectiveAlpha 本身已经压到 0.72，
+ * 再乘一次会叠成 0.66，那就不是"轻微半透明"而是发虚了。
+ */
+private const val PLAIN_BUBBLE_ALPHA = 0.92f
 
 /**
  * 液态玻璃背景的饱和度倍数。
@@ -1565,20 +1618,17 @@ private const val LIQUID_GLASS_SATURATION = 1.35f
 /**
  * 液态玻璃气泡的投影高度。
  *
- * 玻璃片应当浮在背景之上而不是印在上面，一点投影就能把这层关系交代清楚。
- * 数值刻意压得低：气泡是密集重复的元素，投影稍重整屏就会显得脏。
- *
- * 6dp -> 3dp：投影的「宽度」直接决定它读起来是柔光还是一圈壳。6dp 时外圈
- * 已经能单独被眼睛拎出来，加上底部的方向偏移就成了「压影」；3dp 只在贴边
- * 一两像素内交代层次，边界读不出来，质感交回给玻璃面自己。
+ * 6dp -> 3dp -> 2dp。投影的「宽度」直接决定它读起来是柔光还是一圈壳：
+ * 只要外圈能被眼睛单独拎出来，再加上底部那点方向偏移，就成了「压影」。
+ * 2dp 只在贴边一两像素内交代层次，边界读不出来，质感交回给玻璃面自己。
  */
-private val LIQUID_GLASS_SHADOW_ELEVATION = 3.dp
+private val LIQUID_GLASS_SHADOW_ELEVATION = 2.dp
 
 /**
  * GLASS 材质气泡的投影高度。
  *
- * 比液态玻璃稍轻：GLASS 模式的填充本身更实（不透明度更高），投影再重就显得笨。
- * 4dp -> 2dp，理由同上。
+ * 4dp -> 2dp，与液态玻璃取同一个值：用户气泡和助手气泡必须落在同一条
+ * "离背景的距离"上，否则两种气泡的材质语言立刻又分家了。
  */
 private val GLASS_SHADOW_ELEVATION = 2.dp
 
@@ -1816,19 +1866,29 @@ internal fun VoiceMessageBubble(
     }
  
     // 与文本气泡同一套非对称造型：用户右下角收窄、助手左下角收窄，指向各自头像一侧。
+    // 圆角保留，但要封顶。
+    //
+    // 半径一旦够到气泡高度的一半，短消息整体就读成"胶囊"了 —— 那是输入框的语言，
+    // 不是气泡的语言。单行气泡高约 36dp（半高 18dp），上限取 14dp 时边缘依然圆润，
+    // 但始终留着一段直边，形状明确是"圆角矩形"。下限 6dp 兜住任何过小的设置值，
+    // 避免退化成直角。
+    //
+    // 注意不要沿用设置里的字段名（bubbleCornerRadius 是 DisplaySettings 的属性），
+    // 这里必须是一个独立的局部值。
+    val clampedCornerRadius = cornerRadius.coerceIn(6.dp, 14.dp)
     val shape = if (isUser) {
         RoundedCornerShape(
-            topStart = cornerRadius,
-            topEnd = cornerRadius,
-            bottomEnd = cornerRadius * 0.25f,
-            bottomStart = cornerRadius,
+            topStart = clampedCornerRadius,
+            topEnd = clampedCornerRadius,
+            bottomEnd = clampedCornerRadius * 0.25f,
+            bottomStart = clampedCornerRadius,
         )
     } else {
         RoundedCornerShape(
-            topStart = cornerRadius,
-            topEnd = cornerRadius,
-            bottomEnd = cornerRadius,
-            bottomStart = cornerRadius * 0.25f,
+            topStart = clampedCornerRadius,
+            topEnd = clampedCornerRadius,
+            bottomEnd = clampedCornerRadius,
+            bottomStart = clampedCornerRadius * 0.25f,
         )
     }
     val resolvedColor = bubbleColor ?: if (isUser) {

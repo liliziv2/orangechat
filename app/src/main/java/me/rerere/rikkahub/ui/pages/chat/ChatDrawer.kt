@@ -81,18 +81,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChartColumn
-import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderAdd
-import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.InLove
-import me.rerere.hugeicons.stroke.LanguageCircle
-import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Puzzle
-import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sparkles
@@ -188,9 +183,6 @@ fun ChatDrawerContent(
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
-    // Menu popup 状态
-    var showMenuPopup by remember { mutableStateOf(false) }
-
     val drawerSurfaceAlpha =
         (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0.6f, 1f)
     // GLASS + 界面实时渲染 + API 31+：Drawer 容器透明，透出 ChatPage 同宿主原生模糊层；否则静态回退
@@ -279,7 +271,9 @@ fun ChatDrawerContent(
 
             Column(
                 modifier = Modifier.padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                // 功能目录从 5 项收到 3 项之后，条目之间可以把呼吸感给足一点：
+                // 8dp -> 10dp。整栏因此更宽松清爽，视觉语言没有任何变化。
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
             if (settings.displaySetting.showUpdates && !isPlayStore) {
                 UpdateCard(vm)
@@ -528,45 +522,6 @@ fun ChatDrawerContent(
                     contentDescription = "统计数据",
                     onClick = { navController.navigate(Screen.Stats) },
                 )
-
-                // 菜单：翻译 / 图像生成 / Mini Apps。下拉内容与跳转目标原样保留。
-                Box {
-                    DrawerIconAction(
-                        icon = HugeIcons.Menu03,
-                        contentDescription = stringResource(R.string.menu),
-                        onClick = { showMenuPopup = true },
-                    )
-                    DropdownMenu(
-                        expanded = showMenuPopup,
-                        onDismissRequest = { showMenuPopup = false },
-                        border = materialModeBorderStroke(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_menu_ai_translator)) },
-                            leadingIcon = { Icon(HugeIcons.LanguageCircle, null) },
-                            onClick = {
-                                showMenuPopup = false
-                                navController.navigate(Screen.Translator)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_menu_image_generation)) },
-                            leadingIcon = { Icon(HugeIcons.Image02, null) },
-                            onClick = {
-                                showMenuPopup = false
-                                navController.navigate(Screen.ImageGen)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Mini Apps") },
-                            leadingIcon = { Icon(HugeIcons.Rocket01, null) },
-                            onClick = {
-                                showMenuPopup = false
-                                navController.navigate(Screen.MiniAppManager)
-                            }
-                        )
-                    }
-                }
             }
         }
         }
@@ -1000,11 +955,12 @@ private fun DrawerSearchRow(
  *
  * 一行一个功能：图标 + 文字，透明底，没有卡片、没有描边、没有选中底色。
  * 名称按 OrangeChat 现有页面映射，全部复用既有路由，没有新增任何功能：
- *   图像生成 -> Screen.ImageGen（图片/素材）
- *   记忆库   -> Screen.MemoryBank（资料/知识）
  *   工作区   -> Screen.Workspaces（项目/工作区）
  *   主动消息 -> Screen.SettingProactiveMessage（定时任务）
  *   插件     -> Screen.SettingPlugins（插件/扩展）
+ *
+ * 「图像生成」「记忆库」两个入口已按要求移除。页面本身、路由注册、ViewModel
+ * 都没有动 —— 入口和功能是两件事，这里只摘掉入口。
  */
 @Composable
 private fun DrawerFeatureList(
@@ -1013,20 +969,6 @@ private fun DrawerFeatureList(
     materialMode: DisplayMaterialMode,
 ) {
     Column {
-        DrawerFeatureRow(
-            icon = HugeIcons.Image02,
-            label = stringResource(R.string.chat_page_menu_image_generation),
-            onClick = { navController.navigate(Screen.ImageGen) },
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        )
-        DrawerFeatureRow(
-            icon = HugeIcons.Database02,
-            label = "记忆库",
-            onClick = { navController.navigate(Screen.MemoryBank) },
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        )
         DrawerFeatureRow(
             icon = HugeIcons.Folder01,
             label = stringResource(R.string.workspace_page_title),
@@ -1077,7 +1019,7 @@ private fun DrawerFeatureRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp),
+                .padding(horizontal = 10.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
