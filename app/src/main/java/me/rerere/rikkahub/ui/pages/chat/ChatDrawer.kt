@@ -87,10 +87,8 @@ import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.PencilEdit01
-import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
@@ -359,18 +357,14 @@ fun ChatDrawerContent(
                 materialMode = settings.displaySetting.materialMode,
             )
 
-            // 纵向功能列表 —— 侧栏里唯一的导航系统。
+            // 分隔线：把顶部的「搜索」和下面的「会话列表」分成两层。
             //
-            // 参考用户给的 GPT 侧栏：图标 + 文字、透明底，没有卡片、没有描边、
-            // 没有选中底色，功能入口读起来是「目录」而不是「一排按钮」。
-            // 名称按 OrangeChat 现有页面映射，全部复用既有路由，不新增不存在的功能。
-            DrawerFeatureList(
-                navController = navController,
-                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                materialMode = settings.displaySetting.materialMode,
-            )
-
-            // 分隔线：把「功能目录」和下面的「会话列表」分成两层。
+            // 侧栏已收成纯聊天导航：功能目录整块移除，只留「搜索聊天 + 会话列表 +
+            // 新建 + 收藏 + 统计」。被移走的功能改由设置页进入，页面本身没有动：
+            //   工作区   -> 设置 → 扩展 → 技能与扩展
+            //   插件     -> 设置 → 扩展 → 插件管理
+            //   主动消息 -> 设置 → 通用 → 主动消息
+            // 图像生成 / AI 翻译 / Mini Apps / 记忆库 不再出现在侧栏。
             DrawerDivider()
 
             FolderBar(
@@ -934,99 +928,6 @@ private fun DrawerSearchRow(
                 text = stringResource(R.string.chat_page_search_chats),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-/**
- * 侧栏的纵向功能列表 —— 侧栏里唯一的导航系统。
- *
- * 一行一个功能：图标 + 文字，透明底，没有卡片、没有描边、没有选中底色。
- * 名称按 OrangeChat 现有页面映射，全部复用既有路由，没有新增任何功能：
- *   工作区   -> Screen.Workspaces（项目/工作区）
- *   主动消息 -> Screen.SettingProactiveMessage（定时任务）
- *   插件     -> Screen.SettingPlugins（插件/扩展）
- *
- * 「图像生成」「记忆库」两个入口已按要求移除。页面本身、路由注册、ViewModel
- * 都没有动 —— 入口和功能是两件事，这里只摘掉入口。
- */
-@Composable
-private fun DrawerFeatureList(
-    navController: Navigator,
-    drawerItemAlpha: Float,
-    materialMode: DisplayMaterialMode,
-) {
-    // 条目之间的间距用「行距」给，不用「行高」给。
-    // 每一条的上下 padding 保持 9dp 不动，只在条目之间补 4dp —— 侧栏是聊天窗口
-    // 的一部分，把每条做高就等于直接压缩下面的会话列表，还会多出滚动负担。
-    // 4dp 只花掉 8dp，却让三项读起来是三个独立条目，而不是一段连排文字。
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        DrawerFeatureRow(
-            icon = HugeIcons.Folder01,
-            label = stringResource(R.string.workspace_page_title),
-            onClick = { navController.navigate(Screen.Workspaces) },
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        )
-        DrawerFeatureRow(
-            icon = HugeIcons.Sparkles,
-            label = "主动消息",
-            onClick = { navController.navigate(Screen.SettingProactiveMessage) },
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        )
-        DrawerFeatureRow(
-            icon = HugeIcons.Puzzle,
-            label = "插件",
-            onClick = { navController.navigate(Screen.SettingPlugins) },
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        )
-    }
-}
-
-/**
- * 功能列表的一行。
- *
- * 之前这里是「图标 + 文字 + 一块带底色的圆角 Surface」，五六条上下叠起来，
- * 整栏读起来就是「一堆按钮」。去掉底色、描边和选中态之后，层级交给图标和留白，
- * 功能入口退成「目录」。点击行为与跳转目标完全不变。
- */
-@Composable
-private fun DrawerFeatureRow(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    drawerItemAlpha: Float,
-    materialMode: DisplayMaterialMode,
-) {
-    DrawerItemSurface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = Color.Transparent,
-        drawerItemAlpha = drawerItemAlpha,
-        materialMode = materialMode,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

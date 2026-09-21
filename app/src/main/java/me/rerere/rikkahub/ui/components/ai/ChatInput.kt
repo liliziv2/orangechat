@@ -518,7 +518,20 @@ fun ChatInput(
     val inputContainerColor = when {
         inputBgBitmap != null || useRealtimeBlur -> Color.Transparent
         else -> {
-            val baseColor = settings.displaySetting.inputFieldColor?.let { it.toComposeColor() } ?: hazeTintColor
+            val baseColor = settings.displaySetting.inputFieldColor?.let { it.toComposeColor() }
+                ?: when (materialMode) {
+                    // 玻璃模式下"透"本身就是材质。底色调亮一档会把玻璃推回不透明的
+                    // 塑料板，所以这两种模式继续用原来的 surfaceContainerLow。
+                    DisplayMaterialMode.GLASS,
+                    DisplayMaterialMode.TRANSLUCENT -> hazeTintColor
+                    // 实心模式：输入框该是"安静的浅底"，但不能安静到跟页面背景分不开。
+                    // surfaceContainerLow 与页面 surface 只差约 7 个 RGB 单位，
+                    // 加上这里本来就没有描边（useMaterialBorder 只在玻璃模式为真），
+                    // 结果就是输入框读不出边界。上调一档到 surfaceContainerHigh：
+                    // 边界出现，仍然是一块浅底，不是卡片。
+                    DisplayMaterialMode.FOLLOW_THEME,
+                    DisplayMaterialMode.FLAT -> MaterialTheme.colorScheme.surfaceContainerHigh
+                }
             // 输入框不该是"玻璃板"。它是常驻控件，底下透出的页面纹理会跟文字抢读，
             // 参考正常聊天 App：输入区是一块安静的浅底，不参与材质表演。
             // 0.78/0.56 → 0.94/0.88，保留一点透，但文字对比度稳住。
@@ -601,7 +614,22 @@ fun ChatInput(
             // 以及功能按钮一多就和附件入口挤在同一条横向滚动里。
             Surface(
                 shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+                // 0.55 -> 0.80。
+                //
+                // 半透明叠在页面背景上，实际颜色会被背景拉回去 —— 0.55 的
+                // surfaceContainerHigh 叠在近白的页面上，结果约等于页面本身，
+                // 「现在在跟哪个模型说话」这行上下文信息就读不出边界了。
+                // 提高不透明度只是把这一层材质显影，不加阴影、不加高光，
+                // 形状、位置、尺寸全部不变。
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.80f),
+                // 一根发丝边。胶囊面积小、视觉重量低，只靠填充差（约 15 个 RGB 单位）
+                // 还不足以在小尺寸上读出边界，所以补一根边。
+                // 0.07 是全局统一的描边档位（与输入框、气泡同一档），
+                // 它只负责托起边界，不构成「描边感」。
+                border = BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+                ),
                 modifier = Modifier.padding(start = 4.dp),
             ) {
                 ModelSelector(

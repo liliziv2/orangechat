@@ -106,7 +106,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
-import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.QuillWrite01
 import me.rerere.hugeicons.stroke.Voice
@@ -593,9 +592,6 @@ private fun ChatPageContent(
                     bigScreen = bigScreen,
                     drawerState = drawerState,
                     previewMode = previewMode,
-                    onNewChat = {
-                        navigateToChatPage(navController)
-                    },
                     onCloseout = {
                         vm.closeoutConversation { archived ->
                             toaster.show(
@@ -869,7 +865,6 @@ private fun TopBar(
     bigScreen: Boolean,
     previewMode: Boolean,
     onClickMenu: () -> Unit,
-    onNewChat: () -> Unit,
     onCloseout: () -> Unit,
     onUpdateTitle: (String) -> Unit,
     onVoiceCall: () -> Unit,
@@ -894,7 +889,7 @@ private fun TopBar(
             toaster.show(editTitleWarning, type = ToastType.Warning)
         }
     }
-    // 次要开关收进溢出菜单，图标行只保留抽屉/语音/新建
+    // 次要开关收进溢出菜单，图标行只保留抽屉/语音/更多
     var showOverflowMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
@@ -973,15 +968,8 @@ private fun TopBar(
                 Icon(HugeIcons.Voice, "Voice Call")
             }
 
-            IconButton(
-                onClick = {
-                    onNewChat()
-                }
-            ) {
-                Icon(HugeIcons.MessageAdd01, "New Message")
-            }
-
-            // 次要开关（如预览模式）收进溢出菜单，保持图标行只有抽屉/语音/新建
+            // 次要开关（如预览模式）收进溢出菜单，保持图标行只有抽屉/语音/更多。
+            // 「新建聊天」不再放在这里：侧栏已经有「新建」，同一个动作不需要两个入口。
             Box {
                 IconButton(
                     onClick = {
