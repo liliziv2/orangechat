@@ -123,6 +123,7 @@ import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.service.VoiceCallService
 import me.rerere.rikkahub.ui.components.ui.KeepScreenOn
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
+import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -228,6 +229,16 @@ fun ChatInput(
     }
     val asrPermission = rememberPermissionState(PermissionRecordAudio)
     PermissionManager(permissionState = asrPermission)
+
+    // 相机权限也挂在这里，不能留在 FilesPicker 里。
+    //
+    // 附件面板现在是 ModalBottomSheet，它的内容跑在独立的 Dialog composition 中，
+    // 而 rememberPermissionState 需要 ComponentActivity 的 composition（要靠
+    // ActivityResultRegistry 注册 launcher）。放在面板里会直接抛
+    // IllegalStateException，表现就是「点 + 打开面板立刻崩」。
+    // 权限状态与说明弹窗都留在 Activity composition，面板只拿一个点击回调。
+    val cameraPermission = rememberPermissionState(PermissionCamera)
+    PermissionManager(permissionState = cameraPermission)
     var asrBaseText by remember { mutableStateOf("") }
     var voiceMessageMode by remember { mutableStateOf(false) }
 
@@ -863,7 +874,15 @@ fun ChatInput(
                 showCompressDialog = showCompressDialog,
                 onShowCompressDialogChange = { showCompressDialog = it },
                 onDismiss = { dismissExpand() },
-                onTakePic = onLaunchCamera,
+                // 已授权就直接开相机，没授权先申请（说明弹窗由上面的 PermissionManager 负责）。
+                // 这个判断必须留在这里：cameraPermission 只在 Activity composition 里存在。
+                onTakePic = {
+                    if (cameraPermission.allRequiredPermissionsGranted) {
+                        onLaunchCamera()
+                    } else {
+                        cameraPermission.requestPermissions()
+                    }
+                },
                 onPickImage = { imagePickerLauncher.launch("image/*") },
                 onPickVideo = { videoPickerLauncher.launch("video/*") },
                 onPickAudio = { audioPickerLauncher.launch("audio/*") },

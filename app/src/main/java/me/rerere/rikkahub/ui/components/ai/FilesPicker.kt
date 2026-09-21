@@ -62,9 +62,6 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
-import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
-import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
-import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalCurrentChatModel
 import me.rerere.rikkahub.ui.context.LocalMcpServers
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -272,24 +269,26 @@ private fun ImagePickButton(onClick: () -> Unit = {}) {
     }
 }
 
+/**
+ * 拍照入口。
+ *
+ * 这里**不能**再调 `rememberPermissionState` / `PermissionManager`：
+ * 附件面板现在是 `ModalBottomSheet`，它的内容跑在独立的 Dialog composition 里，
+ * 而 `rememberPermissionState` 依赖 ComponentActivity 的 composition
+ * （要拿 ActivityResultRegistry 注册 launcher）。在里面调会直接抛
+ * `IllegalStateException`，表现为「点 + 打开面板就崩」。
+ *
+ * 所以相机权限由调用方（ChatInput，跑在 Activity composition 里）持有，
+ * 点击要「直接拍」还是「先申请权限」也由它决定，这里只负责把点击转发出去。
+ */
 @Composable
 fun TakePicButton(onLaunchCamera: () -> Unit = {}) {
-    val cameraPermission = rememberPermissionState(PermissionCamera)
-
-    PermissionManager(
-        permissionState = cameraPermission
-    ) {
-        BigIconTextButton(icon = {
-            Icon(HugeIcons.Camera01, null)
-        }, text = {
-            Text(stringResource(R.string.take_picture))
-        }) {
-            if (cameraPermission.allRequiredPermissionsGranted) {
-                onLaunchCamera()
-            } else {
-                cameraPermission.requestPermissions()
-            }
-        }
+    BigIconTextButton(icon = {
+        Icon(HugeIcons.Camera01, null)
+    }, text = {
+        Text(stringResource(R.string.take_picture))
+    }) {
+        onLaunchCamera()
     }
 }
 
