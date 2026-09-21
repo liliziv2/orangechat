@@ -91,7 +91,6 @@ import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sparkles
-import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
@@ -271,9 +270,7 @@ fun ChatDrawerContent(
 
             Column(
                 modifier = Modifier.padding(8.dp),
-                // 功能目录从 5 项收到 3 项之后，条目之间可以把呼吸感给足一点：
-                // 8dp -> 10dp。整栏因此更宽松清爽，视觉语言没有任何变化。
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             if (settings.displaySetting.showUpdates && !isPlayStore) {
                 UpdateCard(vm)
@@ -502,14 +499,8 @@ fun ChatDrawerContent(
                     }
                 }
 
-                // 聊天历史
-                DrawerIconAction(
-                    icon = HugeIcons.TransactionHistory,
-                    contentDescription = stringResource(R.string.chat_page_history),
-                    onClick = { navController.navigate(Screen.History) },
-                )
-
-                // 收藏
+                // 底部只剩「收藏」「统计」两项。聊天历史入口已按要求移除；
+                // 新建聊天 pill 是这一行里的主操作，保持不动。
                 DrawerIconAction(
                     icon = HugeIcons.InLove,
                     contentDescription = stringResource(R.string.favorite_page_title),
@@ -968,7 +959,11 @@ private fun DrawerFeatureList(
     drawerItemAlpha: Float,
     materialMode: DisplayMaterialMode,
 ) {
-    Column {
+    // 条目之间的间距用「行距」给，不用「行高」给。
+    // 每一条的上下 padding 保持 9dp 不动，只在条目之间补 4dp —— 侧栏是聊天窗口
+    // 的一部分，把每条做高就等于直接压缩下面的会话列表，还会多出滚动负担。
+    // 4dp 只花掉 8dp，却让三项读起来是三个独立条目，而不是一段连排文字。
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         DrawerFeatureRow(
             icon = HugeIcons.Folder01,
             label = stringResource(R.string.workspace_page_title),
@@ -1019,7 +1014,7 @@ private fun DrawerFeatureRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 11.dp),
+                .padding(horizontal = 10.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
