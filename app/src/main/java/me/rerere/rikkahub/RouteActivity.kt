@@ -511,20 +511,29 @@ class RouteActivity : ComponentActivity() {
                                 "creamrose" -> {
                                     // 奶油玫瑰与 Harbor 共用同一张底图和铺图逻辑，
                                     // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。
+                                    //
+                                    // 三段竖向渐变的结构与不透明度都不动，只把色号换成
+                                    // CreamRose 新色卡派生出来的值：日间是 Accent 压淡后的
+                                    // 暖粉 + Background，夜间是同一路子的暖褐 + Background。
+                                    // 没有一段是黑或白，底图始终是主体。
                                     val creamRosePainter = painterResource(
                                         id = R.drawable.harbor_chat_bg
                                     )
                                     val creamRoseScrim = if (LocalDarkMode.current) {
                                         listOf(
-                                            Color(0xFF3A2428).copy(alpha = 0.32f),
-                                            Color(0xFF241719).copy(alpha = 0.40f),
-                                            Color(0xFF1C1412).copy(alpha = 0.74f),
+                                            // Accent #CF7D8B 14% over Background #181416
+                                            Color(0xFF322326).copy(alpha = 0.32f),
+                                            Color(0xFF201A1C).copy(alpha = 0.40f),
+                                            // Background #181416
+                                            Color(0xFF181416).copy(alpha = 0.74f),
                                         )
                                     } else {
                                         listOf(
-                                            Color(0xFFF2D9D0).copy(alpha = 0.24f),
-                                            Color(0xFFF6F1EB).copy(alpha = 0.16f),
-                                            Color(0xFFF6F1EB).copy(alpha = 0.42f),
+                                            // Accent #A95362 10% over Background #F5EEE9
+                                            Color(0xFFEDDFDC).copy(alpha = 0.24f),
+                                            // Background #F5EEE9
+                                            Color(0xFFF5EEE9).copy(alpha = 0.16f),
+                                            Color(0xFFF5EEE9).copy(alpha = 0.42f),
                                         )
                                     }
                                     base

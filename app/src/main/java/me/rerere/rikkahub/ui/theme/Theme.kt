@@ -57,6 +57,14 @@ internal val THEME_BACKGROUND_SCRIM = mapOf(
     "harbor" to ScrimColors(0x80A8B4C0u, 0x60F4F2EFu, 0x38A8B4C0u),
 )
 
+/**
+ * 思考气泡单独占一个槽位的主题。
+ *
+ * 默认（以及其他主题）思考卡片与助手气泡共用 surfaceContainerHigh；列在这里的主题
+ * 把「思考气泡」当成独立的一层，卡片改读 tertiaryContainer。
+ */
+internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose")
+
 data class ScrimColors(
     val top: UInt,        // 顶部主题色覆盖
     val bottom: UInt,     // 底部底色反白

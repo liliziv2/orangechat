@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -139,8 +140,10 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
 import me.rerere.rikkahub.ui.context.LocalDisplaySettings
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.LocalMaterialMode
+import me.rerere.rikkahub.ui.theme.THEME_THINKING_CONTAINER_THEMES
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.data.datastore.ChatAvatarMode
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
@@ -581,6 +584,15 @@ private fun MessagePartsBlock(
                     val isReasoningOnlyBlock = block.steps.fastAll { it is ThinkingStep.ReasoningStep }
                     ChainOfThought(
                         modifier = Modifier.animateContentSize(),
+                        // 思考气泡的槽位按主题分：默认跟助手气泡共用 surfaceContainerHigh，
+                        // 单独定义过思考气泡色的主题（见 Theme.kt）改读 tertiaryContainer。
+                        cardColors = CardDefaults.cardColors(
+                            containerColor = if (LocalSettings.current.themeId in THEME_THINKING_CONTAINER_THEMES) {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHigh
+                            },
+                        ),
                         steps = block.steps,
                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                     ) { step ->

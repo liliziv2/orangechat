@@ -18,15 +18,42 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
  * 奶油玫瑰 Cream Rose
  * 一个主题两态，跟随橘瓣的深浅切换（ColorMode.SYSTEM/LIGHT/DARK）。
  *
- * 源色卡：
- *   light  bg #F6F1EB / card #FFFCF8 / text #2E2118 / subtle #8C7B6B
- *          accent #B45A5F / accent-light #D4A0A3 / border #E8DFD4 / tint #F2D9D0
- *   dark   bg #1C1412 / card #2A201B / text #F0E6DA / subtle #9C8B7D
- *          accent #C97478 / accent-light #8B5558 / border #3D2F28 / tint #3A2428
+ * 层级参照 Tidal Echo（web/index.html）：底图是主体，UI 只是压在底图上的低不透明度、
+ * 低饱和度色层。所以这里不引入任何黑色描边和重投影 —— 层次全部由「面色阶差」做出来：
+ * 相邻两档只差几个 RGB 单位，读起来是同一张纸上的几层，而不是几块叠起来的板。
  *
- * 层级关系照 IB 的做法拆：bg 是最底，card 是浮起的面，border 是最高一档容器，
- * 中间几档 surfaceContainer 按明度等距插值补齐，这样卡片叠卡片不会糊成一片。
- * subtle 直接当正文次级色对亮底只有约 3:1，压深到 #584A3D，原色转给 outline。
+ * 八个锚点色，Day / Night 各自独立给出（夜间不是由日间降亮度推出来的）：
+ *   Day   Background #F5EEE9 · Main Text #332827 · Global Text #403332
+ *         User Bubble #B86F79 · AI Bubble #F1E5DE · Thinking Bubble #E1D0C5
+ *         Accent #A95362 · Input #EEE1DB
+ *   Night Background #181416 · Main Text #EEE5E5 · Global Text #D8CCCE
+ *         User Bubble #8E4C59 · AI Bubble #2D2527 · Thinking Bubble #3B2F30
+ *         Accent #CF7D8B · Input #272022
+ *
+ * 锚点落到 M3 槽位，按聊天界面「实际读哪个槽位」对齐，不是按槽位名字：
+ *   Background      -> background / surface
+ *   Main Text       -> onSurface / onBackground
+ *   Global Text     -> onSurfaceVariant
+ *   Accent          -> primary
+ *   User Bubble     -> secondaryContainer
+ *   AI Bubble       -> surfaceContainerHigh
+ *   Thinking Bubble -> tertiaryContainer（本主题的思考卡片改读这一槽位）
+ *   Input           -> surfaceContainerLow
+ *
+ * 其余槽位在同一色相族内插值补齐，只做明度阶差、不加彩度：
+ *   surfaceContainerLowest 是比 background 再亮一档的「纸面」，
+ *   surfaceContainer / surfaceVariant 夹在 Input 与 AI Bubble 之间，
+ *   surfaceContainerHighest / surfaceDim 是比思考气泡再深一档的底。
+ *
+ * 两处刻意的取舍（是色卡本身带来的，不是笔误）：
+ *   1) Input #EEE1DB 比 AI Bubble #F1E5DE 略深，而代码把输入框读 surfaceContainerLow、
+ *      把助手气泡读 surfaceContainerHigh，于是 Low 比 High 深了 3 个 RGB 单位 ——
+ *      这正是「气泡与输入区靠轻微明度差区分」本身，视觉上读不出倒置。
+ *   2) onSecondaryContainer 取正文色而不是「压在用户气泡上的浅色」：聊天界面里
+ *      助手语音条的未播放波形用它，而它压在浅色的助手气泡上，必须是深色才看得见。
+ *      （用户气泡里的正文走的是 onSurface / onBackground。）
+ *
+ * 描边档 outline / outlineVariant 全部是有彩度的暖灰，没有一根黑描边。
  */
 
 val CreamRoseThemePreset by lazy {
@@ -41,77 +68,93 @@ val CreamRoseThemePreset by lazy {
 }
 
 private val lightScheme = lightColorScheme(
-    primary = Color(0xFFB45A5F),
+    // Accent #A95362
+    primary = Color(0xFFA95362),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFF2D9D0),
-    onPrimaryContainer = Color(0xFF6A3B38),
-    secondary = Color(0xFF8C7B6B),
+    primaryContainer = Color(0xFFEBDAD8),
+    onPrimaryContainer = Color(0xFF763A45),
+    secondary = Color(0xFF7E5259),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE8DFD4),
-    onSecondaryContainer = Color(0xFF2E2118),
-    tertiary = Color(0xFFD4A0A3),
-    onTertiary = Color(0xFF3A1D1F),
-    tertiaryContainer = Color(0xFFF3E2E0),
-    onTertiaryContainer = Color(0xFF6A3B38),
+    // User Bubble #B86F79
+    secondaryContainer = Color(0xFFB86F79),
+    onSecondaryContainer = Color(0xFF403332),
+    tertiary = Color(0xFF8A6A5F),
+    onTertiary = Color(0xFFFFFFFF),
+    // Thinking Bubble #E1D0C5
+    tertiaryContainer = Color(0xFFE1D0C5),
+    onTertiaryContainer = Color(0xFF403332),
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF93000A),
-    background = Color(0xFFF6F1EB),
-    onBackground = Color(0xFF2E2118),
-    surface = Color(0xFFF6F1EB),
-    onSurface = Color(0xFF2E2118),
-    surfaceVariant = Color(0xFFE8DFD4),
-    onSurfaceVariant = Color(0xFF584A3D),
-    outline = Color(0xFF8C7B6B),
-    outlineVariant = Color(0xFFE8DFD4),
+    // Background #F5EEE9
+    background = Color(0xFFF5EEE9),
+    // Main Text #332827
+    onBackground = Color(0xFF332827),
+    surface = Color(0xFFF5EEE9),
+    onSurface = Color(0xFF332827),
+    surfaceVariant = Color(0xFFEDE4DD),
+    // Global Text #403332
+    onSurfaceVariant = Color(0xFF403332),
+    outline = Color(0xFFB9A79C),
+    outlineVariant = Color(0xFFDCCCC2),
     scrim = Color(0xFF000000),
-    inverseSurface = Color(0xFF2A201B),
-    inverseOnSurface = Color(0xFFF0E6DA),
-    inversePrimary = Color(0xFFC97478),
-    surfaceDim = Color(0xFFE2D9CD),
-    surfaceBright = Color(0xFFFFFCF8),
-    surfaceContainerLowest = Color(0xFFFFFCF8),
-    surfaceContainerLow = Color(0xFFF9F5EF),
-    surfaceContainer = Color(0xFFF4EEE6),
-    surfaceContainerHigh = Color(0xFFEEE6DD),
-    surfaceContainerHighest = Color(0xFFE8DFD4),
+    inverseSurface = Color(0xFF332827),
+    inverseOnSurface = Color(0xFFF5EEE9),
+    inversePrimary = Color(0xFFD79AA4),
+    surfaceDim = Color(0xFFD9C9BF),
+    surfaceBright = Color(0xFFF7F2ED),
+    surfaceContainerLowest = Color(0xFFF8F3EF),
+    // Input #EEE1DB
+    surfaceContainerLow = Color(0xFFEEE1DB),
+    surfaceContainer = Color(0xFFEFE4DD),
+    // AI Bubble #F1E5DE
+    surfaceContainerHigh = Color(0xFFF1E5DE),
+    surfaceContainerHighest = Color(0xFFDDCBC1),
 )
 
 private val darkScheme = darkColorScheme(
-    primary = Color(0xFFC97478),
-    onPrimary = Color(0xFF201815),
-    primaryContainer = Color(0xFF3A2428),
-    onPrimaryContainer = Color(0xFFE0B8B3),
-    secondary = Color(0xFF9C8B7D),
-    onSecondary = Color(0xFF201815),
-    secondaryContainer = Color(0xFF3D2F28),
-    onSecondaryContainer = Color(0xFFF0E6DA),
-    tertiary = Color(0xFF8B5558),
-    onTertiary = Color(0xFFF0E6DA),
-    tertiaryContainer = Color(0xFF4A2E30),
-    onTertiaryContainer = Color(0xFFE0B8B3),
+    // Accent #CF7D8B
+    primary = Color(0xFFCF7D8B),
+    onPrimary = Color(0xFF3A1A20),
+    primaryContainer = Color(0xFF5A2F38),
+    onPrimaryContainer = Color(0xFFF5DDE0),
+    secondary = Color(0xFFC79AA2),
+    onSecondary = Color(0xFF3A1A20),
+    // User Bubble #8E4C59
+    secondaryContainer = Color(0xFF8E4C59),
+    onSecondaryContainer = Color(0xFFD8CCCE),
+    tertiary = Color(0xFFC4A79C),
+    onTertiary = Color(0xFF3A1A20),
+    // Thinking Bubble #3B2F30
+    tertiaryContainer = Color(0xFF3B2F30),
+    onTertiaryContainer = Color(0xFFD8CCCE),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF1C1412),
-    onBackground = Color(0xFFF0E6DA),
-    surface = Color(0xFF1C1412),
-    onSurface = Color(0xFFF0E6DA),
-    surfaceVariant = Color(0xFF3D2F28),
-    onSurfaceVariant = Color(0xFFCABDB0),
-    outline = Color(0xFF9C8B7D),
-    outlineVariant = Color(0xFF3D2F28),
+    // Background #181416
+    background = Color(0xFF181416),
+    // Main Text #EEE5E5
+    onBackground = Color(0xFFEEE5E5),
+    surface = Color(0xFF181416),
+    onSurface = Color(0xFFEEE5E5),
+    surfaceVariant = Color(0xFF3A2E30),
+    // Global Text #D8CCCE
+    onSurfaceVariant = Color(0xFFD8CCCE),
+    outline = Color(0xFF7A686A),
+    outlineVariant = Color(0xFF3F3335),
     scrim = Color(0xFF000000),
-    inverseSurface = Color(0xFFF0E6DA),
-    inverseOnSurface = Color(0xFF2E2118),
-    inversePrimary = Color(0xFFB45A5F),
-    surfaceDim = Color(0xFF1C1412),
-    surfaceBright = Color(0xFF4E4037),
-    surfaceContainerLowest = Color(0xFF150F0D),
-    surfaceContainerLow = Color(0xFF221916),
-    surfaceContainer = Color(0xFF2A201B),
-    surfaceContainerHigh = Color(0xFF342822),
-    surfaceContainerHighest = Color(0xFF3D2F28),
+    inverseSurface = Color(0xFFEEE5E5),
+    inverseOnSurface = Color(0xFF332827),
+    inversePrimary = Color(0xFFA95362),
+    surfaceDim = Color(0xFF141112),
+    surfaceBright = Color(0xFF4B3D3F),
+    surfaceContainerLowest = Color(0xFF100E0F),
+    // Input #272022
+    surfaceContainerLow = Color(0xFF272022),
+    surfaceContainer = Color(0xFF2A2224),
+    // AI Bubble #2D2527
+    surfaceContainerHigh = Color(0xFF2D2527),
+    surfaceContainerHighest = Color(0xFF45383A),
 )
