@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,7 +39,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DrawerDefaults
 import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
-import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -80,14 +81,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderAdd
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LanguageCircle
-import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
@@ -341,13 +344,42 @@ fun ChatDrawerContent(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
+
+                // 设置入口从原来的底部五项栏搬到这里：头像行右侧一个无底色的图标按钮。
+                // 它是常驻的低频入口，不该和「新建聊天」去抢底部那一条的注意力。
+                Icon(
+                    imageVector = HugeIcons.Settings03,
+                    contentDescription = stringResource(R.string.settings),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { navController.navigate(Screen.Setting) }
+                        .padding(8.dp)
+                        .size(22.dp),
+                )
             }
 
-            DrawerActions(
+            // 搜索入口：保留在顶部，但去掉原来那块 surfaceContainerLow 实底，
+            // 收成一条轻量搜索行 —— 搜索是「找东西」，不是「去一个页面」。
+            DrawerSearchRow(
+                onClick = { navController.navigate(Screen.MessageSearch) },
+                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
+                materialMode = settings.displaySetting.materialMode,
+            )
+
+            // 纵向功能列表 —— 侧栏里唯一的导航系统。
+            //
+            // 参考用户给的 GPT 侧栏：图标 + 文字、透明底，没有卡片、没有描边、
+            // 没有选中底色，功能入口读起来是「目录」而不是「一排按钮」。
+            // 名称按 OrangeChat 现有页面映射，全部复用既有路由，不新增不存在的功能。
+            DrawerFeatureList(
                 navController = navController,
                 drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
                 materialMode = settings.displaySetting.materialMode,
             )
+
+            // 分隔线：把「功能目录」和下面的「会话列表」分成两层。
+            DrawerDivider()
 
             FolderBar(
                 folders = folders,
@@ -421,73 +453,87 @@ fun ChatDrawerContent(
                 }
             )
 
-            // 底部导航做成独立的悬浮大圆角栏:与抽屉底部留出空间,栏本身是
-            // 一块完整的圆角容器。原先每个条目各带一块 primaryContainer 底色,
-            // 一屏读成「一排小方块」;现在底色统一收到栏容器上,条目退成
-            // 无底色的图标 + 文字,层级只由这一块栏承担。
-            Surface(
+            // 底部：一个「新建聊天」+ 几个只留图标的常驻入口。
+            //
+            // 原来这里是一整块带描边的圆角栏，里面五个等宽的「图标 + 文字」按钮；
+            // 它和上面那些带底色的条目上下叠在一起，正是侧栏读起来拥挤的主要来源。
+            // 现在只留一个明确但不铺满的新建入口，其余退成无底色的小图标 ——
+            // 仍然是一行，但读起来是「工具条」，不是第二条导航。
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 12.dp)
-                    .then(
-                        Modifier.border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            shape = RoundedCornerShape(24.dp),
-                        )
-                    ),
-                shape = RoundedCornerShape(24.dp),
-                // 抽屉容器本身就是 surfaceContainer,底栏若用同色会看不出浮起。
-                // 抬一层到 surfaceContainerHigh,再加一条极淡边框界定这块栏。
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                tonalElevation = 0.dp,
+                    .padding(top = 4.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 6.dp)
-                ) {
-                DrawerAction(
-                    modifier = Modifier.weight(1f),
-                    icon = {
-                        Icon(
-                            imageVector = HugeIcons.LookTop,
-                            contentDescription = stringResource(R.string.assistant_page_title)
-                        )
+                // 新建聊天：侧栏里唯一使用主题强调色的元素，明确但不大。
+                // 新建逻辑与 AssistantPicker 里那一份保持一致（尊重「启动时新建对话」偏好）。
+                Surface(
+                    onClick = {
+                        scope.launch {
+                            val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
+                                Uuid.random()
+                            } else {
+                                repo.getConversationsOfAssistant(settings.assistantId)
+                                    .first()
+                                    .firstOrNull()
+                                    ?.id ?: Uuid.random()
+                            }
+                            navigateToChatPage(navigator = navController, chatId = id)
+                        }
                     },
-                    label = {
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.MessageAdd01,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.size(6.dp))
                         Text(
-                            text = stringResource(R.string.assistant_page_title),
+                            text = stringResource(R.string.chat_page_new_chat),
+                            style = MaterialTheme.typography.labelLarge,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Assistant)
-                    },
-                    drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                    materialMode = settings.displaySetting.materialMode,
+                    }
+                }
+
+                // 聊天历史
+                DrawerIconAction(
+                    icon = HugeIcons.TransactionHistory,
+                    contentDescription = stringResource(R.string.chat_page_history),
+                    onClick = { navController.navigate(Screen.History) },
                 )
 
-                Box(modifier = Modifier.weight(1f)) {
-                    DrawerAction(
-                        modifier = Modifier.fillMaxWidth(),
-                        icon = {
-                            Icon(HugeIcons.Sparkles, "Menu")
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(R.string.menu),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        onClick = {
-                            showMenuPopup = true
-                        },
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                // 收藏
+                DrawerIconAction(
+                    icon = HugeIcons.InLove,
+                    contentDescription = stringResource(R.string.favorite_page_title),
+                    onClick = { navController.navigate(Screen.Favorite) },
+                )
+
+                // 统计数据
+                DrawerIconAction(
+                    icon = HugeIcons.ChartColumn,
+                    contentDescription = "统计数据",
+                    onClick = { navController.navigate(Screen.Stats) },
+                )
+
+                // 菜单：翻译 / 图像生成 / Mini Apps。下拉内容与跳转目标原样保留。
+                Box {
+                    DrawerIconAction(
+                        icon = HugeIcons.Menu03,
+                        contentDescription = stringResource(R.string.menu),
+                        onClick = { showMenuPopup = true },
                     )
                     DropdownMenu(
                         expanded = showMenuPopup,
@@ -519,64 +565,6 @@ fun ChatDrawerContent(
                             }
                         )
                     }
-                }
-
-                DrawerAction(
-                    modifier = Modifier.weight(1f),
-                    icon = {
-                        Icon(HugeIcons.InLove, stringResource(R.string.favorite_page_title))
-                    },
-                    label = {
-                        Text(
-                            text = stringResource(R.string.favorite_page_title),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Favorite)
-                    },
-                    drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                    materialMode = settings.displaySetting.materialMode,
-                )
-
-                DrawerAction(
-                    modifier = Modifier.weight(1f),
-                    icon = {
-                        Icon(HugeIcons.ChartColumn, "统计数据")
-                    },
-                    label = {
-                        Text(
-                            text = "统计数据",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Stats)
-                    },
-                    drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                    materialMode = settings.displaySetting.materialMode,
-                )
-
-                DrawerAction(
-                    modifier = Modifier.weight(1f),
-                    icon = {
-                        Icon(HugeIcons.Settings03, null)
-                    },
-                    label = {
-                        Text(
-                            text = stringResource(R.string.settings),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    onClick = {
-                        navController.navigate(Screen.Setting)
-                    },
-                    drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                    materialMode = settings.displaySetting.materialMode,
-                )
                 }
             }
         }
@@ -856,75 +844,6 @@ fun ChatDrawerContent(
 }
 
 @Composable
-private fun DrawerActions(
-    navController: Navigator,
-    drawerItemAlpha: Float = 1f,
-    materialMode: DisplayMaterialMode,
-) {
-    Column {
-        // 搜索入口
-        DrawerItemSurface(
-            onClick = { navController.navigate(Screen.MessageSearch) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Search01,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    text = stringResource(R.string.chat_page_search_chats),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-
-        // 历史记录入口
-        DrawerItemSurface(
-            onClick = { navController.navigate(Screen.History) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            drawerItemAlpha = drawerItemAlpha,
-            materialMode = materialMode,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.TransactionHistory,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Text(
-                    text = stringResource(R.string.chat_page_history),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun DrawerItemSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1036,50 +955,181 @@ private fun BoxScope.DrawerItemGlassLayers(
 }
 
 @Composable
-private fun DrawerAction(
-    modifier: Modifier = Modifier,
-    icon: @Composable () -> Unit,
-    label: @Composable () -> Unit,
+private fun DrawerSearchRow(
     onClick: () -> Unit,
     drawerItemAlpha: Float,
     materialMode: DisplayMaterialMode,
 ) {
     DrawerItemSurface(
         onClick = onClick,
-        modifier = modifier,
-        color = Color.Transparent,
-        // 底栏已整体收进一块悬浮圆角容器,条目本身不再画任何边框或玻璃层,
-        // 否则栏里会出现五个小方框,和「一整条导航」的读法冲突。
-        // 传 FLAT 只影响这里的材质绘制,点击行为与图标全部不变。
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
         shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
         drawerItemAlpha = drawerItemAlpha,
         materialMode = DisplayMaterialMode.FLAT,
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 2.dp, vertical = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(
-                modifier = Modifier.size(20.dp),
-            ) {
-                icon()
-            }
-            // 图标 + 文字的多入口底栏:五格等宽,图标在上、说明文字在下。
-            // 文字统一收成 labelSmall 并居中,底栏文字是辅助信息,
-            // 不该跟内容标题同级。onClick 与全部图标均保持原样。
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                ProvideTextStyle(MaterialTheme.typography.labelSmall) {
-                    label()
-                }
-            }
+            Icon(
+                imageVector = HugeIcons.Search01,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = stringResource(R.string.chat_page_search_chats),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
+}
+
+/**
+ * 侧栏的纵向功能列表 —— 侧栏里唯一的导航系统。
+ *
+ * 一行一个功能：图标 + 文字，透明底，没有卡片、没有描边、没有选中底色。
+ * 名称按 OrangeChat 现有页面映射，全部复用既有路由，没有新增任何功能：
+ *   图像生成 -> Screen.ImageGen（图片/素材）
+ *   记忆库   -> Screen.MemoryBank（资料/知识）
+ *   工作区   -> Screen.Workspaces（项目/工作区）
+ *   主动消息 -> Screen.SettingProactiveMessage（定时任务）
+ *   插件     -> Screen.SettingPlugins（插件/扩展）
+ */
+@Composable
+private fun DrawerFeatureList(
+    navController: Navigator,
+    drawerItemAlpha: Float,
+    materialMode: DisplayMaterialMode,
+) {
+    Column {
+        DrawerFeatureRow(
+            icon = HugeIcons.Image02,
+            label = stringResource(R.string.chat_page_menu_image_generation),
+            onClick = { navController.navigate(Screen.ImageGen) },
+            drawerItemAlpha = drawerItemAlpha,
+            materialMode = materialMode,
+        )
+        DrawerFeatureRow(
+            icon = HugeIcons.Database02,
+            label = "记忆库",
+            onClick = { navController.navigate(Screen.MemoryBank) },
+            drawerItemAlpha = drawerItemAlpha,
+            materialMode = materialMode,
+        )
+        DrawerFeatureRow(
+            icon = HugeIcons.Folder01,
+            label = stringResource(R.string.workspace_page_title),
+            onClick = { navController.navigate(Screen.Workspaces) },
+            drawerItemAlpha = drawerItemAlpha,
+            materialMode = materialMode,
+        )
+        DrawerFeatureRow(
+            icon = HugeIcons.Sparkles,
+            label = "主动消息",
+            onClick = { navController.navigate(Screen.SettingProactiveMessage) },
+            drawerItemAlpha = drawerItemAlpha,
+            materialMode = materialMode,
+        )
+        DrawerFeatureRow(
+            icon = HugeIcons.Puzzle,
+            label = "插件",
+            onClick = { navController.navigate(Screen.SettingPlugins) },
+            drawerItemAlpha = drawerItemAlpha,
+            materialMode = materialMode,
+        )
+    }
+}
+
+/**
+ * 功能列表的一行。
+ *
+ * 之前这里是「图标 + 文字 + 一块带底色的圆角 Surface」，五六条上下叠起来，
+ * 整栏读起来就是「一堆按钮」。去掉底色、描边和选中态之后，层级交给图标和留白，
+ * 功能入口退成「目录」。点击行为与跳转目标完全不变。
+ */
+@Composable
+private fun DrawerFeatureRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    drawerItemAlpha: Float,
+    materialMode: DisplayMaterialMode,
+) {
+    DrawerItemSurface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color.Transparent,
+        drawerItemAlpha = drawerItemAlpha,
+        materialMode = materialMode,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** 侧栏底部的无底色图标按钮（聊天历史 / 收藏 / 统计 / 菜单）。 */
+@Composable
+private fun DrawerIconAction(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(38.dp),
+        shape = CircleShape,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+/** 一条极淡的分隔线：把「功能目录」和「会话列表」分成两层。 */
+@Composable
+private fun DrawerDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
+    )
 }
 
 @Composable

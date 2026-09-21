@@ -1257,7 +1257,11 @@ private fun BubbleSurface(
     val glassShadowModifier = { elevation: Dp ->
         Modifier.drawWithCache {
             val spread = elevation.toPx()
-            val layers = 5
+            // 层数从 5 提到 6、每层透明度砍到约 1/2.6。
+            // 阴影是「密集重复元素」上的东西，层少而每层重会在直边处留下一圈
+            // 看得见的暗带（就是那个灰黑外圈 + 气泡下方的压影）；层多而每层极淡，
+            // 叠出来才是一圈读不到边界的柔光。
+            val layers = 6
             val outline = shape.createOutline(
                 size = size,
                 layoutDirection = bubbleLayoutDirection,
@@ -1268,7 +1272,7 @@ private fun BubbleSurface(
             // 阴影轮廓：整体下移一点，让光源看起来在上方，投影才有"浮起"的方向感
             val shadowPath = Path().apply {
                 addOutline(outline)
-                translate(Offset(0f, spread * 0.3f))
+                translate(Offset(0f, spread * 0.22f))
             }
             onDrawBehind {
                 clipPath(path = bubblePath, clipOp = ClipOp.Difference) {
@@ -1277,7 +1281,7 @@ private fun BubbleSurface(
                         val fraction = i.toFloat() / layers
                         drawPath(
                             path = shadowPath,
-                            color = Color.Black.copy(alpha = 0.055f * (1f - fraction) + 0.02f),
+                            color = Color.Black.copy(alpha = 0.024f * (1f - fraction) + 0.007f),
                             style = Stroke(width = spread * fraction * 2f),
                         )
                     }
@@ -1563,15 +1567,20 @@ private const val LIQUID_GLASS_SATURATION = 1.35f
  *
  * 玻璃片应当浮在背景之上而不是印在上面，一点投影就能把这层关系交代清楚。
  * 数值刻意压得低：气泡是密集重复的元素，投影稍重整屏就会显得脏。
+ *
+ * 6dp -> 3dp：投影的「宽度」直接决定它读起来是柔光还是一圈壳。6dp 时外圈
+ * 已经能单独被眼睛拎出来，加上底部的方向偏移就成了「压影」；3dp 只在贴边
+ * 一两像素内交代层次，边界读不出来，质感交回给玻璃面自己。
  */
-private val LIQUID_GLASS_SHADOW_ELEVATION = 6.dp
+private val LIQUID_GLASS_SHADOW_ELEVATION = 3.dp
 
 /**
  * GLASS 材质气泡的投影高度。
  *
  * 比液态玻璃稍轻：GLASS 模式的填充本身更实（不透明度更高），投影再重就显得笨。
+ * 4dp -> 2dp，理由同上。
  */
-private val GLASS_SHADOW_ELEVATION = 4.dp
+private val GLASS_SHADOW_ELEVATION = 2.dp
 
 /**
  * 构造一个只改饱和度的颜色矩阵。

@@ -106,6 +106,9 @@ fun ModelSelector(
     modifier: Modifier = Modifier,
     onlyIcon: Boolean = false,
     allowClear: Boolean = false,
+    // 是否渲染模型图标。侧栏/输入框上方的模型 pill 只要名字，不要图标：
+    // 36dp 的图标会把 pill 撑高，也把它拉回「控件」的读法。
+    showIcon: Boolean = true,
     onSelect: (Model) -> Unit
 ) {
     var popup by remember { mutableStateOf(false) }
@@ -122,13 +125,15 @@ fun ModelSelector(
                 },
                 modifier = modifier
             ) {
-                model?.modelId?.let {
-                    AutoAIIcon(
-                        it, Modifier
-                            .padding(end = 4.dp)
-                            .size(36.dp),
-                        color = Color.Transparent
-                    )
+                if (showIcon) {
+                    model?.modelId?.let {
+                        AutoAIIcon(
+                            it, Modifier
+                                .padding(end = 4.dp)
+                                .size(36.dp),
+                            color = Color.Transparent
+                        )
+                    }
                 }
                 Text(
                     text = model?.displayName ?: stringResource(R.string.model_list_select_model),

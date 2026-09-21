@@ -204,11 +204,12 @@ private fun DateHeaderItem(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 日期分组保留，但降级成安静的「小标题」：不再是 primary 色 + 加粗。
+        // 侧栏里主色应该只留给「当前会话」和新建入口，日期只是分隔信息。
         Text(
             text = label,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
