@@ -380,6 +380,77 @@ object DriveEngine {
         return out
     }
 
+    // ─── 行为结果的回写：释放 / 拒绝 ─────────────────────────────────────────
+
+    /**
+     * 一次行为作用在某维上时，各维的**乘性回落系数**。
+     *
+     * 移植自 Elektron `desire_engine.py` 的 `SATISFY_DECAY`。语义是
+     * 「这条牵引被回应了，张力释放」：主维掉得最多，被牵连的邻维掉得少
+     * （`attachment` 释放时 `libido` 只掉到 0.80，而不是一起掉到 0.60）。
+     *
+     * 为什么是**乘性**而不是减一个固定量：高位维该掉得更多，低位维不该被减穿。
+     * `pulse` 那一路是加性的（事件往上推），回落这一路是乘性的（张力按比例释放），
+     * 两者不对称是刻意的。
+     */
+    val SATISFY_DECAY: Map<String, Map<String, Double>> = mapOf(
+        "attachment" to mapOf("attachment" to 0.60, "libido" to 0.80),
+        "libido" to mapOf("libido" to 0.55, "attachment" to 0.85),
+        "possessiveness" to mapOf("possessiveness" to 0.50, "attachment" to 0.90),
+        "curiosity" to mapOf("curiosity" to 0.65, "reflection" to 0.90),
+        "reflection" to mapOf("reflection" to 0.60),
+        "stewardship" to mapOf("stewardship" to 0.50, "stress" to 0.85),
+        "social" to mapOf("social" to 0.65, "curiosity" to 0.90),
+        "fatigue" to mapOf("fatigue" to 0.50),
+        "stress" to mapOf("stress" to 0.60, "fatigue" to 0.90),
+    )
+
+    /** 没登记的维度用这个：只压它自己。 */
+    const val SATISFY_DEFAULT_FACTOR = 0.6
+
+    /** 拒绝时的回落系数。比 [satisfy] 小，但要足够明显。 */
+    const val REFUSE_FACTOR = 0.75
+
+    /**
+     * 行为真的发生了 —— 释放这条牵引。
+     *
+     * 这是 Closed Loop 的 State 侧回写：Agent 醒来之后**做了**什么，
+     * 对应的张力就该释放掉。没有这一步，"唤醒 → 行动"这条链路对内部状态
+     * 完全没有影响，闭环是断的。
+     *
+     * 与 Elektron 的差异：那边还会顺带清 `attachment_rebound` / `libido_pending` /
+     * `possessiveness_channels` 三个高级通道的状态。这三个通道在本移植里
+     * **列已开、tick 不驱动**（见 `DriveStateEntity` 的类注释），所以这里不碰它们 ——
+     * 碰了会得到"看起来在工作、其实参数没接"的中间态。
+     */
+    fun satisfy(drives: Map<String, Double>, driveKey: String): Map<String, Double> {
+        val key = normalizeDriveKey(driveKey) ?: return normalizeDriveValues(drives)
+        val decay = SATISFY_DECAY[key] ?: mapOf(key to SATISFY_DEFAULT_FACTOR)
+        val out = LinkedHashMap(normalizeDriveValues(drives))
+        decay.forEach { (target, factor) ->
+            if (out.containsKey(target)) {
+                out[target] = clamp(out.getValue(target) * factor)
+            }
+        }
+        return out
+    }
+
+    /**
+     * Agent 自己决定**不做**。
+     *
+     * 这是合法结果，不是失败 —— 情绪只有唤醒权。回落幅度比 [satisfy] 小
+     * （Elektron 的 `refuse_intent`：0.75），而且**只压目标维度**：
+     * 拒绝代表这条牵引不合当下，不该波及其他维。
+     */
+    fun refuseIntent(drives: Map<String, Double>, driveKey: String): Map<String, Double> {
+        val key = normalizeDriveKey(driveKey) ?: return normalizeDriveValues(drives)
+        val out = LinkedHashMap(normalizeDriveValues(drives))
+        if (out.containsKey(key)) {
+            out[key] = clamp(out.getValue(key) * REFUSE_FACTOR)
+        }
+        return out
+    }
+
     // ─── 双层归一 ────────────────────────────────────────────────────────────
 
     /** 基线归一 + 开方响应。基线处 0，满值 1。 */

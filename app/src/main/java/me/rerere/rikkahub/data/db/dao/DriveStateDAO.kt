@@ -54,6 +54,19 @@ interface DriveStateDAO {
     @Query("SELECT COUNT(*) FROM drive_event_ledger")
     suspend fun eventCount(): Int
 
+    /**
+     * 增量拉账本：`id > afterId`，老的在前。
+     *
+     * 关闭循环靠这个游标推进，而不是"每次读最近 N 条"—— 后者在账本增长后
+     * 会漏掉中间的行，而漏掉的行为就再也不会被回写成记忆了。
+     */
+    @Query("SELECT * FROM drive_event_ledger WHERE id > :afterId ORDER BY id ASC LIMIT :limit")
+    suspend fun ledgerAfter(afterId: Long, limit: Int): List<DriveEventEntity>
+
+    /** 账本里最大的 id。首次运行建立检查点用它。空表返回 0。 */
+    @Query("SELECT COALESCE(MAX(id), 0) FROM drive_event_ledger")
+    suspend fun ledgerMaxId(): Long
+
     // ===== 历史采样（基线参照系） =====
 
     /** 追加一条采样，返回自增 id。 */

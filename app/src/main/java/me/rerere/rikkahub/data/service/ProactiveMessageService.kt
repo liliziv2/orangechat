@@ -122,7 +122,23 @@ class ProactiveMessageService : KoinComponent {
                             me.rerere.rikkahub.data.proactive.ProactiveSchedulePlanner.MIN_LEAD_MILLIS
                     )
             }.getOrNull()
-            val triggerTime = listOfNotNull(regularTriggerTime, autonomousTriggerTime).min()
+            // 内部状态唤醒（emotion_wake）也参与竞争：它到点的时候不该去等常规随机间隔。
+            //
+            // 这是**用现有的调度设施**，不是第二套 —— 同一个 AlarmManager、同一个
+            // ProactiveMessageReceiver、同一个 ProactiveMessageWorker 兜底，
+            // 只是把这个已经存在的调度决策提前一点。
+            //
+            // 读的是 EmotionWakeStore 里的镜像而不是队列本身：这个函数是普通函数
+            // （被 BroadcastReceiver / Application.onCreate 这些非挂起上下文调用），
+            // 等不了 Room 查询。队列里的 due_at 才是真相，镜像过期最多晚一轮醒。
+            val emotionWakeTriggerTime = runCatching {
+                EmotionWakeStore(context).nextDueAtMillis(java.lang.System.currentTimeMillis())
+            }.getOrNull()
+            val triggerTime = listOfNotNull(
+                regularTriggerTime,
+                autonomousTriggerTime,
+                emotionWakeTriggerTime,
+            ).min()
 
             // 保存下次触发时间到SharedPreferences
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -422,6 +438,15 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
     private val chatService: ChatService by inject()
     private val proactiveMessageService = ProactiveMessageService()
 
+    // Elektron Behavior 层：冲动队列 + 中性唤醒载荷 + 关闭循环 + 状态回写。
+    //
+    // 这四个都是**普通类**，不是新的 Service / Worker / Alarm —— 唤醒的**执行者
+    // 仍然是本 Service**，它本来就由现有闹钟链驱动。所以这里没有第二套 wake service。
+    private val impulseQueueService: ImpulseQueueService by inject()
+    private val emotionWakeBridge: EmotionWakeBridge by inject()
+    private val closedLoopService: ClosedLoopService by inject()
+    private val driveStateService: DriveStateService by inject()
+
     companion object {
         private const val TAG = "ProactiveMessageTrigger"
         private const val MAX_TOOL_STEPS = 5 // 主动消息最大工具调用步数
@@ -429,6 +454,16 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
         const val EXTRA_FORCE_TRIGGER = "force_trigger"
         // 激进模式设备事件上下文（由 DeviceEventAiTriggerService 传入）
         const val EXTRA_DEVICE_EVENT_CONTEXT = "device_event_context"
+
+        /** 认领冲动时的 owner 标识。租约到期后不管是谁挂的都会被退回队列。 */
+        private const val WAKE_OWNER = "proactive_trigger"
+
+        /** 行为回写的账本标签。 */
+        private const val LABEL_WAKE_DONE = "emotion_wake_done"
+        private const val LABEL_WAKE_DECLINED = "emotion_wake_declined"
+
+        /** 唤醒结局落库时的备注截断长度。跟 `ImpulseQueueService.NOTE_MAX_CHARS` 同一量级。 */
+        private const val WAKE_NOTE_MAX_CHARS = 400
 
         // 保护 last_triggered_time 的 check-then-act 竞态（防止 AlarmManager 与 WorkManager
         // 前后脚触发导致"最小间隔"被砍半）。纯同步 SharedPreferences 读写，无挂起点，用对象锁即可。
@@ -476,6 +511,13 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
         CoroutineScope(Dispatchers.IO).launch {
             var conversationId: kotlin.uuid.Uuid? = null
+            // 被认领的内部状态唤醒。声明在 try 之外：catch / finally 也要拿它落状态。
+            var wakeImpulseId: Long? = null
+            var wakePayload: EmotionWakePayload? = null
+            // 这条唤醒是否已经落了终态。finally 靠它判断"还没收尾"的那几种情况
+            // （模型缺失 / 会话正在生成 / 被取消 / 抛异常）—— 收敛在一处处理，
+            // 免得每个提前 return 都各自记着要补一次。
+            var wakeSettled = false
             try {
                 val settings = settingsStore.settingsFlow.first()
                 val proactiveSetting = settings.proactiveMessageSetting
@@ -499,23 +541,59 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     Log.d(TAG, "Autonomous wake-up plan is due, bypassing the interval throttle")
                 }
 
+                // 再看队列里有没有到点的**内部状态唤醒**（Elektron Behavior 层的出口）。
+                //
+                // 只读地看一眼，**先不认领** —— 如果这一轮被下面的节流挡掉，
+                // 认领会把它的尝试次数白白烧掉，三次之后这条唤醒就被判失败了。
+                //
+                // 设备事件触发时跳过：那条路有自己的上下文与提示词分支，
+                // 让它"吃掉"一条唤醒会把内部状态那一段顶掉（`buildSystemPrompt` 里
+                // 两个分支是 else-if），等于顺手改了设备事件功能。唤醒等下一轮常规触发
+                // 就好 —— 它的到点镜像还在，闹钟不会被撤。
+                val pendingWake = if (isFromDeviceEvent) {
+                    null
+                } else {
+                    runCatching { impulseQueueService.peekDue() }.getOrNull()
+                }
+                if (pendingWake != null) {
+                    Log.d(TAG, "Internal state wake is due (impulse #${pendingWake.id}), will claim after the throttle")
+                }
+
                 // 去重判断：防止 AlarmManager 和 WorkManager 在同一窗口内重复触发。
                 // 外部触发（网关轮询/激进模式设备事件）跳过此检查，因为这是独立信号源，不受内部闹钟链约束。
                 // 注意：isForceTrigger 跳过的是"时间间隔节流"（两回事），不跳过后面 tryClaimGeneration 的并发安全检查。
                 // 把"读取 last_triggered_time -> 判断 -> 写入"整段放在同步块里，修复 check-then-act 竞态。
                 if (!isForceTrigger && !autonomousDue) {
-                    val skipDueToInterval = synchronized(prefsLock) {
+                    // 同步块返回"还要等多久"（null = 没被挡）。整段仍在锁里，
+                    // check-then-act 竞态的处理方式与改动前一致。
+                    val throttleRemainingMs = synchronized(prefsLock) {
                         val lastTriggeredTime = prefs.getLong("last_triggered_time", 0L)
                         val minIntervalMs = proactiveSetting.minIntervalMinutes.coerceAtLeast(1) * 60 * 1000L
-                        if (System.currentTimeMillis() - lastTriggeredTime < minIntervalMs) {
-                            true
+                        val elapsed = System.currentTimeMillis() - lastTriggeredTime
+                        if (elapsed < minIntervalMs) {
+                            minIntervalMs - elapsed
                         } else {
                             // 立即写入触发时间，防止并发重复
                             prefs.edit().putLong("last_triggered_time", System.currentTimeMillis()).apply()
-                            false
+                            null
                         }
                     }
-                    if (skipDueToInterval) {
+                    if (throttleRemainingMs != null) {
+                        // 被节流时把这条唤醒**延后**，而不是让它原地干等：
+                        // 延后是队列自己的排期，到点后仍由现有闹钟把它叫醒 —— 没有新增定时器。
+                        //
+                        // 刻意**不**绕过用户设的最小间隔：节流是用户的选择，
+                        // 内部状态不该有权覆盖它。
+                        pendingWake?.let { wake ->
+                            runCatching {
+                                impulseQueueService.defer(
+                                    id = wake.id,
+                                    retrySeconds = throttleRemainingMs / 1000L,
+                                    note = "被主动消息最小间隔节流，已延后",
+                                )
+                                emotionWakeBridge.syncScheduleMirror()
+                            }.onFailure { Log.w(TAG, "Failed to defer wake #${wake.id}", it) }
+                        }
                         Log.d(TAG, "Duplicate trigger within min interval, skipping")
                         ProactiveMessageService.scheduleNext(this@ProactiveMessageTriggerService, proactiveSetting)
                         stopSelf()
@@ -527,6 +605,32 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                         prefs.edit().putLong("last_triggered_time", System.currentTimeMillis()).apply()
                     }
                 }
+
+                // 通过节流之后才真的认领。认领失败（别的实例先拿了 / 重试耗尽）
+                // 就退回常规主动消息路径，不假装自己在处理一条唤醒。
+                if (pendingWake != null) {
+                    val claimed = runCatching { impulseQueueService.claimDue(owner = WAKE_OWNER) }.getOrNull()
+                    val payload = claimed?.let { EmotionWakePayload.decode(it.payloadJson) }
+                    when {
+                        claimed != null && payload != null -> {
+                            wakeImpulseId = claimed.id
+                            wakePayload = payload
+                            Log.d(
+                                TAG,
+                                "Claimed internal state wake #${claimed.id}: " +
+                                    payload.signals.joinToString(",") { it.id }
+                            )
+                        }
+                        claimed != null -> {
+                            // 载荷坏了：立刻判失败，别让它占着去重位。
+                            Log.w(TAG, "Wake #${claimed.id} has an undecodable payload, failing it")
+                            runCatching {
+                                impulseQueueService.markFailed(claimed.id, "payload undecodable")
+                            }
+                        }
+                    }
+                }
+                val isFromEmotionWake = wakePayload != null
 
                 // 获取助手
                 val assistant = settings.assistants.find { it.id.toString() == proactiveSetting.assistantId }
@@ -607,7 +711,15 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 )
 
                 // 构建系统提示词（包含记忆 + 上下文，都放在最后面避免被网关淹没）
-                val systemPrompt = buildSystemPrompt(assistant, settings, idleMinutes, proactiveSetting.jumpIdleThresholdMinutes, isFromDeviceEvent, if (isFromDeviceEvent) deviceEventContext else contextStr)
+                val systemPrompt = buildSystemPrompt(
+                    assistant = assistant,
+                    settings = settings,
+                    idleMinutes = idleMinutes,
+                    jumpThreshold = proactiveSetting.jumpIdleThresholdMinutes,
+                    isFromDeviceEvent = isFromDeviceEvent,
+                    deviceEventContext = if (isFromDeviceEvent) deviceEventContext else contextStr,
+                    emotionWake = wakePayload,
+                )
 
                 // user message 只放简短指令（上下文已在系统提示词中）。
                 // 必须保留这条结尾的 USER 轮次：否则消息列表以 ASSISTANT 结束，
@@ -615,10 +727,13 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 val userMessage = UIMessage(
                     role = MessageRole.USER,
                     parts = listOf(UIMessagePart.Text(
-                        if (isFromDeviceEvent) {
-                            "请根据以上用户动向决定是否发消息。没什么好说的就回复 [PASS]。"
-                        } else {
-                            "请根据以上上下文决定是否发消息。没什么好说的就回复 [PASS] 即可，不要强行找话题。"
+                        when {
+                            isFromDeviceEvent ->
+                                "请根据以上用户动向决定是否发消息。没什么好说的就回复 [PASS]。"
+                            isFromEmotionWake ->
+                                "请根据以上内部状态自行决定是否要做什么。不想做就回复 [PASS]。"
+                            else ->
+                                "请根据以上上下文决定是否发消息。没什么好说的就回复 [PASS] 即可，不要强行找话题。"
                         }
                     ))
                 )
@@ -781,6 +896,24 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                         )
                         chatService.saveConversation(conversationId, chatService.getConversationFlow(conversationId).value)
                     }
+
+                    // 唤醒的结局之一：Agent 自己决定不做。
+                    //
+                    // `ignored` 是合法终态而不是失败 —— 情绪只有唤醒权、没有行动决策权，
+                    // 把"拒绝行动"记成失败会让它变成一件需要被重试的错事。
+                    //
+                    // 状态侧也要回写（`refuseIntent`，中等回落）：不回写的话，同一条牵引
+                    // 下一拍会原样再唤醒一次 —— 那正是任务书第 7 条要挡的"重复唤醒"。
+                    wakeImpulseId?.let { id ->
+                        wakeSettled = true
+                        settleWake(
+                            impulseId = id,
+                            payload = wakePayload,
+                            outcome = DriveStateService.BehaviorOutcome.DECLINED,
+                            label = LABEL_WAKE_DECLINED,
+                            note = "Agent 自己决定不做",
+                        )
+                    }
                 } else {
                     // 有效回复：session 里已有 aiMessage（流式过程已追加），持久化并发通知
                     saveProactiveMessage(
@@ -845,6 +978,22 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                             Log.e(TAG, "Force jump failed", e)
                         }
                     }
+
+                    // 唤醒的结局之二：Agent 真的做了什么。
+                    //
+                    // 队列侧落 `done`，状态侧 `satisfy`（张力释放）。放在这个分支的**最后**：
+                    // 上面任何一步抛异常都会让它保持"未收尾"，由 finally 延后重排 ——
+                    // 宁可再唤醒一次，也不要把一次没真正完成的行为记成已完成。
+                    wakeImpulseId?.let { id ->
+                        wakeSettled = true
+                        settleWake(
+                            impulseId = id,
+                            payload = wakePayload,
+                            outcome = DriveStateService.BehaviorOutcome.ACTED,
+                            label = LABEL_WAKE_DONE,
+                            note = replyText.take(WAKE_NOTE_MAX_CHARS),
+                        )
+                    }
                 }
             } catch (e: CancellationException) {
                 // 协程被取消（通常是用户发了新消息，sendMessage 里 session.getJob()?.cancel() 触发），
@@ -863,6 +1012,22 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 val cause = e.cause
                 if (cause != null) {
                     Log.e(ProactiveMessageService.TAG, "Underlying cause: ${cause::class.simpleName}: ${cause.message}", cause)
+                }
+                // 唤醒的结局之三：执行本身失败了。
+                //
+                // 落 `failed` 而不是 `defer`：Agent 连"要不要做"都没能判断出来，
+                // 这不是"这一轮没轮上"，是这条路真的不通。`failed` 会让
+                // `EmotionWakeBridge` 进入 1 小时失败冷却（对齐 `behavior.py`
+                // 的 `if status == failed and age < 1`），避免对着一路报错的接口反复重试。
+                //
+                // 刻意**不**回写状态：行为没有发生，也没有被拒绝，状态层不该收到任何反馈。
+                wakeImpulseId?.takeIf { !wakeSettled }?.let { id ->
+                    wakeSettled = true
+                    try {
+                        impulseQueueService.markFailed(id, e.message ?: e::class.simpleName)
+                    } catch (markErr: Exception) {
+                        Log.w(ProactiveMessageService.TAG, "Failed to mark wake #$id as failed", markErr)
+                    }
                 }
                 // 清理本次触发中流式写入的不完整/错误 AI 消息, 防止它们污染历史导致下一轮请求失败
                 conversationId?.let { cid ->
@@ -892,6 +1057,49 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     }
                 }
             } finally {
+                // 唤醒收尾 + 闭环回写。
+                //
+                // 必须放在 scheduleNext **之前**：scheduleNext 读的是 EmotionWakeStore 里的
+                // 到点镜像，得先把镜像跟队列对齐，否则它会按一个已经作废的时刻排闹钟。
+                //
+                // 同样用 NonCancellable 包住：被取消的协程里挂起点会立刻抛
+                // CancellationException，"用户打断"这条最常见的路径会把整段收尾跳过。
+                withContext(NonCancellable) {
+                    // 没走到终态的唤醒一律延后重排。
+                    //
+                    // 能走到这里的只剩三种情况：模型没配、会话正在生成、协程被取消。
+                    // 它们都不是失败，是"这一轮没轮上" —— 用 defer 让它带着 retry_at 回队列，
+                    // 而不是挂在 claimed 上等 10 分钟租约超时。租约是给"进程被杀"兜底的，
+                    // 不该拿来处理正常的分支。defer 不动 attempts，重试预算留给真正的重试。
+                    val unsettled = wakeImpulseId?.takeIf { !wakeSettled }
+                    if (unsettled != null) {
+                        try {
+                            impulseQueueService.defer(
+                                id = unsettled,
+                                note = "本轮未完成，已延后重排",
+                            )
+                            Log.d(TAG, "Deferred unsettled wake #$unsettled")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to defer unsettled wake #$unsettled", e)
+                        }
+                    }
+                    // 队列里还有没有待处理的 → 同步给闹钟看的镜像。
+                    try {
+                        emotionWakeBridge.syncScheduleMirror()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to sync wake schedule mirror", e)
+                    }
+                    // 闭环：把这一轮已经落库的结果写成记忆。
+                    //
+                    // 放在 finally 而不是 done 分支里，是因为它要看到"全部落库之后"的状态：
+                    // 队列侧的 `done` 与状态侧的账本行都在上面写完了，这里一次扫增量就够。
+                    // 首次运行只建检查点、一条都不写（见 ClosedLoopService）。
+                    try {
+                        closedLoopService.run()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to run closed loop", e)
+                    }
+                }
                 // 确保无论成功/失败/取消都安排下一次，避免一次 API 错误或用户打断永久中断定时链。
                 // 激进模式设备事件触发时不需要安排下一次定时主动消息（由 DeviceEventAiTriggerService 自己驱动）。
                 // 用 NonCancellable 包裹：协程被取消后处于已取消状态，finally 里的挂起点
@@ -919,10 +1127,78 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
     }
 
     /**
+     * 把一次唤醒的结局落回队列，并把结果回写到状态。
+     *
+     * ## 为什么两件事必须一起做
+     *
+     * - **队列侧落终态**：让 `EmotionWakeBridge` 的"队列里还有活跃行就不排新的"
+     *   这道闸继续成立。不落的话这条唤醒会一直是 `claimed`，直到 10 分钟租约超时。
+     * - **状态侧回写**：让"唤醒 → 行动"对内部状态有反馈。
+     *   ```
+     *   emotion event → State → wake → Agent → 行为结果 → behavior memory → State/Memory 回写
+     *                                                                       ^^^^^^^^^^^^^^^^ 这里
+     *   ```
+     *   只做前者的话，状态层永远只往外发信号、收不到任何反馈，闭环是断的；
+     *   同一条牵引会在下一拍原样再唤醒一次。
+     *
+     * ## 为什么吞异常
+     *
+     * 唤醒的收尾是**事后记账**，不该反过来把一次已经成功的主动消息变成失败。
+     * 队列侧失败最多让租约兜底，状态侧失败最多丢一次反馈 —— 都不值得让
+     * `onStartCommand` 的协程抛出去（那会走进 `catch (e: Exception)` 的错误清理路径）。
+     *
+     * @param outcome [DriveStateService.BehaviorOutcome.ACTED] → `done` + `satisfy`；
+     *                [DriveStateService.BehaviorOutcome.DECLINED] → `ignored` + `refuseIntent`。
+     */
+    private suspend fun settleWake(
+        impulseId: Long,
+        payload: EmotionWakePayload?,
+        outcome: DriveStateService.BehaviorOutcome,
+        label: String,
+        note: String,
+    ) {
+        try {
+            when (outcome) {
+                DriveStateService.BehaviorOutcome.ACTED ->
+                    impulseQueueService.markDone(impulseId, note)
+
+                DriveStateService.BehaviorOutcome.DECLINED ->
+                    impulseQueueService.markIgnored(impulseId, note)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to settle wake #$impulseId as $outcome", e)
+        }
+
+        try {
+            driveStateService.resolveBehavior(
+                // 认不出是哪一维时传 null：resolveBehavior 会只记账本、不动 drives。
+                // 猜一个维度去打，比诚实地说"不知道"更糟 —— 那会污染那一维的水位。
+                driveKey = payload?.let { primaryDriveOf(it) },
+                outcome = outcome,
+                eventLabel = label,
+                detail = note,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to write back behavior for wake #$impulseId", e)
+        }
+    }
+
+    /**
+     * 这次唤醒主要动了哪一维。
+     *
+     * 取**越线信号里值最高的那一维**，而不是载荷里的 `dominant`：
+     * `dominant` 是"当时有效激活最高的那一维"，它可能压根没越线
+     * （比如 `fatigue` 长期最高）。行为回写要打的是**这次变化的那一维**，
+     * 否则 `satisfy` 会去释放一条根本没被推动的牵引。
+     */
+    private fun primaryDriveOf(payload: EmotionWakePayload): String? =
+        payload.signals.maxByOrNull { it.value }?.drive ?: payload.dominant
+
+    /**
      * 构建系统提示词，包含记忆等内容
      * isFromDeviceEvent: 是否由激进模式设备事件触发
      */
-    private suspend fun buildSystemPrompt(assistant: Assistant, settings: Settings, idleMinutes: Int = 0, jumpThreshold: Int = 120, isFromDeviceEvent: Boolean = false, deviceEventContext: String? = null): String {
+    private suspend fun buildSystemPrompt(assistant: Assistant, settings: Settings, idleMinutes: Int = 0, jumpThreshold: Int = 120, isFromDeviceEvent: Boolean = false, deviceEventContext: String? = null, emotionWake: EmotionWakePayload? = null): String {
         return buildString {
             // 基础系统提示词
             val effectiveSystemPrompt = if (assistant.allowConversationSystemPrompt) {
@@ -963,7 +1239,49 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 }
             }
 
-            if (isFromDeviceEvent) {
+            if (emotionWake != null) {
+                // ── 内部状态变化（中性唤醒）─────────────────────────────────────
+                //
+                // 对应 Elektron `behavior.py` 写进队列的那条 emotion_wake。
+                //
+                // 这一段**只描述状态，不给动作**。Elektron 的原则是「情绪只有唤醒权，
+                // 没有行动决策权」：要不要做、做什么、现在做还是不做，全部由醒来的
+                // Agent 自己结合记忆与现实决定。所以这里刻意不出现任何祈使句式的
+                // "去关心她""发条消息"之类 —— 那会让 State 层事实上替 Agent 做了决定。
+                appendLine()
+                appendLine()
+                appendLine("## 内部状态变化（中性唤醒）")
+                appendLine("这不是用户的指令，也不是必须完成的任务。只是你的内部状态刚刚发生了一次变化：")
+                emotionWake.signals.forEach { signal ->
+                    val how = if (
+                        signal.trigger == DriveBaseline.TRIGGER_RELATIVE && signal.baseline != null
+                    ) {
+                        "相对基线上涨 ${"%.3f".format(signal.rise ?: 0.0)}" +
+                            "（基线 ${"%.3f".format(signal.baseline)}）"
+                    } else {
+                        "越过绝对阈值 ${"%.3f".format(signal.threshold)}"
+                    }
+                    appendLine("- ${signal.drive}：现在 ${"%.3f".format(signal.value)}，$how")
+                }
+                emotionWake.baselineKind?.let { kind ->
+                    val label = if (kind == "same_time_yesterday") {
+                        "昨天同一时段"
+                    } else {
+                        "还没攒够一天历史，参照最老的一条"
+                    }
+                    val age = emotionWake.baselineAgeHours?.let { "（${"%.1f".format(it)} 小时前）" }.orEmpty()
+                    appendLine("参照基线：$label$age")
+                }
+                emotionWake.dominant?.let { appendLine("当前主导维度：$it") }
+                appendLine("距离用户上次回复已过去 $idleMinutes 分钟。")
+                appendLine("你可以结合记忆与现实自行决定要不要做什么；")
+                appendLine("如果你判断现在不适合行动，只回复 [PASS] 即可 —— 不做也是一种决定，不会被当成失败。")
+                appendLine("[JUMP] 标记不会展示给用户，仅用于触发屏幕跳转。")
+                if (!deviceEventContext.isNullOrBlank()) {
+                    appendLine()
+                    appendLine(deviceEventContext)
+                }
+            } else if (isFromDeviceEvent) {
                 // 激进模式设备事件触发的专用提示词 + 设备事件上下文（放在最后面，网关追加内容之后模型最后看到的就是这个）
                 appendLine()
                 appendLine()

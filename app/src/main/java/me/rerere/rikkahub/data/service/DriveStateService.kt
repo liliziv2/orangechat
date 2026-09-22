@@ -59,6 +59,20 @@ class DriveStateService(
         private val STRING_LIST_SERIALIZER = ListSerializer(String.serializer())
 
         /**
+         * 行为结果回写进账本时的来源标记。
+         *
+         * 与 `user_message` 那一路刻意区分开：账本要能回答"这一维是被什么推上去的"，
+         * 也要能回答"它是被什么放下来的"。混成一个来源这两问都答不了。
+         */
+        const val SOURCE_AGENT_ACTION = "agent_action"
+
+        /** 行为回写行的 reason。跟事件被压制的 reason 区分开。 */
+        const val BEHAVIOR_REASON = "behavior_outcome"
+
+        /** 证据字段的截断长度。 */
+        const val EVIDENCE_MAX_CHARS = 400
+
+        /**
          * 三个"列已开、本轮不驱动"的通道的默认值。
          *
          * 它们是 JSON 字面量而不是由代码算出来的 —— 因为这一轮没有任何代码会改它们，
@@ -299,6 +313,185 @@ class DriveStateService(
             snapshot = payload,
         )
     }
+
+    // ─── 行为结果的回写（Closed Loop 的 State 侧）─────────────────────────────
+
+    /** 一次行为的结果。两种都合法。 */
+    enum class BehaviorOutcome {
+        /** Agent 真的做了什么 → [DriveEngine.satisfy]（张力释放）。 */
+        ACTED,
+
+        /** Agent 自己决定不做 → [DriveEngine.refuseIntent]（中等回落）。 */
+        DECLINED,
+    }
+
+    /** 回写结果。 */
+    data class BehaviorWriteback(
+        val ledgerId: Long,
+        val eventLabel: String,
+        val primaryDrive: String?,
+        val applied: Map<String, Double>,
+        val drives: Map<String, Double>,
+        val snapshot: DriveSnapshotPayload,
+    )
+
+    /**
+     * 把一个行为结果写回状态。
+     *
+     * ## 这是闭环的哪一段
+     *
+     * ```
+     * emotion event → State → wake → Agent → 行为结果 → behavior memory → State/Memory 回写
+     *                                                                     ^^^^^^^^^^^^^^^^ 这里
+     * ```
+     *
+     * 没有这一步的话，"唤醒 → 行动"对内部状态没有任何影响：状态层只往外发信号，
+     * 收不到任何反馈，闭环是断的。Elektron 那边对应 `desire_engine.satisfy()`
+     * 与 `refuse_intent()`。
+     *
+     * ## 为什么 `DECLINED` 也要回写
+     *
+     * 因为"不做"是一个**决定**，不是失败。把它当成无事发生，会让同一条牵引
+     * 在下一拍原样再唤醒一次 —— 那正是"长期高位重复唤醒"的另一种形态。
+     * 回写一次中等回落，表示"这条牵引我看过了，这一刻不合当下"。
+     *
+     * ## 与 [applyEvent] 的关系
+     *
+     * 两条路径都是"改 drives → 重算派生量 → 落盘 → 追加账本 → 采样"，
+     * 但**语义相反**：[applyEvent] 是事件往上推（加性脉冲），
+     * 这里是行为往下放（乘性回落）。合成一条会得到一个参数比调用点还多的函数，
+     * 所以刻意分成两个入口。
+     *
+     * [driveKey] 为 null（认不出是哪一维）时只记账本、不动 drives —— 记一笔
+     * "这次行为发生了"比猜一个维度去打要诚实。
+     */
+    suspend fun resolveBehavior(
+        driveKey: String?,
+        outcome: BehaviorOutcome,
+        eventLabel: String,
+        detail: String,
+        now: Long = System.currentTimeMillis(),
+    ): BehaviorWriteback = withContext(Dispatchers.IO) {
+        val current = loadOrInit(now)
+        val drivesBefore = decodeDrives(current.drivesJson)
+
+        // 与 applyEvent 同样的惰性推进：状态先补到 now，再叠加这次回写。
+        val elapsed = max(0L, now - current.lastTs)
+        val idleSeconds = if (current.lastUserMessageAt > 0L) {
+            max(0.0, (now - current.lastUserMessageAt) / 1000.0)
+        } else {
+            max(0.0, elapsed / 1000.0)
+        }
+        val ticked = DriveEngine.tickDrives(
+            drives = drivesBefore,
+            escapeStreak = current.escapeStreak,
+            elapsedMillis = elapsed,
+            idleSeconds = idleSeconds,
+        )
+
+        val normalizedKey = DriveEngine.normalizeDriveKey(driveKey)
+        val drivesAfter = when {
+            normalizedKey == null -> ticked.drives
+            outcome == BehaviorOutcome.ACTED -> DriveEngine.satisfy(ticked.drives, normalizedKey)
+            else -> DriveEngine.refuseIntent(ticked.drives, normalizedKey)
+        }
+
+        val localFatigue = DriveEngine.computeLocalFatigue(drivesAfter.getValue("fatigue"))
+        val paNa = DriveEngine.paNaSnapshot(drivesAfter)
+        val payload = DriveSnapshotPayload(
+            activation = DriveEngine.activationSnapshot(drivesAfter, localFatigue),
+            effective = DriveEngine.effectiveSnapshot(drivesAfter, localFatigue),
+            pa = paNa.pa,
+            na = paNa.na,
+            dominant = DriveEngine.dominantDrive(drivesAfter, localFatigue),
+            updatedAt = now,
+        )
+
+        driveStateDAO.upsertState(
+            current.copy(
+                drivesJson = encodeDrives(drivesAfter),
+                tickCount = current.tickCount + 1,
+                lastTs = now,
+                prevDrivesJson = encodeDrives(drivesBefore),
+                localFatigueJson = encodeDrives(localFatigue),
+                snapshotJson = JsonInstant.encodeToString(DriveSnapshotPayload.serializer(), payload),
+                escapeStreak = ticked.escapeStreak,
+            )
+        )
+
+        // 逐维变化明细：只有真的动了的维才进，没动的不写 0。
+        val deltas = mutableMapOf<String, DriveEngine.DriveDelta>()
+        drivesAfter.forEach { (key, after) ->
+            val before = ticked.drives.getValue(key)
+            if (after != before) {
+                deltas[key] = DriveEngine.DriveDelta(
+                    delta = DriveEngine.round4(after - before),
+                    rawDelta = DriveEngine.round4(after - before),
+                    before = DriveEngine.round4(before),
+                    after = DriveEngine.round4(after),
+                )
+            }
+        }
+
+        val ledgerId = driveStateDAO.insertEvent(
+            DriveEventEntity(
+                ts = now,
+                schemaVersion = DriveEngine.DRIVE_EVENT_SCHEMA,
+                source = SOURCE_AGENT_ACTION,
+                eventLabel = eventLabel,
+                primaryDrive = normalizedKey,
+                // 这不是"推断出来的强度"，是行为已经发生的事实：confidence/agency 拉满，
+                // intensity 用张力实际掉了多少来表达。
+                intensity = DriveEngine.round3(
+                    deltas.values.sumOf { max(0.0, it.before - it.after) }
+                ),
+                confidence = 1.0,
+                agency = 1.0,
+                suppressed = false,
+                reason = BEHAVIOR_REASON,
+                appliedJson = encodeApplied(deltas),
+                brainJson = null,
+                evidenceJson = encodeStringList(listOf(detail.take(EVIDENCE_MAX_CHARS))),
+            )
+        )
+
+        driveStateDAO.insertSample(
+            DriveSampleEntity(ts = now, valuesJson = encodeDrives(drivesAfter))
+        )
+        driveStateDAO.pruneSamples(now - DriveBaseline.retentionMillis())
+
+        BehaviorWriteback(
+            ledgerId = ledgerId,
+            eventLabel = eventLabel,
+            primaryDrive = normalizedKey,
+            applied = deltas.mapValues { it.value.delta },
+            drives = drivesAfter,
+            snapshot = payload,
+        )
+    }
+
+    /** 账本里 `id > afterId` 的行，老的在前。关闭循环按这个游标增量推进。 */
+    suspend fun ledgerAfter(afterId: Long, limit: Int = 50): List<DriveEventRecord> =
+        withContext(Dispatchers.IO) {
+            driveStateDAO.ledgerAfter(afterId, limit).map { row ->
+                DriveEventRecord(
+                    id = row.id,
+                    ts = row.ts,
+                    source = row.source,
+                    eventLabel = row.eventLabel,
+                    primaryDrive = row.primaryDrive,
+                    intensity = row.intensity,
+                    confidence = row.confidence,
+                    suppressed = row.suppressed,
+                    reason = row.reason,
+                    applied = decodeApplied(row.appliedJson),
+                    evidence = decodeStringList(row.evidenceJson),
+                )
+            }
+        }
+
+    /** 账本里最大的 id。首次运行建立检查点用它。 */
+    suspend fun ledgerMaxId(): Long = withContext(Dispatchers.IO) { driveStateDAO.ledgerMaxId() }
 
     // ─── 内部 ────────────────────────────────────────────────────────────────
 

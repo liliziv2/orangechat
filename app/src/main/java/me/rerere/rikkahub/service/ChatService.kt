@@ -50,7 +50,9 @@ import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.rikkahub.data.service.ClosedLoopService
 import me.rerere.rikkahub.data.service.DriveStateService
+import me.rerere.rikkahub.data.service.EmotionWakeBridge
 import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.data.service.memorySectionFormatHint
 import me.rerere.rikkahub.data.service.parseStructuredMemory
@@ -181,6 +183,8 @@ class ChatService(
     private val workspaceRepository: WorkspaceRepository,
     private val memoryBankService: MemoryBankService,
     private val driveStateService: DriveStateService,
+    private val emotionWakeBridge: EmotionWakeBridge,
+    private val closedLoopService: ClosedLoopService,
     private val folderRepository: FolderRepository,
     private val voiceMessageSynthesizer: me.rerere.rikkahub.data.voice.VoiceMessageSynthesizer,
 ) {
@@ -522,13 +526,23 @@ class ChatService(
                     Log.w(TAG, "Failed to save user message to external memory", e)
                 }
 
-                // ==================== Elektron State 层：对话进入状态引擎 ====================
+                // ==================== Elektron State / Behavior 层 ====================
                 // 一条用户消息就是一次「对话事件」：event → drive update → fatigue update
                 // → state snapshot → 落盘 + 账本留记录。
                 //
-                // 这里只写状态与账本，**不做任何行为决策** —— 不生成 emotion_wake、
-                // 不调 ProactiveMessageTriggerService、不自动执行行为。
-                // 情绪只有唤醒权，没有行动决策权（Elektron behavior.py 的原则）。
+                // 这里只写状态与账本，**不做任何行为决策** —— 不生成动作、不替 Agent
+                // 决定要不要行动。情绪只有唤醒权，没有行动决策权（Elektron behavior.py 的原则）。
+                //
+                // 写完之后接着做两件收尾，都不产生任何行为决策：
+                //   1. 评估有没有**新的越线**（绝对阈值 / 相对基线）。有就排一条**中性**的
+                //      emotion_wake 进队列，并把到点时刻告诉现有闹钟 —— 唤醒是"你现在的状态
+                //      变了"，不是"你该去做某事"。
+                //   2. 推进一次闭环回写：把上一次行为的结果落成 behavior memory，
+                //      把账本增量落成 feel memory。首次运行只建检查点，不重放历史。
+                //
+                // 用现有调度设施：EmotionWakeBridge 不启动任何 Service，它只把到点时刻
+                // 写进 EmotionWakeStore，由 scheduleNext 竞争出一个更早的 triggerTime，
+                // 真正把 Agent 叫起来的仍是 ProactiveMessageTriggerService。
                 //
                 // fire-and-forget：状态写入失败绝不能影响发消息主流程，
                 // 与上面的插件事件、外置记忆库保存同一范式。
@@ -539,6 +553,27 @@ class ChatService(
                     appScope.launch {
                         try {
                             driveStateService.onUserMessage(driveEventText)
+
+                            // 状态刚变过 → 评估越线。没有越线就没有唤醒，这一步不需要心跳。
+                            val wakeOutcome = emotionWakeBridge.evaluate()
+                            if (wakeOutcome is EmotionWakeBridge.Outcome.Enqueued) {
+                                Log.d(
+                                    TAG,
+                                    "Emotion wake #${wakeOutcome.impulseId} enqueued: " +
+                                        wakeOutcome.signals.joinToString(",") { it.id }
+                                )
+                                // 队列里多了一条待处理的 → 让现有闹钟按它的到点时刻提前醒。
+                                // scheduleNext 会取「常规随机间隔 / AI 自排计划 / 内部唤醒」
+                                // 三者里最早的那个，所以这里不会把常规主动消息停摆。
+                                val proactiveSetting = settingsStore.settingsFlow.first().proactiveMessageSetting
+                                if (proactiveSetting.enabled) {
+                                    me.rerere.rikkahub.data.service.ProactiveMessageService
+                                        .scheduleNext(context, proactiveSetting)
+                                }
+                            }
+
+                            // 闭环回写：上一次行为的结果 → behavior memory。
+                            closedLoopService.run()
                         } catch (e: Exception) {
                             Log.w(TAG, "Failed to apply drive event for user message", e)
                         }

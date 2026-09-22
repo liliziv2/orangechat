@@ -137,6 +137,8 @@ val appModule = module {
             workspaceRepository = get(),
             memoryBankService = get(),
             driveStateService = get(),
+            emotionWakeBridge = get(),
+            closedLoopService = get(),
             folderRepository = get(),
             voiceMessageSynthesizer = get(),
         )

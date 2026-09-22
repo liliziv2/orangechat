@@ -46,8 +46,13 @@ import me.rerere.rikkahub.data.db.migrations.Migration_29_30
 import me.rerere.rikkahub.data.db.migrations.Migration_30_31
 import me.rerere.rikkahub.data.db.migrations.Migration_31_32
 import me.rerere.rikkahub.data.db.migrations.Migration_32_33
+import me.rerere.rikkahub.data.db.migrations.Migration_33_34
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.service.ClosedLoopService
 import me.rerere.rikkahub.data.service.DriveStateService
+import me.rerere.rikkahub.data.service.EmotionWakeBridge
+import me.rerere.rikkahub.data.service.EmotionWakeStore
+import me.rerere.rikkahub.data.service.ImpulseQueueService
 import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.search.SearchService
@@ -71,7 +76,7 @@ val dataSourceModule = module {
         val context: Context = get()
         Room.databaseBuilder(context, AppDatabase::class.java, "rikka_hub")
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(Migration_6_7, Migration_11_12, Migration_13_14, Migration_14_15, Migration_15_16, Migration_19_20, Migration_20_21, Migration_21_22, Migration_23_24, Migration_24_25, Migration_25_26, Migration_29_30, Migration_30_31, Migration_31_32, Migration_32_33)
+            .addMigrations(Migration_6_7, Migration_11_12, Migration_13_14, Migration_14_15, Migration_15_16, Migration_19_20, Migration_20_21, Migration_21_22, Migration_23_24, Migration_24_25, Migration_25_26, Migration_29_30, Migration_30_31, Migration_31_32, Migration_32_33, Migration_33_34)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     val dictDir = SimpleDictManager.extractDict(context)
@@ -166,6 +171,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().impulseDao()
+    }
+
+    single {
         get<AppDatabase>().workspaceDao()
     }
 
@@ -188,9 +197,35 @@ val dataSourceModule = module {
     }
 
     // Elektron State 层：驱动状态 + 事件账本 + 基线采样。
-    // 它只做状态与账本，没有任何唤醒/行为出口（见 DriveStateService 的类注释）。
+    // 状态本身仍然只描述"现在是什么状态、为什么变了"，没有任何动作映射。
     single {
         DriveStateService(driveStateDAO = get())
+    }
+
+    // Elektron Behavior 层：冲动队列 → 中性唤醒 → 复用现有主动消息服务。
+    //
+    // 这三个都是**普通类**，不是新的 Service / Worker / Alarm 链：
+    // 唤醒由现有的 ProactiveMessageTriggerService 领走（见 EmotionWakeBridge 的类注释）。
+    single {
+        ImpulseQueueService(impulseDAO = get())
+    }
+
+    single {
+        EmotionWakeBridge(
+            driveStateService = get(),
+            impulseQueueService = get(),
+            store = EmotionWakeStore(context = get()),
+        )
+    }
+
+    single {
+        ClosedLoopService(
+            context = get(),
+            driveStateService = get(),
+            memoryBankService = get(),
+            impulseQueueService = get(),
+            settingsStore = get(),
+        )
     }
 
     single {

@@ -33,8 +33,18 @@ import kotlin.math.abs
  * ## 亲密三维为什么不在这张阈值表里
  *
  * `libido` / `possessiveness` / `attachment` 照常算、照常进快照与账本，
- * 但**永不进入阈值表** —— 它们不产生任何信号候选。这是既定拍板：
- * 亲密三维可以有状态，不能有行动出口。三条数值仍然完整保留，不做裁剪。
+ * 但**永不进入绝对阈值表** —— 它们不会凭自己的绝对值单独触发一次候选。
+ * 三条数值仍然完整保留，不做裁剪。
+ *
+ * 但**相对上涨**对它们同样成立：跟自己的基线比涨了 [RELATIVE_RISE] 照样算一次候选。
+ * 这与 Elektron 的 `_relative_candidates` 一致（那边遍历的是采样到的每一维，
+ * 不做维度白名单）。这是有意的，`DriveEngineTest` 里
+ * `relative rise fires for any dimension including the intimate ones` 锁的就是它。
+ *
+ * 之所以这样不算越界：越线只产生**中性的唤醒**（见 [EmotionWakePayload]），
+ * 载荷里只有"哪一维、现在多少、涨了多少"，**没有任何动作映射**。
+ * 亲密三维可以有状态、可以被观测到变化，但没有任何一条代码把它们
+ * 直接翻译成某个动作 —— 要不要行动由醒来的 Agent 自己判断。
  */
 object DriveBaseline {
 
