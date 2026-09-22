@@ -50,6 +50,7 @@ import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.rikkahub.data.service.DriveStateService
 import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.data.service.memorySectionFormatHint
 import me.rerere.rikkahub.data.service.parseStructuredMemory
@@ -179,6 +180,7 @@ class ChatService(
     private val pluginLoader: PluginLoader,
     private val workspaceRepository: WorkspaceRepository,
     private val memoryBankService: MemoryBankService,
+    private val driveStateService: DriveStateService,
     private val folderRepository: FolderRepository,
     private val voiceMessageSynthesizer: me.rerere.rikkahub.data.voice.VoiceMessageSynthesizer,
 ) {
@@ -518,6 +520,29 @@ class ChatService(
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to save user message to external memory", e)
+                }
+
+                // ==================== Elektron State 层：对话进入状态引擎 ====================
+                // 一条用户消息就是一次「对话事件」：event → drive update → fatigue update
+                // → state snapshot → 落盘 + 账本留记录。
+                //
+                // 这里只写状态与账本，**不做任何行为决策** —— 不生成 emotion_wake、
+                // 不调 ProactiveMessageTriggerService、不自动执行行为。
+                // 情绪只有唤醒权，没有行动决策权（Elektron behavior.py 的原则）。
+                //
+                // fire-and-forget：状态写入失败绝不能影响发消息主流程，
+                // 与上面的插件事件、外置记忆库保存同一范式。
+                val driveEventText = processedContent.mapNotNull { part ->
+                    if (part is UIMessagePart.Text) part.text else null
+                }.joinToString("\n")
+                if (driveEventText.isNotBlank()) {
+                    appScope.launch {
+                        try {
+                            driveStateService.onUserMessage(driveEventText)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to apply drive event for user message", e)
+                        }
+                    }
                 }
 
                 // 开始补全

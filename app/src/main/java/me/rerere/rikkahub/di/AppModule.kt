@@ -136,6 +136,7 @@ val appModule = module {
             pluginLoader = get(),
             workspaceRepository = get(),
             memoryBankService = get(),
+            driveStateService = get(),
             folderRepository = get(),
             voiceMessageSynthesizer = get(),
         )

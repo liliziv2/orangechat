@@ -45,7 +45,9 @@ import me.rerere.rikkahub.data.db.migrations.Migration_25_26
 import me.rerere.rikkahub.data.db.migrations.Migration_29_30
 import me.rerere.rikkahub.data.db.migrations.Migration_30_31
 import me.rerere.rikkahub.data.db.migrations.Migration_31_32
+import me.rerere.rikkahub.data.db.migrations.Migration_32_33
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.service.DriveStateService
 import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.search.SearchService
@@ -69,7 +71,7 @@ val dataSourceModule = module {
         val context: Context = get()
         Room.databaseBuilder(context, AppDatabase::class.java, "rikka_hub")
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .addMigrations(Migration_6_7, Migration_11_12, Migration_13_14, Migration_14_15, Migration_15_16, Migration_19_20, Migration_20_21, Migration_21_22, Migration_23_24, Migration_24_25, Migration_25_26, Migration_29_30, Migration_30_31, Migration_31_32)
+            .addMigrations(Migration_6_7, Migration_11_12, Migration_13_14, Migration_14_15, Migration_15_16, Migration_19_20, Migration_20_21, Migration_21_22, Migration_23_24, Migration_24_25, Migration_25_26, Migration_29_30, Migration_30_31, Migration_31_32, Migration_32_33)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     val dictDir = SimpleDictManager.extractDict(context)
@@ -160,6 +162,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().driveStateDao()
+    }
+
+    single {
         get<AppDatabase>().workspaceDao()
     }
 
@@ -179,6 +185,12 @@ val dataSourceModule = module {
             okHttpClient = get(),
             context = get()
         )
+    }
+
+    // Elektron State 层：驱动状态 + 事件账本 + 基线采样。
+    // 它只做状态与账本，没有任何唤醒/行为出口（见 DriveStateService 的类注释）。
+    single {
+        DriveStateService(driveStateDAO = get())
     }
 
     single {

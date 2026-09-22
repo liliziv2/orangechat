@@ -13,6 +13,7 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.DriveStateDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
@@ -22,6 +23,9 @@ import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.DriveEventEntity
+import me.rerere.rikkahub.data.db.entity.DriveSampleEntity
+import me.rerere.rikkahub.data.db.entity.DriveStateEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
@@ -58,8 +62,11 @@ import me.rerere.rikkahub.utils.JsonInstant
         WorkflowRunEntity::class,
         SshHostEntity::class,
         SecurityAuditEntity::class,
+        DriveStateEntity::class,
+        DriveEventEntity::class,
+        DriveSampleEntity::class,
     ],
-    version = 32,
+    version = 33,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -107,6 +114,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sshHostDao(): SshHostDao
 
     abstract fun securityAuditDao(): SecurityAuditDao
+
+    abstract fun driveStateDao(): DriveStateDAO
 }
 
 object TokenUsageConverter {
