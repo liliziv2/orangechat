@@ -354,6 +354,50 @@ class ImpulsePolicyTest {
         }
     }
 
+    @Test
+    fun `every dimension is either wake-capable or explicitly excluded`() {
+        // 9 维必须被两句话分完，不能有"没人想起它"的第三种情况：
+        // - 明确排除的：NON_SIGNAL_DRIVES（亲密三维，用户 2026-09-22 拍板
+        //   「永不生成 impulse」）；
+        // - 其余 6 维：能产生唤醒。
+        //
+        // 注意"能唤醒"不等于"在阈值表里"：阈值表只管**绝对**那一路（4 维），
+        // `stewardship` / `fatigue` 没有绝对阈值，但照样能靠相对上涨越线。
+        // 所以正确的划分是「9 维 − 排除集合 = 可唤醒集合」，而不是「阈值表 + 排除集合」。
+        val excluded = DriveBaseline.NON_SIGNAL_DRIVES
+        val wakeCapable = DriveEngine.DRIVE_KEYS.toSet() - excluded
+
+        assertEquals(
+            "排除集合就是亲密三维，不多不少",
+            setOf("libido", "possessiveness", "attachment"),
+            excluded,
+        )
+        assertEquals(
+            "可唤醒的 6 维",
+            setOf("curiosity", "stress", "social", "reflection", "stewardship", "fatigue"),
+            wakeCapable,
+        )
+        assertEquals(
+            "排除集合必须是 9 维的真子集",
+            DriveEngine.DRIVE_KEYS.size - 3,
+            wakeCapable.size,
+        )
+
+        val thresholdDims = DriveBaseline.SIGNAL_THRESHOLDS.map { it.drive }
+        assertTrue(
+            "阈值表里不能出现被排除的维度",
+            thresholdDims.none { it in excluded },
+        )
+        assertTrue(
+            "阈值表必须是可唤醒集合的子集",
+            thresholdDims.all { it in wakeCapable },
+        )
+        assertTrue(
+            "阈值表里的维度不能重复",
+            thresholdDims.size == thresholdDims.toSet().size,
+        )
+    }
+
     // ------------------------------------------------------------------
     // 行为回写因子（Closed Loop 的 State 侧）
     // ------------------------------------------------------------------

@@ -472,19 +472,57 @@ class DriveEngineTest {
     }
 
     @Test
-    fun `relative rise fires for any dimension including the intimate ones`() {
-        val current = drivesWith("attachment" to 0.90, "libido" to 0.20)
+    fun `intimate dimensions never produce a crossing, absolute or relative`() {
+        // 用户 2026-09-22 拍板的第 3 条：「亲密三维永不生成 impulse」。
+        //
+        // 这条测试以前写反了 —— 它断言的是「relative rise fires for any dimension
+        // including the intimate ones」，理由是 Elektron 的 `_relative_candidates`
+        // 也全维遍历。那是把实现当成了规格：越线会带着维度名与数值进 Agent 的
+        // 提示词，等于给亲密三维留了一条影响行为的通路，而拍板明确要求没有这条通路。
+        val current = drivesWith("attachment" to 0.90, "libido" to 0.80, "possessiveness" to 0.70)
+        // 基线给全 9 维：相对那一路遍历的是基线里的维度，只放三维进去的话
+        // 这条测试就没证明"遍历到它们时会被跳过"。
         val baseline = DriveBaseline.Baseline(
-            values = mapOf("attachment" to 0.30, "libido" to 0.20),
+            values = DriveEngine.DRIVE_BASELINES,
             ageHours = 24.0,
             kind = DriveBaseline.BaselineKind.SAME_TIME_YESTERDAY,
             ts = NOW - 24 * HOUR,
         )
         val crossings = DriveBaseline.crossings(current, baseline)
+
+        val leaked = crossings.map { it.drive }.filter { it in DriveBaseline.NON_SIGNAL_DRIVES }
+        assertTrue(
+            "亲密三维涨得再多也不该产生候选，实际泄漏了 $leaked",
+            leaked.isEmpty(),
+        )
+        assertTrue("这一组不该有任何越线", crossings.isEmpty())
+        assertEquals(
+            "三条亲密维度必须都在排除集合里",
+            setOf("libido", "possessiveness", "attachment"),
+            DriveBaseline.NON_SIGNAL_DRIVES,
+        )
+    }
+
+    @Test
+    fun `relative rise still fires for the ordinary dimensions`() {
+        // 上一条排的是亲密三维，不能顺手把正常维度也排掉。
+        //
+        // 用 reflection 而不是 social：social 的绝对阈值是 0.55，取个高值会同时
+        // 命中绝对那一路，`crossings.size` 就不是 1 了 —— 那样测的是两条路，
+        // 分不清相对那一路到底还在不在。reflection 阈值 0.60，取 0.50 只走相对。
+        val current = drivesWith("reflection" to 0.50)
+        val baseline = DriveBaseline.Baseline(
+            values = mapOf("reflection" to 0.10),
+            ageHours = 24.0,
+            kind = DriveBaseline.BaselineKind.SAME_TIME_YESTERDAY,
+            ts = NOW - 24 * HOUR,
+        )
+        val crossings = DriveBaseline.crossings(current, baseline)
+
         assertEquals(1, crossings.size)
-        assertEquals("attachment", crossings[0].drive)
+        assertEquals("reflection", crossings[0].drive)
         assertEquals(DriveBaseline.TRIGGER_RELATIVE, crossings[0].trigger)
-        assertEquals(0.60, crossings[0].rise!!, 1e-6)
+        assertEquals(0.40, crossings[0].rise!!, 1e-6)
     }
 
     @Test

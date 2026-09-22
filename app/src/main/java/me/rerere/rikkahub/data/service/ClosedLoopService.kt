@@ -138,7 +138,7 @@ class ClosedLoopService(
         val doneImpulses = impulseQueueService.doneWithoutMemory(limit = MAX_MEMORY_PER_RUN)
         var behaviorMemories = 0
         doneImpulses.forEach { impulse ->
-            runCatching {
+            catching {
                 val memory = writeBehaviorMemory(impulse, assistantId)
                 // 挂上 id 才算回写完成 —— 幂等就靠这个字段。
                 impulseQueueService.attachMemory(impulse.id, memory.id)
@@ -285,6 +285,28 @@ class ClosedLoopService(
     private fun logSafe(message: String) {
         runCatching { Log.i(TAG, message) }
     }
+
+    /**
+     * 和 [runCatching] 一样，但**不吞协程取消**。
+     *
+     * `runCatching` 捕的是 `Throwable`，`CancellationException` 也在里面。被吞掉之后
+     * 上层的取消就失效了：`withContext` 已经把协程标成 cancelled，可这里的循环还会
+     * 继续往下跑（这两处循环体里都是 Room 写）。所以取消必须原样抛回去。
+     *
+     * 注意 catch 顺序：`CancellationException` 必须在 `Throwable` 之前，
+     * 否则会被泛化分支提前吃掉 —— `ProactiveMessageService` 主流程里也踩过同一个坑。
+     *
+     * 声明成 `inline` 是刻意的：这样 lambda 里的挂起调用（`writeEmotionMemory` /
+     * `attachMemory`）才能直接用，不需要把 `block` 标成 `suspend`。
+     */
+    private inline fun <T> catching(block: () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
 
     /**
      * 检查点的持久化。

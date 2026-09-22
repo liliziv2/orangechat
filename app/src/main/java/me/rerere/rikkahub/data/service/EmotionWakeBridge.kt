@@ -10,8 +10,6 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
 import me.rerere.rikkahub.utils.JsonInstant
 
 /**
@@ -207,7 +205,7 @@ class EmotionWakeBridge(
             }
 
             val newKeys = activeKeys.filter { it !in latched }
-            val signals = newKeys.map { candidates.getValue(it) }
+            val signals = newKeys.map { candidates.getValue(it).toSignal() }
 
             // 先把清过的闩锁写回：不放掉过期 key 的话，下一次评估会把它当成"已经闩住"。
             store.writeLatched(latched = latched, initialized = true)
@@ -326,6 +324,23 @@ class EmotionWakeBridge(
         DriveBaseline.TRIGGER_ABSOLUTE -> "absolute:${crossing.drive}"
         else -> "relative:${crossing.drive}"
     }
+
+    /**
+     * 把观测结果包成可入库的信号。
+     *
+     * 这一步是**纯搬运**：字段一一对应，不新增、不推断、不排序。
+     * `DriveBaseline.Crossing` 是"算出来的越线"，`EmotionWakeSignal` 是"要写进载荷的越线"，
+     * 两者刻意分开 —— 前者属于 State 层，后者属于 Behavior 层，桥只做转换。
+     */
+    private fun DriveBaseline.Crossing.toSignal(): EmotionWakeSignal = EmotionWakeSignal(
+        id = signalId(this),
+        drive = this.drive,
+        trigger = this.trigger,
+        value = this.value,
+        threshold = this.threshold,
+        baseline = this.baseline,
+        rise = this.rise,
+    )
 
     private fun logSafe(message: String) {
         runCatching { Log.i(TAG, message) }

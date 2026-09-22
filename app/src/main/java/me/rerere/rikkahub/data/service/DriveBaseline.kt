@@ -30,21 +30,19 @@ import kotlin.math.abs
  * 没有就退回最老的一条，[BaselineKind.WARMUP_OLDEST]，表示还没攒够一天的历史。
  * 这个区分会一路带到账本里，让人能看出某次判断到底有没有昨天的参照。
  *
- * ## 亲密三维为什么不在这张阈值表里
+ * ## 亲密三维为什么不产生信号
  *
  * `libido` / `possessiveness` / `attachment` 照常算、照常进快照与账本，
- * 但**永不进入绝对阈值表** —— 它们不会凭自己的绝对值单独触发一次候选。
- * 三条数值仍然完整保留，不做裁剪。
+ * 三条数值完整保留、不做裁剪 —— 但它们**永远不产生任何越线候选**：
+ * 不列绝对阈值表，[crossings] 的相对上涨那一路也跳过（见 [NON_SIGNAL_DRIVES]）。
  *
- * 但**相对上涨**对它们同样成立：跟自己的基线比涨了 [RELATIVE_RISE] 照样算一次候选。
- * 这与 Elektron 的 `_relative_candidates` 一致（那边遍历的是采样到的每一维，
- * 不做维度白名单）。这是有意的，`DriveEngineTest` 里
- * `relative rise fires for any dimension including the intimate ones` 锁的就是它。
+ * 这是用户 2026-09-22 拍板的第 3 条原文：「保留 9 维数值，但 `SIGNAL_THRESHOLDS`
+ * 不列 libido/possessiveness/attachment，**亲密三维永不生成 impulse**。」
  *
- * 之所以这样不算越界：越线只产生**中性的唤醒**（见 [EmotionWakePayload]），
- * 载荷里只有"哪一维、现在多少、涨了多少"，**没有任何动作映射**。
- * 亲密三维可以有状态、可以被观测到变化，但没有任何一条代码把它们
- * 直接翻译成某个动作 —— 要不要行动由醒来的 Agent 自己判断。
+ * 比 Elektron 更严，是有意的：那边 `_relative_candidates` 遍历采样到的每一维，
+ * 亲密三维照样能产生候选。但在这边，越线会带着**维度名与数值**进 Agent 的提示词
+ * （见 `EmotionWakePayload`），那就等于给亲密三维开了一条影响行为的通路。
+ * 状态可以有，通路不能有。
  */
 object DriveBaseline {
 
@@ -65,6 +63,17 @@ object DriveBaseline {
 
     const val TRIGGER_ABSOLUTE = "absolute_threshold"
     const val TRIGGER_RELATIVE = "relative_rise"
+
+    /**
+     * **永不产生越线候选**的维度。
+     *
+     * 亲密三维照算、进快照、进账本，但不产生任何信号 —— 见类注释。
+     *
+     * 两道闸都查这个集合，而不是只靠"不把它们写进 [SIGNAL_THRESHOLDS]"：
+     * 只靠表的话，相对上涨那一路照样漏（那是遍历基线维度的），
+     * 而且以后有人往表里补一行就静默破戒了。
+     */
+    val NON_SIGNAL_DRIVES: Set<String> = setOf("libido", "possessiveness", "attachment")
 
     private const val MILLIS_PER_HOUR = 3_600_000.0
 
@@ -154,12 +163,17 @@ object DriveBaseline {
      * 找出当前越过线的维度。先绝对阈值、后相对上涨。
      *
      * [baseline] 为 null 时只做绝对阈值判断 —— 历史没攒够就不做相对判断。
+     *
+     * [NON_SIGNAL_DRIVES] 里的维度两条路都不产生候选。绝对那一路的过滤看起来
+     * 多余（表里本来就没有它们），但它把"亲密三维不产生信号"这件事从
+     * 「取决于表的内容」变成「取决于这个集合」—— 少一层可以被顺手改掉的假设。
      */
     fun crossings(current: Map<String, Double>, baseline: Baseline?): List<Crossing> {
         val normalized = DriveEngine.normalizeDriveValues(current)
         val out = mutableListOf<Crossing>()
 
         SIGNAL_THRESHOLDS.forEach { signal ->
+            if (signal.drive in NON_SIGNAL_DRIVES) return@forEach
             val value = normalized[signal.drive] ?: return@forEach
             if (value >= signal.threshold) {
                 out += Crossing(
@@ -174,6 +188,7 @@ object DriveBaseline {
         }
 
         baseline?.values?.forEach { (drive, before) ->
+            if (drive in NON_SIGNAL_DRIVES) return@forEach
             val value = normalized[drive] ?: return@forEach
             val rise = value - before
             if (rise >= RELATIVE_RISE) {
