@@ -40,15 +40,17 @@ import kotlin.math.max
  *   → 历史采样（drive_sample，基线参照系）
  * ```
  *
- * ## 边界（本轮刻意不做的）
+ * ## 边界（这个类自己刻意不做的）
  *
- * - **不生成 `emotion_wake`**、不调 `ProactiveMessageTriggerService`、不自动执行行为；
+ * - **不生成 `emotion_wake`**、不调 `ProactiveMessageTriggerService`、不自动执行行为 ——
+ *   「越线 → 唤醒」那一步在 [EmotionWakeBridge]（Behavior 层）里，由它去排队、
+ *   去闩锁、去让现有闹钟提前醒。本类只把观测结果交出去；
  * - 不碰 Chat UI、不碰 Memory domain、不做 Archive；
  * - 没有后台定时器：状态推进是**惰性**的，只在有事件进来时按真实间隔补算。
- *   所以 App 放着不动时状态不会自己动 —— 这是有意的，本轮不新增第二套后台唤醒。
+ *   所以 App 放着不动时状态不会自己动 —— 这是有意的，不新增第二套后台唤醒。
  *
- * 阈值观测（[crossings]）是**只读**的：它把"哪些维越过了线"交出来，然后就结束。
- * 谁拿它做什么，是后续阶段的事。
+ * 阈值观测（[crossings]）是**只读**的：它把"哪些维越过了线"交出来，然后就结束，
+ * 自己既不写 `last_ts`、也不写账本、也不采样。
  */
 class DriveStateService(
     private val driveStateDAO: DriveStateDAO,
