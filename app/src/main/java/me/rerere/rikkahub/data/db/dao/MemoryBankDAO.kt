@@ -129,4 +129,38 @@ interface MemoryBankDAO {
 
     @Query("UPDATE memory_bank SET embedding = :embedding, vector_status = :status WHERE id = :id")
     suspend fun updateEmbedding(id: Int, embedding: String, status: String)
+
+    // ===== Elektron Memory 层查询（v31 起） =====
+
+    @Update
+    suspend fun updateMemories(memories: List<MemoryBankEntity>)
+
+    @Query("UPDATE memory_bank SET decay_score = :score WHERE id = :id")
+    suspend fun updateDecayScore(id: Int, score: Float)
+
+    /** 记一次召回：last_active 前移、activation_count +1。 */
+    @Query("UPDATE memory_bank SET last_active_at = :ts, activation_count = activation_count + 1 WHERE id = :id")
+    suspend fun touchActivation(id: Int, ts: Long)
+
+    /** 显式归档。没有自动归档路径，见 MemoryDecayEngine 的类注释。 */
+    @Query("UPDATE memory_bank SET archived = 1 WHERE id = :id")
+    suspend fun archiveMemoryById(id: Int)
+
+    @Query("SELECT * FROM memory_bank WHERE archived = 1 ORDER BY created_at DESC")
+    suspend fun getArchivedMemories(): List<MemoryBankEntity>
+
+    /** overlay 反查：哪些新理解是在重新理解这一条。 */
+    @Query("SELECT * FROM memory_bank WHERE overlay_of = :id ORDER BY created_at ASC")
+    suspend fun getOverlaysOf(id: Int): List<MemoryBankEntity>
+
+    /** 需要重算衰减分的行：跳过固化、钉选、保护与已归档。 */
+    @Query("SELECT * FROM memory_bank WHERE archived = 0 AND type != 'permanent' AND pinned = 0 AND `protected` = 0")
+    suspend fun getDecayCandidates(): List<MemoryBankEntity>
+
+    /** 关键词召回，按衰减得分排序。这是本阶段"结构化 + 原文检索"的检索面。 */
+    @Query("SELECT * FROM memory_bank WHERE archived = 0 AND content LIKE '%' || :keyword || '%' ORDER BY decay_score DESC, created_at DESC LIMIT :limit")
+    suspend fun searchMemoriesByKeywordRanked(keyword: String, limit: Int = 20): List<MemoryBankEntity>
+
+    @Query("SELECT * FROM memory_bank WHERE archived = 0 ORDER BY decay_score DESC, created_at DESC LIMIT :limit")
+    suspend fun getMemoriesRanked(limit: Int): List<MemoryBankEntity>
 }

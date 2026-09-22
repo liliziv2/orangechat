@@ -254,4 +254,199 @@ class MemoryBankService(
         }
         return if (normA == 0f || normB == 0f) 0f else dot / (kotlin.math.sqrt(normA) * kotlin.math.sqrt(normB))
     }
+
+    // ==================== Elektron Memory 层 ====================
+
+    /**
+     * 按 Elektron 写入规范存一条记忆。
+     *
+     * 与 [saveManualMemory] / [saveChatMessage] 的区别：那两条是"存一段文本"，
+     * 这条要求**双轨齐全**、带情感坐标与来源，并且写入时就算好衰减分。
+     *
+     * 双轨是硬要求，不是风格建议。Elektron 的 DECISIONS 记着这条是被纠正出来的：
+     * 原先「事实一条、感受一条分开记」，结果记出来一堆只有事实的条目 ——
+     * 事实好记（有客观依据），感受麻烦（要回到现场焐着），分轨等于给了偷懒的口子。
+     */
+    data class MemoryWriteRequest(
+        /** 原始现场：原话、语气、当时发生了什么。 */
+        val content: String,
+        /** 事实轨：行为、时间线、承诺。 */
+        val factTrack: String,
+        /** 情绪轨：感受、温度、影响。 */
+        val feelTrack: String,
+        val type: String = "manual",
+        val assistantId: String? = null,
+        val conversationId: String? = null,
+        val role: String? = null,
+        val domain: List<String> = emptyList(),
+        val valence: Float = 0.5f,
+        val arousal: Float = 0.3f,
+        val importance: Int = 5,
+        val sourceType: String? = null,
+        val sourceId: String? = null,
+        val sourceTs: Long = 0L,
+        /** 这条记忆在重新理解哪一条。非空表示这是一次 overlay 追加，旧记忆不动。 */
+        val overlayOf: Int? = null,
+        val pinned: Boolean = false,
+        val isProtected: Boolean = false,
+        /**
+         * 显式指定创建时间，0 表示用当前时间。
+         *
+         * 导入/迁移路径必须传这个字段。PITFALLS 里「搬家之后所有旧记忆的排序全乱了」
+         * 的根因就是导入接口不给时间字段、内部一律写当前时间。
+         */
+        val createdAt: Long = 0L,
+        /**
+         * 显式指定最后活跃时间，0 表示跟随 [createdAt]。
+         *
+         * 对齐 Elektron 的 `last_active := created` —— 导入时两者必须一致，
+         * 否则几百条几十天前的记忆会顶着"刚刚活跃"的时间分排到最前面。
+         */
+        val lastActiveAt: Long = 0L,
+    )
+
+    /**
+     * 写入一条记忆。三处硬约束，任一不满足直接抛：
+     *
+     * - [MemoryWriteRequest.content] 不能空 —— 结论可以后面再推，现场丢了就没了
+     * - 事实轨与情绪轨都不能空 —— 缺一轨的记忆读回来只剩半截
+     * - [MemoryWriteRequest.overlayOf] 指向的记忆必须存在 —— overlay 是追加，不是凭空引用
+     */
+    suspend fun writeMemory(request: MemoryWriteRequest): MemoryBankEntity = withContext(Dispatchers.IO) {
+        require(request.content.isNotBlank()) {
+            "memory content must not be blank: 现场丢了就补不回来了"
+        }
+        require(request.factTrack.isNotBlank()) {
+            "fact track is required: 缺事实轨的记忆等于一条没有依据的印象"
+        }
+        require(request.feelTrack.isNotBlank()) {
+            "feel track is required: 缺情绪轨的记忆读回来只剩结论，不知道那是什么感觉"
+        }
+        request.overlayOf?.let { parentId ->
+            require(memoryBankDAO.getMemoryById(parentId) != null) {
+                "overlay target #$parentId does not exist"
+            }
+        }
+
+        val createdAt = request.createdAt.takeIf { it > 0L } ?: System.currentTimeMillis()
+        val lastActiveAt = request.lastActiveAt.takeIf { it > 0L } ?: createdAt
+        // 钉选/保护把 importance 锁到 10，与 Elektron 的 create() 一致
+        val importance = if (request.pinned || request.isProtected) {
+            10
+        } else {
+            request.importance.coerceIn(1, 10)
+        }
+
+        val draft = MemoryBankEntity(
+            content = request.content,
+            type = request.type,
+            conversationId = request.conversationId,
+            assistantId = request.assistantId,
+            role = request.role,
+            createdAt = createdAt,
+            lastActiveAt = lastActiveAt,
+            valence = request.valence.coerceIn(0f, 1f),
+            arousal = request.arousal.coerceIn(0f, 1f),
+            importance = importance,
+            domain = request.domain.filter { it.isNotBlank() }.joinToString(",").ifBlank { null },
+            factTrack = request.factTrack,
+            feelTrack = request.feelTrack,
+            overlayOf = request.overlayOf,
+            sourceType = request.sourceType,
+            sourceId = request.sourceId,
+            sourceTs = request.sourceTs,
+            pinned = request.pinned,
+            isProtected = request.isProtected,
+            // 本地不做向量化（见文件顶部与 vectorRecall 的说明）
+            vectorStatus = "skipped",
+        )
+        // 写入时就把分算好，召回排序不依赖后台任务先跑过一轮
+        val scored = draft.copy(decayScore = scoreOf(draft, lastActiveAt))
+        val id = memoryBankDAO.insertMemory(scored).toInt()
+        scored.copy(id = id)
+    }
+
+    /**
+     * 重算所有可衰减记忆的 decay_score。
+     *
+     * 写入时已经算过一次，这个方法给"时间流逝"补账 —— 得分随时间单调下降，
+     * 不重算的话排序会停在写入那一刻。
+     *
+     * **它只更新排序分，不做任何归档。** Elektron 在 2026-08-25 拍板
+     * 「不模仿人的遗忘，衰减只排序」，归档必须由调用方显式触发（见 [archiveMemory]）。
+     */
+    suspend fun refreshDecayScores(now: Long = System.currentTimeMillis()): Int =
+        withContext(Dispatchers.IO) {
+            val candidates = memoryBankDAO.getDecayCandidates()
+            if (candidates.isEmpty()) return@withContext 0
+            memoryBankDAO.updateMemories(candidates.map { it.copy(decayScore = scoreOf(it, now)) })
+            candidates.size
+        }
+
+    /**
+     * 按衰减得分排序召回。
+     *
+     * 这是本阶段"结构化 + 原文检索"这一路：关键词命中走 LIKE，排序用 decay_score。
+     * 本地没有向量索引，语义召回仍由远端承担。
+     */
+    suspend fun recallRanked(query: String, count: Int = recallCount): List<MemoryBankEntity> =
+        withContext(Dispatchers.IO) {
+            if (query.isBlank()) {
+                memoryBankDAO.getMemoriesRanked(count)
+            } else {
+                memoryBankDAO.searchMemoriesByKeywordRanked(query, count)
+            }
+        }
+
+    /**
+     * 记一次召回：last_active 前移、activation_count +1、decay_score 重算。
+     *
+     * 召回本身就是"被想起来一次"，所以它必须反过来影响下一次的排序 ——
+     * 否则一条被反复用到的记忆会照着自己的写入时间一路沉下去。
+     */
+    suspend fun touchMemory(id: Int, now: Long = System.currentTimeMillis()) =
+        withContext(Dispatchers.IO) {
+            memoryBankDAO.touchActivation(id, now)
+            memoryBankDAO.getMemoryById(id)?.let { refreshed ->
+                memoryBankDAO.updateDecayScore(id, scoreOf(refreshed, now))
+            }
+        }
+
+    /**
+     * 显式归档一条记忆。
+     *
+     * 这是**唯一**的归档入口，必须由调用方主动触发（UI 或档案室），
+     * 不会因为 decay_score 低就自动发生。归档不删除：归档后的记忆
+     * 仍然可以被 [getArchivedMemories] 读出来。
+     */
+    suspend fun archiveMemory(id: Int) = withContext(Dispatchers.IO) {
+        memoryBankDAO.archiveMemoryById(id)
+    }
+
+    /** 档案室读入口：所有已归档记忆。 */
+    suspend fun getArchivedMemories(): List<MemoryBankEntity> = withContext(Dispatchers.IO) {
+        memoryBankDAO.getArchivedMemories()
+    }
+
+    /** overlay 反查：哪些新理解在重新理解这一条。 */
+    suspend fun getOverlaysOf(id: Int): List<MemoryBankEntity> = withContext(Dispatchers.IO) {
+        memoryBankDAO.getOverlaysOf(id)
+    }
+
+    /** 把一条记忆实体折算成 [DecayInput]。引擎不碰 Room，也不碰时钟。 */
+    private fun scoreOf(entity: MemoryBankEntity, now: Long): Float =
+        MemoryDecayEngine.score(
+            DecayInput(
+                type = entity.type,
+                importance = entity.importance,
+                activationCount = entity.activationCount,
+                lastActiveAt = entity.lastActiveAt,
+                arousal = entity.arousal,
+                resolved = entity.resolved,
+                digested = entity.digested,
+                pinned = entity.pinned,
+                isProtected = entity.isProtected,
+                now = now,
+            )
+        ).toFloat()
 }
