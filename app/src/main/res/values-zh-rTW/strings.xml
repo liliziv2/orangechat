@@ -234,7 +234,14 @@
   <string name="cancel_edit">取消編輯</string>
   <string name="chain_of_thought_collapse">收合</string>
   <string name="chain_of_thought_show_more_steps">顯示更多 %d 個步驟</string>
-  <string name="chat_input_placeholder">輸入訊息與AI聊天</string>
+  <string name="chat_input_placeholder">與%1$s聊天</string>
+  <string name="agent_status_thinking">正在思考…</string>
+  <string name="agent_status_context">正在整理上下文…</string>
+  <string name="agent_status_memory">正在讀取記憶…</string>
+  <string name="agent_status_searching">正在搜尋…</string>
+  <string name="agent_status_tool">正在呼叫工具…</string>
+  <string name="agent_status_answering">正在整理回答…</string>
+  <string name="agent_status_done">已完成思考</string>
   <string name="chat_input_unsupported_file_type">不支援的檔案類型：%s</string>
   <string name="chat_message_add_favorite">加入最愛</string>
   <string name="chat_message_remove_favorite">移除最愛</string>

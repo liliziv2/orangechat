@@ -112,6 +112,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
@@ -171,6 +172,15 @@ fun ChatInput(
 ) {
     val toaster = LocalToaster.current
     val assistant = settings.getCurrentAssistant()
+    // 输入提示要跟着「这个会话绑定的助手」走，而不是全局当前助手 —— 否则在
+    // 会话里换助手、或从会话列表进来时，提示文案会跟实际对话对象对不上。
+    // 助手名为空时退回默认助手名（assistant_page_default_assistant），
+    // 不写死任何具体名字。
+    val inputPlaceholder = stringResource(
+        R.string.chat_input_placeholder,
+        (settings.getAssistantById(conversation.assistantId) ?: assistant).name
+            .ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+    )
     val hazeTintColor = MaterialTheme.colorScheme.surfaceContainerLow
     val materialMode = LocalMaterialMode.current
     val useRealtimeBlur = settings.displaySetting.enableBlurEffect &&
@@ -742,6 +752,7 @@ fun ChatInput(
                         TextInputRow(
                             state = state,
                             onSendMessage = { sendMessage() },
+                            placeholder = inputPlaceholder,
                             modifier = Modifier.weight(1f),
                         )
 
@@ -977,6 +988,7 @@ private fun ActionIconButton(
 private fun TextInputRow(
     state: ChatInputState,
     onSendMessage: () -> Unit,
+    placeholder: String,
     modifier: Modifier = Modifier,
 ) {
     val displaySettings = LocalDisplaySettings.current
@@ -1044,7 +1056,7 @@ private fun TextInputRow(
             textStyle = MaterialTheme.typography.bodyMedium,
             placeholder = {
                 Text(
-                    text = stringResource(R.string.chat_input_placeholder),
+                    text = placeholder,
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -1080,7 +1092,7 @@ private fun TextInputRow(
             } else null,
         )
         if (isFullScreen) {
-            FullScreenEditor(state = state) {
+            FullScreenEditor(state = state, placeholder = placeholder) {
                 isFullScreen = false
             }
         }
@@ -1139,7 +1151,7 @@ private fun QuickMessageButton(
 
 @Composable
 private fun FullScreenEditor(
-    state: ChatInputState, onDone: () -> Unit
+    state: ChatInputState, placeholder: String, onDone: () -> Unit
 ) {
     BasicAlertDialog(
         onDismissRequest = {
@@ -1184,7 +1196,7 @@ private fun FullScreenEditor(
                             .fillMaxSize(),
                         shape = RoundedCornerShape(32.dp),
                         placeholder = {
-                            Text(stringResource(R.string.chat_input_placeholder))
+                            Text(placeholder)
                         },
                         colors = TextFieldDefaults.colors().copy(
                             unfocusedIndicatorColor = Color.Transparent,

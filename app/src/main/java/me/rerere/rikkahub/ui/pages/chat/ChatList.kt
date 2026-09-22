@@ -120,9 +120,9 @@ import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.theme.LocalMaterialMode
+import me.rerere.rikkahub.ui.components.ui.DotLoading
 import me.rerere.rikkahub.ui.components.ui.ErrorCardsDisplay
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
-import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.hooks.ImeLazyListAutoScroller
 import me.rerere.rikkahub.utils.plus
@@ -336,6 +336,16 @@ private fun ChatListNormal(
             }
         }
 
+        // 「回答是否已经开始输出」——决定状态区是继续呼吸还是折叠成完成提示。
+        // 只看最后一条 assistant 消息的 Text 部分：reasoning 属于「思考中」，
+        // 不算回答正文。这是消息流本身的真实状态，不依赖任何额外标记。
+        val answerStarted = remember(displayNodes) {
+            displayNodes.lastOrNull()?.let { node ->
+                val msg = node.currentMessage
+                msg.role == MessageRole.ASSISTANT && msg.toText().isNotBlank()
+            } ?: false
+        }
+
         LazyColumn(
             state = state,
             contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 32.dp + innerPadding.calculateBottomPadding()),
@@ -458,24 +468,10 @@ private fun ChatListNormal(
 
             if (loading) {
                 item(LoadingIndicatorKey) {
-                    Row(
-                        modifier = Modifier.padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        RabbitLoadingIndicator(
-                            modifier = Modifier.size(28.dp)
-                        )
-                        AnimatedVisibility(
-                            visible = processingStatus != null,
-                        ) {
-                            Text(
-                                text = processingStatus ?: "",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    AgentStatusRow(
+                        status = processingStatus,
+                        answerStarted = answerStarted,
+                    )
                 }
             }
 
@@ -1020,6 +1016,69 @@ private fun BoxScope.MessageJumper(
                         .padding(4.dp)
                 )
             }
+        }
+    }
+}
+
+/**
+ * Agent 状态反馈区 —— 「系统正在做什么」。
+ *
+ * 和输入框里那个灯泡（Assistant.reasoningLevel）是两个完全独立的东西：
+ * 灯泡是**用户**控制模型思考程度的入口；这里显示的是模型/工具**真实**走到
+ * 了哪一步，用户无法控制，也不该由用户控制。两者不共用任何状态。
+ *
+ * 层级刻意压到比气泡低一档：没有卡片、没有边框、没有阴影，只有一个 6dp 的
+ * 呼吸点 + 一行 labelMedium 文字，透明度也压下去 —— 读起来是消息流里的一条
+ * 注释，而不是一块 UI。
+ *
+ * 状态来源只有两个，都是真实的：
+ * - [status]：由 GenerationHandler 在真实事件点写入
+ *   （整理上下文 / 读取记忆 / 调用工具 / 搜索 / 整理回答）
+ * - [answerStarted]：最后一条 assistant 消息是否已经有回答正文
+ *
+ * 于是三种表现：
+ * - 有 [status]：呼吸点 + 该状态文字（多步工具调用时会重新出现）
+ * - 没有 [status] 且还没开始输出：兜底「正在思考…」
+ * - 没有 [status] 但已经开始输出：折叠成一行极轻的完成提示
+ */
+@Composable
+private fun AgentStatusRow(
+    status: String?,
+    answerStarted: Boolean,
+) {
+    val fallback = stringResource(R.string.agent_status_thinking)
+    val doneText = stringResource(R.string.agent_status_done)
+    // 兜底只在「还没有任何状态、且回答也还没开始」时生效，避免回答已经在
+    // 流式输出、状态已被清空时又冒出一句「正在思考…」。
+    val active = status ?: if (answerStarted) null else fallback
+
+    Row(
+        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (active != null) {
+            DotLoading(
+                size = 6.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+            )
+            Text(
+                text = active,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            )
+        } else {
+            Icon(
+                imageVector = HugeIcons.Tick01,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                text = doneText,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            )
         }
     }
 }

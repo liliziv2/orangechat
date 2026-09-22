@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.datetime.TimeZone
@@ -44,6 +45,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -72,6 +74,10 @@ private const val TAG = "GenerationHandler"
 // animateContentSize 的尺寸补间动画被不断打断重启），表现为打字机效果的"抖动/掉帧"。
 // 这里把推送频率限制在这个间隔以内，肉眼完全感知不到延迟，但能大幅降低重组频率。
 private const val STREAM_UI_THROTTLE_MS = 50L
+
+// 触发「正在搜索…」而不是「正在调用工具…」的工具名。
+// 只影响状态区文案，不影响任何工具行为、审批流程或调用参数。
+private val SEARCH_TOOL_NAMES = setOf("search_web", "scrape_web")
  
 @Serializable
 sealed interface GenerationChunk {
@@ -105,6 +111,11 @@ class GenerationHandler(
         pluginPromptInjections: List<String> = emptyList(),
         conversationId: String? = null,
     ): Flow<GenerationChunk> = flow {
+        // 生成一开始就先播报最基础的状态。之后每一次切换都由真实事件覆盖
+        // （整理上下文 / 读取记忆 / 调用工具 / 输出回答），没有任何定时器或
+        // 假动画 —— 用户看到的就是这一轮真实走到了哪一步。
+        processingStatus.value = context.getString(R.string.agent_status_thinking)
+
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
  
@@ -112,6 +123,11 @@ class GenerationHandler(
  
         for (stepIndex in 0 until maxSteps) {
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
+            // 只有第一步是在从零拼 system prompt / 记忆 / 工具说明，之后的
+            // 步骤都是接着已有上下文继续，所以「整理上下文」只在第一步播报。
+            if (stepIndex == 0) {
+                processingStatus.value = context.getString(R.string.agent_status_context)
+            }
  
             val toolsInternal = buildList {
                 Log.i(TAG, "generateInternal: build tools($assistant)")
@@ -317,6 +333,16 @@ class GenerationHandler(
                                 error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
                             }
                             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
+                            // 工具真正开始执行的那一刻才切状态：搜索类工具说
+                            // 「正在搜索…」，其余说「正在调用工具…」。这是执行
+                            // 事件本身，不是对模型意图的预判。
+                            processingStatus.value = context.getString(
+                                if (toolDef.name in SEARCH_TOOL_NAMES) {
+                                    R.string.agent_status_searching
+                                } else {
+                                    R.string.agent_status_tool
+                                }
+                            )
                             val result = toolDef.execute(args)
                             executedTools += tool.copy(
                                 output = result,
@@ -371,10 +397,15 @@ class GenerationHandler(
                     )
                 )
             )
+            // 工具结果已经拿到，这一轮剩下的工作是模型把它们整理成给用户的回答。
+            processingStatus.value = context.getString(R.string.agent_status_answering)
         }
  
     }.throttleLatest(STREAM_UI_THROTTLE_MS)
         .flowOn(Dispatchers.IO)
+        // 生成结束（正常完成 / 抛错 / 被取消）都必须清掉状态，否则残留的
+        // 「正在调用工具…」会一直挂在消息流里。
+        .onCompletion { processingStatus.value = null }
  
     private suspend fun generateInternal(
         assistant: Assistant,
@@ -461,6 +492,7 @@ class GenerationHandler(
                         }
 
                         // 并发检索所有外置记忆库配置，每个配置最多 8 秒超时
+                        processingStatus.value = context.getString(R.string.agent_status_memory)
                         val allRecalled = coroutineScope {
                             externalMemoryConfigs.map { config ->
                                 async {
@@ -644,6 +676,9 @@ class GenerationHandler(
                 addAll(model.customBodies)
             }
         )
+        // 上下文已拼好，马上就要真正请求模型 —— 从这里到第一个回答 token
+        // 之间（包含模型自己的 reasoning 流）都算「正在思考…」。
+        processingStatus.value = context.getString(R.string.agent_status_thinking)
         if (stream) {
             aiLoggingManager.addLog(
                 AILogging.Generation(
@@ -659,6 +694,14 @@ class GenerationHandler(
                 params = params
             ).collect {
                 messages = messages.handleMessageChunk(chunk = it, model = model)
+                // 回答正文一旦开始流式输出，状态区就折叠成一行极轻的完成提示：
+                // 用户已经能看到答案本身，再转圈就是噪声。只认 Text 部分 ——
+                // reasoning 仍然属于「思考中」，此时不该收起。
+                if (processingStatus.value != null &&
+                    messages.lastOrNull()?.toText()?.isNotBlank() == true
+                ) {
+                    processingStatus.value = null
+                }
                 it.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
                         if (index == messages.lastIndex) {
