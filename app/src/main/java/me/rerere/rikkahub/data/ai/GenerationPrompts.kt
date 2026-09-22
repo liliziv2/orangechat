@@ -73,6 +73,14 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
         appendLine()
         append("`priority` is 0=normal, 1=important, 2=critical. Treat priority=2 as never-forget facts.")
         appendLine()
+        append("Each record carries `fact_track` (what was done, the timeline, what was promised) and")
+        appendLine()
+        append("`feel_track` (how it felt, the warmth, what it changed) alongside the raw `content`.")
+        appendLine()
+        append("They are two faces of the same memory, not two records. When a track is empty the")
+        appendLine()
+        append("record predates the two-track rule or came from a plugin — do not invent it back.")
+        appendLine()
         val sorted = memories.sortedWith(
             compareByDescending<AssistantMemory> { it.priority }
                 .thenBy { it.id }
@@ -81,8 +89,12 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
         val included = mutableListOf<AssistantMemory>()
         var usedChars = 0
         for (memory in sorted) {
-            // +32 粗算这条记忆的 JSON 外壳（id / category / priority 三个字段与括号引号）
-            val cost = memory.content.length + 32
+            // +64 粗算这条记忆的 JSON 外壳（id / category / priority 三个字段与括号引号）
+            // 与双轨的键名；正文字符要按实际长度算，不能只算 content，
+            // 否则双轨一进 prompt，预算就会静默超出去一大截。
+            val cost = memory.content.length +
+                memory.factTrack.length +
+                memory.feelTrack.length + 64
             if (usedChars + cost > MEMORY_PROMPT_BUDGET_CHARS && included.isNotEmpty()) break
             included += memory
             usedChars += cost
@@ -92,6 +104,8 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
                 add(buildJsonObject {
                     put("id", memory.id)
                     put("content", memory.content)
+                    put("fact_track", memory.factTrack)
+                    put("feel_track", memory.feelTrack)
                     put("category", memory.category.serialName)
                     put("priority", memory.priority)
                 })

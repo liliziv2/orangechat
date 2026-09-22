@@ -12,7 +12,6 @@ import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.AILoggingManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.event.AppEventBus
-import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.EmojiData
 import me.rerere.rikkahub.utils.EmojiUtils
@@ -88,7 +87,7 @@ val appModule = module {
             pluginToolProvider = get(),
             workspaceRepository = get(),
             json = get(),
-            memoryRepository = get(),
+            memoryBankService = get(),
         )
     }
 
@@ -121,20 +120,11 @@ val appModule = module {
     }
 
     single {
-        MemoryBankService(
-            memoryBankDAO = get(),
-            okHttpClient = get(),
-            context = get()
-        )
-    }
-
-    single {
         ChatService(
             context = get(),
             appScope = get(),
             settingsStore = get(),
             conversationRepo = get(),
-            memoryRepository = get(),
             generationHandler = get(),
             templateTransformer = get(),
             providerManager = get(),

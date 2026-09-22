@@ -64,7 +64,6 @@ import me.rerere.rikkahub.data.ai.tools.ToolNaming
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.plugin.provider.PluginToolProvider
-import me.rerere.rikkahub.data.repository.MemoryRepository
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -412,7 +411,7 @@ class ProactiveMessageReceiver : BroadcastReceiver() {
 class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
     private val settingsStore: SettingsStore by inject()
     private val conversationRepository: ConversationRepository by inject()
-    private val memoryRepository: MemoryRepository by inject()
+    private val memoryBankService: MemoryBankService by inject()
     private val providerManager: ProviderManager by inject()
     private val templateTransformer: TemplateTransformer by inject()
     private val localTools: LocalTools by inject()
@@ -947,11 +946,13 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
             // 记忆（设备事件上下文移到最后面，避免被网关注入的内容淹没）
             if (assistant.enableMemory) {
-                val memories = if (assistant.useGlobalMemory) {
-                    memoryRepository.getGlobalMemoriesByPriority()
-                } else {
-                    memoryRepository.getMemoriesOfAssistantByPriority(assistant.id.toString())
-                }
+                val memories = memoryBankService.recallForPrompt(
+                    assistantId = if (assistant.useGlobalMemory) {
+                        MemoryBankService.GLOBAL_MEMORY_ID
+                    } else {
+                        assistant.id.toString()
+                    },
+                )
                 if (memories.isNotEmpty()) {
                     appendLine()
                     appendLine()

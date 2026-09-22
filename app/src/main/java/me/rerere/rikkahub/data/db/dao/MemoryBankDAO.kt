@@ -13,6 +13,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import me.rerere.rikkahub.data.db.entity.MemoryBankEntity
 
 
@@ -46,6 +47,19 @@ interface MemoryBankDAO {
 
     @Query("SELECT * FROM memory_bank WHERE assistant_id = :assistantId ORDER BY created_at DESC")
     suspend fun getMemoriesByAssistant(assistantId: String): List<MemoryBankEntity>
+
+    /**
+     * 某个助手的记忆流，供 UI 列表订阅。
+     *
+     * 排序与召回一致（decay_score 优先），这样管理页看到的顺序和模型实际读到的顺序是同一个，
+     * 不会出现"列表里排在前面、模型却读不到"的割裂。
+     */
+    @Query("SELECT * FROM memory_bank WHERE assistant_id = :assistantId ORDER BY decay_score DESC, created_at DESC")
+    fun getMemoriesByAssistantFlow(assistantId: String): Flow<List<MemoryBankEntity>>
+
+    /** 删除某个助手的全部记忆。助手被删除时调用。 */
+    @Query("DELETE FROM memory_bank WHERE assistant_id = :assistantId")
+    suspend fun deleteMemoriesByAssistant(assistantId: String)
 
     @Query("SELECT * FROM memory_bank WHERE assistant_id = :assistantId AND type = :type ORDER BY created_at DESC LIMIT :limit")
     suspend fun getMemoriesByAssistantAndTypeLimit(assistantId: String, type: String, limit: Int): List<MemoryBankEntity>
@@ -163,4 +177,8 @@ interface MemoryBankDAO {
 
     @Query("SELECT * FROM memory_bank WHERE archived = 0 ORDER BY decay_score DESC, created_at DESC LIMIT :limit")
     suspend fun getMemoriesRanked(limit: Int): List<MemoryBankEntity>
+
+    /** 指定助手的召回排序，供注入 prompt 使用。 */
+    @Query("SELECT * FROM memory_bank WHERE archived = 0 AND assistant_id = :assistantId ORDER BY decay_score DESC, created_at DESC LIMIT :limit")
+    suspend fun getMemoriesByAssistantRanked(assistantId: String, limit: Int): List<MemoryBankEntity>
 }

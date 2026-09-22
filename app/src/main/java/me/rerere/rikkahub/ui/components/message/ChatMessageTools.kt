@@ -124,7 +124,7 @@ import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.ai.tools.ToolNaming
 import me.rerere.rikkahub.data.ai.tools.WriteFilesCache
-import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.ui.components.richtext.DiffAddedColor
 import me.rerere.rikkahub.ui.components.richtext.DiffRemovedColor
 import me.rerere.rikkahub.ui.components.richtext.DiffView
@@ -715,7 +715,7 @@ private fun ToolCallPreviewSheet(
     output: List<UIMessagePart>,
     onDismissRequest: () -> Unit = {}
 ) {
-    val memoryRepo: MemoryRepository = koinInject()
+    val memoryBankService: MemoryBankService = koinInject()
     val scope = rememberCoroutineScope()
 
     val memoryAction = arguments.getStringContent("action")
@@ -740,7 +740,7 @@ private fun ToolCallPreviewSheet(
                     arguments = arguments,
                     toolName = toolName,
                     output = output,
-                    memoryRepo = memoryRepo,
+                    memoryBankService = memoryBankService,
                     scope = scope,
                     onDismissRequest = onDismissRequest,
                 )
@@ -751,7 +751,7 @@ private fun ToolCallPreviewSheet(
                     output = emptyList(),
                     isMemoryOperation = false,
                     memoryId = null,
-                    memoryRepo = memoryRepo,
+                    memoryBankService = memoryBankService,
                     scope = scope,
                     onDismissRequest = onDismissRequest
                 )
@@ -779,7 +779,7 @@ private fun ToolCallPreviewSheet(
                     output = output,
                     isMemoryOperation = isMemoryOperation,
                     memoryId = memoryId,
-                    memoryRepo = memoryRepo,
+                    memoryBankService = memoryBankService,
                     scope = scope,
                     onDismissRequest = onDismissRequest
                 )
@@ -955,7 +955,7 @@ private fun GenericToolPreview(
     output: List<UIMessagePart>,
     isMemoryOperation: Boolean,
     memoryId: Int?,
-    memoryRepo: MemoryRepository,
+    memoryBankService: MemoryBankService,
     scope: kotlinx.coroutines.CoroutineScope,
     onDismissRequest: () -> Unit
 ) {
@@ -981,7 +981,7 @@ private fun GenericToolPreview(
                 IconButton(
                     onClick = {
                         scope.launch {
-                            memoryRepo.deleteMemory(memoryId)
+                            memoryBankService.deleteMemory(memoryId)
                             onDismissRequest()
                         }
                     }
@@ -1507,7 +1507,7 @@ private fun WorkspaceEditFilePreview(
     arguments: JsonElement,
     toolName: String,
     output: List<UIMessagePart>,
-    memoryRepo: MemoryRepository,
+    memoryBankService: MemoryBankService,
     scope: kotlinx.coroutines.CoroutineScope,
     onDismissRequest: () -> Unit,
 ) {
@@ -1519,7 +1519,7 @@ private fun WorkspaceEditFilePreview(
             output = output,
             isMemoryOperation = false,
             memoryId = null,
-            memoryRepo = memoryRepo,
+            memoryBankService = memoryBankService,
             scope = scope,
             onDismissRequest = onDismissRequest,
         )

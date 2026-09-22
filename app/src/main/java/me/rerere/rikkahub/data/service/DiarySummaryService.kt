@@ -311,7 +311,12 @@ class DiarySummaryService {
                             appendLine("2. 记录今天你与用户的互动：用户的提问、情绪、需求，以及你的回应和思考")
                             appendLine("3. 关注用户的习惯、喜好和变化，像真正的 AI 伴侣在记录与主人的日常")
                             appendLine("4. 融入你的人设和语气，让日记读起来像你亲笔写的")
-                            appendLine("5. 篇幅在200-500字之间")
+                            appendLine("5. 三段合计 200-500 字")
+                            appendLine()
+                            // 日记写进 memory_bank 时同样受双轨约束，所以格式说明用与收尾摘要
+                            // 同一份 —— 解析器只有一处，格式漂移会变成"日记静默不落库"。
+                            append(memorySectionFormatHint("今天与用户互动的场景，写得像日记的开头"))
+                            appendLine("如果今天没有任何值得记住的内容，只输出 [SKIP]。")
                             appendLine()
                             if (!systemPrompt.isNullOrBlank()) {
                                 appendLine("你的人设/系统提示词（供参考）：")
@@ -344,17 +349,36 @@ class DiarySummaryService {
                             return@forEach
                         }
 
-                        // 保存到本地 memory_bank（类型为 daily_summary）
-                        val savedMemory = memoryBankService.saveAutoSummary(
-                            content = summaryText,
-                            assistantId = assistantId,
-                            conversationId = assistantMessages.firstOrNull()?.conversationId
-                        )
-
-                        if (savedMemory != null) {
-                            Log.i(TAG, "Diary saved to local memory bank for $dateStr assistant=$assistantId")
+                        // 保存到本地 memory_bank。
+                        // 原来走的是 saveAutoSummary —— 那条只收一段文本，写进去的行
+                        // fact_track / feel_track 都是空的，在记忆管理页会显示成一条
+                        // "两条轨都没填"的记录，而且它绕开了 writeMemory 的双轨校验。
+                        // 收口后统一走 writeMemory：解析不到三段就不写，宁缺勿滥。
+                        val diary = parseStructuredMemory(summaryText)
+                        if (diary == null) {
+                            Log.w(
+                                TAG,
+                                "Diary for $dateStr assistant=$assistantId is not structured, " +
+                                    "skipping local write"
+                            )
                         } else {
-                            Log.e(TAG, "saveAutoSummary returned null for $dateStr assistant=$assistantId")
+                            memoryBankService.writeMemory(
+                                MemoryBankService.MemoryWriteRequest(
+                                    content = diary.scene,
+                                    factTrack = diary.fact,
+                                    feelTrack = diary.feel,
+                                    // 类型保持原来的 auto_summary 不变：记忆管理页的
+                                    // daily_summary 查询是按当天日期过滤的，这里改类型
+                                    // 会让历史日记的位置跟着变，不属于本次收口的范围。
+                                    type = "auto_summary",
+                                    assistantId = assistantId,
+                                    conversationId = assistantMessages.firstOrNull()?.conversationId,
+                                    domain = listOf("event"),
+                                    sourceType = "diary",
+                                    sourceId = dateStr,
+                                )
+                            )
+                            Log.i(TAG, "Diary saved to local memory bank for $dateStr assistant=$assistantId")
                         }
 
                         // 保存到外置记忆库（日记摘要）

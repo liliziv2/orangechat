@@ -131,6 +131,20 @@ enum class MemoryCategory {
 data class AssistantMemory(
     val id: Int,
     val content: String = "",
+    /**
+     * 事实轨：行为、时间线、承诺。对应 `memory_bank.fact_track`。
+     *
+     * 与 [feelTrack] 是同一条记忆的两面，不是两条记录 —— 写入侧
+     * （`MemoryBankService.writeMemory`）要求两轨都非空，缺一轨会被拒。
+     */
+    val factTrack: String = "",
+    /**
+     * 情绪轨：感受、温度、影响。对应 `memory_bank.feel_track`。
+     *
+     * 空串表示这一轨缺失。从 `memoryentity` 迁移过来的老记忆就是这种情况：
+     * 老记录只有单轨，迁移时如实留空，没有替它们编一条感受出来。
+     */
+    val feelTrack: String = "",
     val category: MemoryCategory = MemoryCategory.GENERAL,
     /** 0=普通，1=重要，2=关键 */
     val priority: Int = 0,
@@ -150,6 +164,43 @@ data class AssistantMemory(
         const val PRIORITY_IMPORTANT = 1
         const val PRIORITY_CRITICAL = 2
     }
+}
+
+/**
+ * 映射到 `memory_bank.domain`。`GENERAL` 表示"没有特定主题域"，按新表的约定返回 null
+ * 而不是字符串 `general` —— `domain` 是可空列，null 才是"空"的正解。
+ */
+val MemoryCategory.domainToken: String?
+    get() = if (this == MemoryCategory.GENERAL) null else serialName
+
+/**
+ * 从 `memory_bank.domain` 反解回分类。
+ *
+ * `domain` 是逗号分隔的多个主题词（Elektron 侧是数组，关系表里拍平），这里只取第一个
+ * 作为展示用的分类。反解不回去的（空串、未知词）一律落到 [MemoryCategory.GENERAL]。
+ */
+fun memoryCategoryFromDomain(domain: String?): MemoryCategory {
+    val first = domain?.split(',')?.firstOrNull()?.trim().orEmpty()
+    return if (first.isEmpty()) MemoryCategory.GENERAL else MemoryCategory.fromSerialName(first)
+}
+
+/**
+ * 优先级（0 普通 / 1 重要 / 2 关键）换算成 `memory_bank.importance`（1..10）。
+ *
+ * 老的 0..2 三档在新模型里是满分制的 5 / 7 / 10。`writeMemory` 在钉选或保护时会把
+ * importance 锁到 10，所以关键档直接给满分，语义上正好接上。
+ */
+fun memoryPriorityToImportance(priority: Int): Int = when (priority.coerceIn(0, 2)) {
+    AssistantMemory.PRIORITY_CRITICAL -> 10
+    AssistantMemory.PRIORITY_IMPORTANT -> 7
+    else -> 5
+}
+
+/** [memoryPriorityToImportance] 的反向换算，用于把新表的记录读回 UI 的三档展示。 */
+fun memoryImportanceToPriority(importance: Int): Int = when {
+    importance >= 10 -> AssistantMemory.PRIORITY_CRITICAL
+    importance >= 7 -> AssistantMemory.PRIORITY_IMPORTANT
+    else -> AssistantMemory.PRIORITY_NORMAL
 }
  
 @Serializable

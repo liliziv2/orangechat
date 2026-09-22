@@ -156,10 +156,37 @@ private fun AssistantMemoryContent(
                             update(memory.copy(content = it))
                         },
                         label = {
-                            Text(stringResource(R.string.assistant_page_manage_memory_title))
+                            Text("现场")
                         },
                         minLines = 2,
                         maxLines = 8
+                    )
+
+                    // 事实轨与情绪轨是写入侧的硬约束（缺一轨会被 MemoryBankService 拒掉），
+                    // 所以表单必须把它们收上来，不能靠代码从 content 里猜 —— 那正是
+                    // Elektron 记录里「分轨给了偷懒的口子」被纠正掉的做法。
+                    TextField(
+                        value = memory.factTrack,
+                        onValueChange = {
+                            update(memory.copy(factTrack = it))
+                        },
+                        label = {
+                            Text("事实")
+                        },
+                        minLines = 1,
+                        maxLines = 4
+                    )
+
+                    TextField(
+                        value = memory.feelTrack,
+                        onValueChange = {
+                            update(memory.copy(feelTrack = it))
+                        },
+                        label = {
+                            Text("感受")
+                        },
+                        minLines = 1,
+                        maxLines = 4
                     )
 
                     Text(
@@ -204,6 +231,11 @@ private fun AssistantMemoryContent(
             },
             confirmButton = {
                 TextButton(
+                    // 三轨填全才能存。写入侧（MemoryBankService.writeMemory）缺轨是硬拒的，
+                    // 与其让用户点了保存却什么都没发生，不如在这里直接禁用。
+                    enabled = memory.content.isNotBlank() &&
+                        memory.factTrack.isNotBlank() &&
+                        memory.feelTrack.isNotBlank(),
                     onClick = {
                         memoryDialogState.confirm()
                     }
@@ -535,6 +567,27 @@ private fun MemoryItem(
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,
                 )
+                // 双轨单独列出来。表单收了三个字段，列表只显示 content 的话用户就看不到
+                // 自己填的另两轨 —— 空轨（迁移过来的老记忆、插件写的）这里如实不显示，
+                // 正好和双轨记忆区分开。
+                if (memory.factTrack.isNotBlank()) {
+                    Text(
+                        text = "事实 · ${memory.factTrack}",
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (memory.feelTrack.isNotBlank()) {
+                    Text(
+                        text = "感受 · ${memory.feelTrack}",
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             IconButton(
                 onClick = { onEditMemory(memory) }
