@@ -236,12 +236,12 @@
   <string name="chain_of_thought_show_more_steps">再显示 %d 步</string>
   <string name="chat_input_placeholder">与%1$s聊天</string>
   <string name="agent_status_thinking">正在思考…</string>
-  <string name="agent_status_context">正在整理上下文…</string>
-  <string name="agent_status_memory">正在读取记忆…</string>
+  <string name="agent_status_context">正在查看相关记忆…</string>
+  <string name="agent_status_memory">正在查看相关记忆…</string>
   <string name="agent_status_searching">正在搜索…</string>
-  <string name="agent_status_tool">正在调用工具…</string>
+  <string name="agent_status_tool">正在使用工具…</string>
   <string name="agent_status_answering">正在整理回答…</string>
-  <string name="agent_status_done">已完成思考</string>
+  <string name="agent_status_done">思考完成</string>
   <string name="chat_input_unsupported_file_type">不支持的文件类型：%s</string>
   <string name="chat_message_add_favorite">添加收藏</string>
   <string name="chat_message_remove_favorite">取消收藏</string>

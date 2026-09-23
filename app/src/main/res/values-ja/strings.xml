@@ -236,12 +236,12 @@
   <string name="chain_of_thought_show_more_steps">あと %d ステップを表示</string>
   <string name="chat_input_placeholder">%1$sとチャット</string>
   <string name="agent_status_thinking">考えています…</string>
-  <string name="agent_status_context">コンテキストを整理しています…</string>
-  <string name="agent_status_memory">記憶を読み込んでいます…</string>
+  <string name="agent_status_context">記憶を確認しています…</string>
+  <string name="agent_status_memory">記憶を確認しています…</string>
   <string name="agent_status_searching">検索しています…</string>
-  <string name="agent_status_tool">ツールを呼び出しています…</string>
+  <string name="agent_status_tool">ツールを使用しています…</string>
   <string name="agent_status_answering">回答を整理しています…</string>
-  <string name="agent_status_done">思考が完了しました</string>
+  <string name="agent_status_done">思考完了</string>
   <string name="chat_input_unsupported_file_type">サポートされていないファイルタイプ: %s</string>
   <string name="chat_message_add_favorite">お気に入りに追加</string>
   <string name="chat_message_remove_favorite">お気に入りから削除</string>

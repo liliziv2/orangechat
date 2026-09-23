@@ -236,10 +236,10 @@
   <string name="chain_of_thought_show_more_steps">Показать ещё %d шагов</string>
   <string name="chat_input_placeholder">Чат с %1$s</string>
   <string name="agent_status_thinking">Думаю…</string>
-  <string name="agent_status_context">Готовлю контекст…</string>
-  <string name="agent_status_memory">Читаю память…</string>
+  <string name="agent_status_context">Проверяю память…</string>
+  <string name="agent_status_memory">Проверяю память…</string>
   <string name="agent_status_searching">Ищу…</string>
-  <string name="agent_status_tool">Вызываю инструменты…</string>
+  <string name="agent_status_tool">Использую инструменты…</string>
   <string name="agent_status_answering">Готовлю ответ…</string>
   <string name="agent_status_done">Размышление завершено</string>
   <string name="chat_input_unsupported_file_type">Неподдерживаемый тип файла: %s</string>

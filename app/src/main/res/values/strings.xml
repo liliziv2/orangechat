@@ -239,12 +239,12 @@
   <string name="chain_of_thought_show_more_steps">Show %d more steps</string>
   <string name="chat_input_placeholder">Chat with %1$s</string>
   <string name="agent_status_thinking">Thinking…</string>
-  <string name="agent_status_context">Preparing context…</string>
-  <string name="agent_status_memory">Reading memory…</string>
+  <string name="agent_status_context">Checking memory…</string>
+  <string name="agent_status_memory">Checking memory…</string>
   <string name="agent_status_searching">Searching…</string>
-  <string name="agent_status_tool">Calling tools…</string>
+  <string name="agent_status_tool">Using tools…</string>
   <string name="agent_status_answering">Composing reply…</string>
-  <string name="agent_status_done">Finished thinking</string>
+  <string name="agent_status_done">Done thinking</string>
   <string name="chat_input_unsupported_file_type">Unsupported file type: %s</string>
   <string name="chat_message_add_favorite">Add Favorite</string>
   <string name="chat_message_remove_favorite">Remove Favorite</string>

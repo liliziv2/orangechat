@@ -236,10 +236,10 @@
   <string name="chain_of_thought_show_more_steps">%d단계 더 보기</string>
   <string name="chat_input_placeholder">%1$s와 채팅</string>
   <string name="agent_status_thinking">생각하는 중…</string>
-  <string name="agent_status_context">컨텍스트 정리 중…</string>
-  <string name="agent_status_memory">기억을 읽는 중…</string>
+  <string name="agent_status_context">관련 기억 확인 중…</string>
+  <string name="agent_status_memory">관련 기억 확인 중…</string>
   <string name="agent_status_searching">검색 중…</string>
-  <string name="agent_status_tool">도구 호출 중…</string>
+  <string name="agent_status_tool">도구 사용 중…</string>
   <string name="agent_status_answering">답변 정리 중…</string>
   <string name="agent_status_done">생각 완료</string>
   <string name="chat_input_unsupported_file_type">지원되지 않는 파일 형식: %s</string>
