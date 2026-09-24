@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.richtext
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -166,12 +167,25 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     val hasExpandable = expandedText.isNotEmpty()
     var expanded by remember { mutableStateOf(false) }
 
+    // 情绪同色描边：描边色 = 该 mood 的 tint 色（与左侧图标同一个色），
+    // 而不是一条中性灰线。原因是助手气泡底色本身就是 surfaceContainerHigh，
+    // 填充用 surfaceVariant@0.45 在多数主题只有 ΔL* 1~2，Harbor Light 更是
+    // 低到 0.78（它的 surfaceVariant 与 surfaceContainerHigh 只差 5/5/4 个 RGB 单位）。
+    // 描边带来 ΔL* 17~29，比填充强一个数量级，各主题都能看清轮廓。
+    // 不用 outlineVariant 做描边：那个槽位各主题取值差异达 29 倍
+    // （Harbor Dark 0.55、PearlTide Light 35.35），当统一描边会失控。
+    val tint = preset.tint.color()
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(
+            width = 1.dp,
+            color = tint.copy(alpha = 0.40f),
+        ),
     ) {
         Row(
             modifier = Modifier
@@ -185,7 +199,7 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
             Icon(
                 imageVector = preset.icon,
                 contentDescription = null,
-                tint = preset.tint.color(),
+                tint = tint,
                 modifier = Modifier.size(22.dp),
             )
             Column(
