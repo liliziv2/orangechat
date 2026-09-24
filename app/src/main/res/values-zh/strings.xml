@@ -1078,15 +1078,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="text_area_import_from_file">从文件导入</string>
   <string name="text_area_import_success">文件导入成功</string>
   <string name="text_area_save">保存</string>
-  <string name="theme_name_autumn">秋黄</string>
-  <string name="theme_name_claude">克洛德</string>
-  <string name="theme_name_black">中性黑</string>
-  <string name="theme_name_ocean">海湾蓝</string>
-  <string name="theme_name_pearltide">珍珠潮汐</string>
+  <string name="theme_name_minimal">极简</string>
   <string name="theme_name_harbor">Harbor</string>
   <string name="theme_name_creamrose">奶油玫瑰</string>
-  <string name="theme_name_sakura">樱花粉</string>
-  <string name="theme_name_spring">原野绿</string>
+  <string name="theme_name_claude">克洛德</string>
   <string name="title_activity_safe_mode">安全模式</string>
   <string name="tools_warning">当前模型未开启工具调用，请在设置内启用模型的工具能力，再使用搜索/MCP等功能</string>
   <string name="translate">翻译</string>

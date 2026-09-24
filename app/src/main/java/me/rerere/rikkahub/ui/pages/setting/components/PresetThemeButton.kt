@@ -156,7 +156,7 @@ fun PresetThemeButtonGroup(
 @Preview(showBackground = true)
 @Composable
 fun PresetThemeButtonPreview() {
-    var themeId by remember { mutableStateOf("ocean") }
+    var themeId by remember { mutableStateOf("minimal") }
     PresetThemeButtonGroup(
         themeId = themeId,
         onChangeTheme = { themeId = it }

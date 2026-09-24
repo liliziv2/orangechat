@@ -8,15 +8,10 @@ package me.rerere.rikkahub.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
-import me.rerere.rikkahub.ui.theme.presets.AutumnThemePreset
-import me.rerere.rikkahub.ui.theme.presets.BlackThemePreset
 import me.rerere.rikkahub.ui.theme.presets.ClaudeThemePreset
-import me.rerere.rikkahub.ui.theme.presets.OceanThemePreset
-import me.rerere.rikkahub.ui.theme.presets.SakuraThemePreset
-import me.rerere.rikkahub.ui.theme.presets.SpringThemePreset
+import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.CreamRoseThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.HarborThemePreset
-import me.rerere.rikkahub.ui.theme.presets.custom.PearlTideThemePreset
 
 data class PresetTheme(
     val id: String,
@@ -29,22 +24,21 @@ data class PresetTheme(
     }
 }
 
+// 四个预设。Minimal 放在首位 —— PreferencesStore 与 SettingVM 都用
+// PresetThemes[0].id 作为「没存过主题 / 原主题已不存在」时的默认值，
+// 它与下面 findPresetTheme 的兜底必须是同一个，否则两处口径会不一致。
 val PresetThemes by lazy {
     listOf(
-        SakuraThemePreset,
-        OceanThemePreset,
-        PearlTideThemePreset,
+        MinimalThemePreset,
         HarborThemePreset,
         CreamRoseThemePreset,
-        SpringThemePreset,
-        AutumnThemePreset,
-        BlackThemePreset,
         ClaudeThemePreset,
     )
 }
 
 fun findPresetTheme(id: String): PresetTheme {
-    return PresetThemes.find { it.id == id } ?: SakuraThemePreset
+    // 旧主题 ID 失效时回落到 minimal。
+    return PresetThemes.find { it.id == id } ?: MinimalThemePreset
 }
 fun findThemeById(id: String, customThemes: List<CustomTheme>): PresetTheme? {
     PresetThemes.find { it.id == id }?.let { return it }
