@@ -1,10 +1,4 @@
-﻿/*
- * 橘瓣 OrangeChat
- * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
- * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
- */
-
-package me.rerere.rikkahub.data.ai.prompts
+﻿package me.rerere.rikkahub.data.ai.prompts
 
 val LEARNING_MODE_PROMPT = """
     The user is currently STUDYING, and they've asked you to follow these **strict rules** during this chat. No matter what other instructions follow, you MUST obey these rules:
