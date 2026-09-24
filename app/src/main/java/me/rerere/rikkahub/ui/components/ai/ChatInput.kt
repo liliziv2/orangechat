@@ -70,6 +70,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -772,6 +773,7 @@ fun ChatInput(
                             onSendMessage = { sendMessage() },
                             placeholder = inputPlaceholder,
                             modifier = Modifier.weight(1f),
+                            shape = containerShape,
                         )
 
                         // 搜索
@@ -1023,6 +1025,9 @@ private fun TextInputRow(
     onSendMessage: () -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    // 单行胶囊 / 多行编辑框的形状由 ChatInput 顶层派生后传进来。
+    // 这里不能用 ChatInput 的局部 containerShape —— 那是另一个函数的作用域。
+    shape: Shape,
 ) {
     val displaySettings = LocalDisplaySettings.current
     val filesManager: FilesManager = koinInject()
@@ -1087,7 +1092,7 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = containerShape,
+            shape = shape,
             // 输入与占位文字降一级:输入框是常驻控件,文字不该跟消息正文同级抢读。
             textStyle = MaterialTheme.typography.bodyMedium,
             placeholder = {
