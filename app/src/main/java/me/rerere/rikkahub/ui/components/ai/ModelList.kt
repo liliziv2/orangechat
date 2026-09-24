@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -95,6 +96,18 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
+// 模型名在胶囊里的光学修正量（只给 compact 档用）。
+//
+// TextButton 的 Row 是 CenterVertically，行盒确实居中了 —— 偏的是墨迹。
+// 字体度量本身不对称：ascent ≈ 1.07em / descent ≈ 0.29em，而小写字母的墨迹
+// 只到 0.74em / 0.18em。于是行盒居中的时候，墨迹上方空出约 4.0dp、下方只剩
+// 约 1.3dp，整串字读起来「往下沉」。
+//
+// 数值来自截图逐像素测量（st/pill_probe*.py、st/pill_scale.py），不是估的：
+// 实测墨迹上留白 11.95dp、下留白 8.81dp；上提 1.5dp 后两者基本相等。
+// 32dp 的胶囊里这 1.4dp 占 4%，肉眼能看出「上面比下面空」。
+private val ModelNameOpticalOffset = (-1.5).dp
+
 @Composable
 fun ModelSelector(
     modelId: Uuid?,
@@ -167,7 +180,9 @@ fun ModelSelector(
                     text = model?.displayName ?: stringResource(R.string.model_list_select_model),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    // 紧凑档补一次光学修正：行盒居中 ≠ 墨迹居中，理由见 ModelNameOpticalOffset。
+                    modifier = if (compact) Modifier.offset(y = ModelNameOpticalOffset) else Modifier
                 )
             }
             if (allowClear && model != null) {
