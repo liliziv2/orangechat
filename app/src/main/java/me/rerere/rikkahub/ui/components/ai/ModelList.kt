@@ -19,15 +19,18 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -109,6 +112,15 @@ fun ModelSelector(
     // 是否渲染模型图标。侧栏/输入框上方的模型 pill 只要名字，不要图标：
     // 36dp 的图标会把 pill 撑高，也把它拉回「控件」的读法。
     showIcon: Boolean = true,
+    // 紧凑尺寸：只给「聊天输入框上方那个模型 pill」用。
+    //
+    // TextButton 的默认尺寸是按「页面里的一等按钮」定的 —— 40dp 高、58dp 最小宽、
+    // 12/8dp 内边距。放进聊天输入区上方，它就开始和输入框抢视觉权重；而它承载的只是
+    // 一行「现在在跟谁说话」的上下文信息，不该读成一个操作按钮。
+    //
+    // 默认 false，其余 13 个调用点（设置页 / 助手详情 / 插件页 / 翻译页 / 生图页 …）
+    // 保持原尺寸不变。
+    compact: Boolean = false,
     onSelect: (Model) -> Unit
 ) {
     var popup by remember { mutableStateOf(false) }
@@ -123,7 +135,29 @@ fun ModelSelector(
                 onClick = {
                     popup = true
                 },
-                modifier = modifier
+                // 紧凑档：高度收到 30dp，左右内边距收到 10dp。
+                // 文字仍是 bodySmall 的 12sp —— 不额外缩字号，12sp 是这一档的下限，
+                // 再小就开始像注释而不是「正在用的模型名」。
+                // 形状与材质完全不碰：胶囊外形由外层 Surface 决定，这里只改占位。
+                contentPadding = if (compact) {
+                    PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                } else {
+                    ButtonDefaults.TextButtonContentPadding
+                },
+                // 覆盖 TextButton 的默认最小尺寸（MinHeight 40dp / MinWidth 58dp）。
+                //
+                // 手法是把传入约束的最小值从 0 挪开：ButtonDefaults 那对最小尺寸是通过
+                // defaultMinSize 施加的，而 defaultMinSize 只在「传入约束的最小值为 0」
+                // 时才应用。heightIn 把 minHeight 抬到 30dp、widthIn 把 minWidth 抬到
+                // 1dp，于是内层的 40dp / 58dp 双双失效 —— 高度落在 30–32dp，
+                // 宽度完全跟着模型名走（长名字由 Text 自己的 maxLines=1 + Ellipsis 收尾）。
+                modifier = if (compact) {
+                    modifier
+                        .heightIn(min = 30.dp, max = 32.dp)
+                        .widthIn(min = 1.dp)
+                } else {
+                    modifier
+                },
             ) {
                 if (showIcon) {
                     model?.modelId?.let {

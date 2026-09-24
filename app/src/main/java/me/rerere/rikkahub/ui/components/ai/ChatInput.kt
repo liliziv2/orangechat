@@ -653,8 +653,12 @@ fun ChatInput(
                     // onlyIcon = false → 显示模型名，pill 的意义就在于把名字亮出来
                     // showIcon = false → 不显示模型图标。那个 36dp 图标会把 pill 撑高，
                     //   也把「现在在跟谁说话」这行上下文信息重新读成控件；名字本身够了。
+                    // compact = true → 只在这一处启用紧凑档（30–32dp 高 / 10dp 内边距）。
+                    //   输入区上方只需要一行上下文，默认的 40dp 按钮尺寸在这里偏重。
+                    //   形状、材质、位置都不动，只收尺寸。
                     onlyIcon = false,
                     showIcon = false,
+                    compact = true,
                 )
             }
 
