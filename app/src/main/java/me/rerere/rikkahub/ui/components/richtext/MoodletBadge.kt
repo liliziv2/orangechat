@@ -171,9 +171,13 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     // 而不是一条中性灰线。原因是助手气泡底色本身就是 surfaceContainerHigh，
     // 填充用 surfaceVariant@0.45 在多数主题只有 ΔL* 1~2，Harbor Light 更是
     // 低到 0.78（它的 surfaceVariant 与 surfaceContainerHigh 只差 5/5/4 个 RGB 单位）。
-    // 描边带来 ΔL* 17~29，比填充强一个数量级，各主题都能看清轮廓。
+    // 描边让各主题都能看清轮廓，但强度必须压住 —— 见下方 alpha 说明。
     // 不用 outlineVariant 做描边：那个槽位各主题取值差异达 29 倍
     // （Harbor Dark 0.55、PearlTide Light 35.35），当统一描边会失控。
+    //
+    // alpha 定在 0.15：0.40 时真机实测描边 ΔL* 19，是填充（2.25）的 8.4 倍，
+    // 而气泡离页面只有 1.4 —— 整套主题活在 1~2 的尺度上，一条 19 的线会自己跳出来。
+    // 0.15 后降到 ΔL* 6.3~11.4（中位 7.6，约填充的 3 倍），读作「轻轻勾了一道边界」。
     val tint = preset.tint.color()
 
     Surface(
@@ -184,7 +188,7 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         border = BorderStroke(
             width = 1.dp,
-            color = tint.copy(alpha = 0.40f),
+            color = tint.copy(alpha = 0.15f),
         ),
     ) {
         Row(
