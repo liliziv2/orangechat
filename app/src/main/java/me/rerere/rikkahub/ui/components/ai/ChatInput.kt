@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -725,17 +726,23 @@ fun ChatInput(
                     // 「上面一行输入、下面一排按钮」的两行结构收成一行 —— 高度由
                     // TextField 的 56dp 决定，胶囊约 60dp 高、接近满宽，四角半径
                     // = 高度的一半，读起来就是 capsule 而不是 rounded card。
+                    //
+                    // 对齐方式：按钮**贴底**，不再垂直居中。
+                    // 单行时两者几乎一样（贴底 + 内缩后只比居中高 2dp）；多行时居中的按钮会
+                    // 悬在框的腰部、上下都是空的，读起来像「浮在文字旁边」，贴底才读成
+                    // 「输入框下面一排操作」。文字本身仍占满整个框高，按钮不随文字滚动。
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         // 「+」附件/扩展入口固定在胶囊最左端：它是这一排的起点，
                         // 不会因为右侧功能按钮变多被挤出视野。
                         ActionIconButton(
                             size = CapsuleActionSize,
+                            modifier = Modifier.padding(bottom = CapsuleButtonBottomInset),
                             onClick = {
                                 expandToggle(ExpandState.Files)
                             }) {
@@ -759,7 +766,9 @@ fun ChatInput(
                         val disableSearchMsg = stringResource(R.string.web_search_disabled)
                         val chatModel = settings.getCurrentChatModel()
                         Box(
-                            modifier = Modifier.size(CapsuleActionSize),
+                            modifier = Modifier
+                                .padding(bottom = CapsuleButtonBottomInset)
+                                .size(CapsuleActionSize),
                             contentAlignment = Alignment.Center,
                         ) {
                             SearchPickerButton(
@@ -786,7 +795,9 @@ fun ChatInput(
                         val model = settings.getCurrentChatModel()
                         if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
                             Box(
-                                modifier = Modifier.size(CapsuleActionSize),
+                                modifier = Modifier
+                                    .padding(bottom = CapsuleButtonBottomInset)
+                                    .size(CapsuleActionSize),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 ReasoningButton(
@@ -803,6 +814,7 @@ fun ChatInput(
                         if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
                             ActionIconButton(
                                 size = CapsuleActionSize,
+                                modifier = Modifier.padding(bottom = CapsuleButtonBottomInset),
                                 onClick = {
                                     when (asrState.status) {
                                         ASRStatus.Listening -> {
@@ -852,6 +864,7 @@ fun ChatInput(
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
+                                    .padding(bottom = CapsuleButtonBottomInset)
                                     .size(ActionButtonSize)
                                     .clip(CircleShape)
                                     .combinedClickable(
@@ -955,6 +968,7 @@ fun ChatInput(
 private fun ActionIconButton(
     onClick: () -> Unit,
     size: Dp = ActionButtonSize,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     // 功能按钮统一尺寸与形状。
@@ -969,7 +983,7 @@ private fun ActionIconButton(
     // 形状从圆角方块改成正圆：胶囊两端是半圆，里面的按钮再留方角会显得脏。
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(size),
+        modifier = modifier.size(size),
         shape = CircleShape,
         tonalElevation = 0.dp,
         color = Color.Transparent,
@@ -1045,6 +1059,9 @@ private fun TextInputRow(
             state = state.textContent,
             modifier = Modifier
                 .fillMaxWidth()
+                // 绝对高度兜底：行数上限会随系统字体缩放漂移，这条不会。
+                // 超出的文字由 BasicTextField 自己内部滚动，不撑外壳。
+                .heightIn(max = InputMaxHeight)
                 .contentReceiver(receiveContentListener)
                 .onFocusChanged {
                     isFocused = it.isFocused
@@ -1058,7 +1075,9 @@ private fun TextInputRow(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
-            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+            // 上限从 5 行收到 4 行：5 行时外壳约 136–166dp（随字体缩放），已经超出
+            // 「最大 120–140dp」；4 行固定 116dp。超出的文字在编辑区内部滚动。
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = InputMaxLines),
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
             ),
@@ -1219,6 +1238,44 @@ private val ActionButtonSize = 40.dp
  * 36dp 让输入区多拿回约 20dp，同时仍高于 36dp 的可用触摸区下限。
  */
 private val CapsuleActionSize = 36.dp
+
+/**
+ * 输入框的行数上限与绝对高度上限。
+ *
+ * 为什么两个都要，而不是只留一个：
+ * - `maxHeightInLines` 决定「能看见几行」，但它的**实际高度会随系统字体缩放漂移** ——
+ *   行高 = 字号 × 行距系数，字号放大 1.3 倍，同样 4 行就从约 112dp 变成约 136dp。
+ * - 所以再压一条**绝对 dp 上限**兜底，让外壳高度与字体缩放无关。
+ *
+ * 这两个值一致（4 行 = 4 × 20dp 行高 + 32dp 内边距 = 112dp），所以默认字体下由谁生效都一样；
+ * 字体放大之后由 [InputMaxHeight] 生效，多出来的文字在编辑区内部滚动，不撑外壳。
+ *
+ * 112dp 不是随便取的，它同时满足另一条几何约束：胶囊四角半径 = 高度的一半（见
+ * [InputContainerShape]），贴底的按钮会撞进左右两端的半圆。112dp 正好是
+ * 「4 行」与「按钮不被裁」两个条件的交点，算法见 [CapsuleButtonBottomInset]。
+ * 外壳总高 = 112 + 行内边距 4 = 116dp。
+ */
+private const val InputMaxLines = 4
+private val InputMaxHeight = 112.dp
+
+/**
+ * 贴底按钮距胶囊底部的内缩量。
+ *
+ * 胶囊是 `RoundedCornerShape(percent = 50)`，四角半径 = 高度的一半，左右两端是半圆。
+ * 框一旦长高，最左的 `+` 和最右的发送正好落在那两个半圆里 —— 直接顶到底会被
+ * `.clip(InputContainerShape)` 切掉图标。所以贴底必须带内缩。
+ *
+ * 12dp 是算出来的：以 4 行（外壳 116dp，半径 r = 58dp）为例，胶囊在横向位置 x 处的
+ * 下边界是 `r + √(r² − (r − x)²)`。
+ * - `+` 图标（20dp，按钮 36dp）左边缘在 x = 14dp → 下边界 58 + √(58² − 44²) ≈ 95.8dp；
+ *   图标底边 = 116 − 2(行内边距) − 12(内缩) − 8(按钮与图标的差) = 94dp ✓
+ * - 发送图标（20dp，按钮 40dp）右边缘在 x = 371dp → 下边界同样 ≈ 98dp；
+ *   图标底边 = 116 − 2 − 12 − 10 = 92dp ✓
+ * `+` 是更紧的一侧，余量约 1.8dp。
+ *
+ * 代价：单行时按钮中心从 30dp 移到 28dp（差 2dp）。这是为了多行时不裁图标付的最小代价。
+ */
+private val CapsuleButtonBottomInset = 12.dp
 
 /**
  * 输入区容器圆角 —— 胶囊。
