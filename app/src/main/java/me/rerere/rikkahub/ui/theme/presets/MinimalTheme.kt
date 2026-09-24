@@ -61,7 +61,7 @@ private val surfaceBrightLight = Color(0xFFFFFFFF)
 private val surfaceContainerLowestLight = Color(0xFFFFFFFF)
 private val surfaceContainerLowLight = Color(0xFFFAFAFB)
 private val surfaceContainerLight = Color(0xFFF6F7F8)
-private val surfaceContainerHighLight = Color(0xFFF1F2F4)
+private val surfaceContainerHighLight = Color(0xFFFAFAFB)
 private val surfaceContainerHighestLight = Color(0xFFEAEBEE)
 
 // ── Dark ───────────────────────────────────────────────────────────────

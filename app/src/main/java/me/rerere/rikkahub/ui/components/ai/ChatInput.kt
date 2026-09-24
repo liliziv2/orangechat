@@ -548,6 +548,10 @@ fun ChatInput(
             }
         }
     }
+    // 单行 -> capsule；多行 -> 编辑框。这是纯派生值，不是新状态。
+    val inputText = state.textContent.text
+    val isMultiLine = isMultiLineText(inputText)
+    val containerShape = if (isMultiLine) InputEditorShape else InputContainerShape
     val inputContainerBorder = if (useMaterialBorder) {
         // 与 MaterialMode.kt 的全局边框同步降到 0.07
         BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
@@ -693,7 +697,7 @@ fun ChatInput(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(InputContainerShape)
+                    .clip(containerShape)
                     .then(
                         if (useRealtimeBlur) Modifier.hazeEffect(
                             state = hazeState,
@@ -701,7 +705,7 @@ fun ChatInput(
                         )
                         else Modifier
                     ),
-                shape = InputContainerShape,
+                shape = containerShape,
                 tonalElevation = 0.dp,
                 color = inputContainerColor,
                 border = inputContainerBorder,
@@ -715,7 +719,7 @@ fun ChatInput(
                             contentDescription = null,
                             modifier = Modifier
                                 .matchParentSize()
-                                .clip(InputContainerShape),
+                                .clip(containerShape),
                             contentScale = ContentScale.Crop,
                             alpha = 1f,
                         )
@@ -727,22 +731,31 @@ fun ChatInput(
                     // TextField 的 56dp 决定，胶囊约 60dp 高、接近满宽，四角半径
                     // = 高度的一半，读起来就是 capsule 而不是 rounded card。
                     //
-                    // 对齐方式：按钮**贴底**，不再垂直居中。
-                    // 单行时两者几乎一样（贴底 + 内缩后只比居中高 2dp）；多行时居中的按钮会
-                    // 悬在框的腰部、上下都是空的，读起来像「浮在文字旁边」，贴底才读成
-                    // 「输入框下面一排操作」。文字本身仍占满整个框高，按钮不随文字滚动。
+                    // 对齐方式随形态切换，这是两态各自的正确答案，不存在一个通吃的值：
+                    //
+                    // - 单行：**垂直居中**。Row 高由 TextField 的 56dp 决定，按钮只有 36/40dp；
+                    //   若贴底，按钮上方留 8dp、下方留 12dp，整排读起来是"往下沉"的。
+                    //   居中后按钮中心与 TextField 的几何中线（28dp）完全重合 —— 注意这是
+                    //   **几何中线**，与文字 baseline 无关，不会随字体度量漂移。
+                    // - 多行：**贴底**。居中会让按钮悬在框的腰部、上下都是空的，读起来
+                    //   像"浮在文字旁边"；贴底才读成"输入框下面一排操作"。
+                    //
+                    // 单行不施加底部内缩：内缩是为了躲开胶囊两端的半圆，而居中时按钮
+                    // 根本碰不到那两处半圆。
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.Bottom,
+                        verticalAlignment = if (isMultiLine) Alignment.Bottom else Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         // 「+」附件/扩展入口固定在胶囊最左端：它是这一排的起点，
                         // 不会因为右侧功能按钮变多被挤出视野。
                         ActionIconButton(
                             size = CapsuleActionSize,
-                            modifier = Modifier.padding(bottom = CapsuleButtonBottomInset),
+                            modifier = Modifier.padding(
+                                bottom = if (isMultiLine) CapsuleButtonBottomInset else 0.dp
+                            ),
                             onClick = {
                                 expandToggle(ExpandState.Files)
                             }) {
@@ -767,7 +780,9 @@ fun ChatInput(
                         val chatModel = settings.getCurrentChatModel()
                         Box(
                             modifier = Modifier
-                                .padding(bottom = CapsuleButtonBottomInset)
+                                .padding(
+                                    bottom = if (isMultiLine) CapsuleButtonBottomInset else 0.dp
+                                )
                                 .size(CapsuleActionSize),
                             contentAlignment = Alignment.Center,
                         ) {
@@ -796,7 +811,9 @@ fun ChatInput(
                         if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
                             Box(
                                 modifier = Modifier
-                                    .padding(bottom = CapsuleButtonBottomInset)
+                                    .padding(
+                                        bottom = if (isMultiLine) CapsuleButtonBottomInset else 0.dp
+                                    )
                                     .size(CapsuleActionSize),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -814,7 +831,9 @@ fun ChatInput(
                         if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
                             ActionIconButton(
                                 size = CapsuleActionSize,
-                                modifier = Modifier.padding(bottom = CapsuleButtonBottomInset),
+                                modifier = Modifier.padding(
+                                    bottom = if (isMultiLine) CapsuleButtonBottomInset else 0.dp
+                                ),
                                 onClick = {
                                     when (asrState.status) {
                                         ASRStatus.Listening -> {
@@ -864,7 +883,9 @@ fun ChatInput(
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .padding(bottom = CapsuleButtonBottomInset)
+                                    .padding(
+                                        bottom = if (isMultiLine) CapsuleButtonBottomInset else 0.dp
+                                    )
                                     .size(ActionButtonSize)
                                     .clip(CircleShape)
                                     .combinedClickable(
@@ -1066,7 +1087,7 @@ private fun TextInputRow(
                 .onFocusChanged {
                     isFocused = it.isFocused
                 },
-            shape = InputContainerShape,
+            shape = containerShape,
             // 输入与占位文字降一级:输入框是常驻控件,文字不该跟消息正文同级抢读。
             textStyle = MaterialTheme.typography.bodyMedium,
             placeholder = {
@@ -1285,3 +1306,47 @@ private val CapsuleButtonBottomInset = 12.dp
  * 两端都保持半圆，形状永远是 capsule，不会退化成 rounded card。
  */
 private val InputContainerShape = RoundedCornerShape(percent = 50)
+
+/**
+ * 长文本编辑态的容器形状 —— 一个**较大的圆角矩形**，不是胶囊。
+ *
+ * 为什么不能沿用 `percent = 50`：那个半径恒等于高度的一半，高度一旦涨到 116dp，
+ * 左右两端就成了半径 58dp 的半圆。多行文字会被半圆啃掉两端（首行的第一个字、
+ * 末行的最后一个字最先消失），而且一个 116dp 高的"胶囊"在视觉上已经不是输入框，
+ * 是一颗药丸。所以多行时切开形状：半径固定 28dp，四角圆润但始终留着直边，
+ * 明确读作"编辑框"。
+ *
+ * 28dp 是「看得出是圆角矩形」与「不显得方」的折中：小于 16dp 会读成卡片，
+ * 大于 32dp 在高 116dp 时又开始向胶囊靠。
+ */
+private val InputEditorShape = RoundedCornerShape(28.dp)
+
+/**
+ * 单行/多行的判据阈值（字符数）。
+ *
+ * 输入框可用宽度约 139dp（胶囊 387dp 减去右侧按钮组与内边距），一行只放得下
+ * 7–10 个中文字。取 12 作为"很可能已经折行"的下限：宁可早一点切成编辑框形态，
+ * 也不要出现"文字已经换行了、外壳却还是胶囊"的错位。
+ *
+ * 换行符是更强的信号，见 [isMultiLineText]。
+ */
+private const val SingleLineMaxChars = 12
+
+/**
+ * 判断当前内容是否已经超过单行 —— 决定容器用 capsule 还是编辑框。
+ *
+ * 为什么不读 TextFieldState 的行数：`TextFieldState` 不暴露任何行数 API
+ * （只有 text / selection / composition），若要真实行数得挂 onTextLayout 回报，
+ * 那是第二条状态回流。这里用两个**纯派生**的信号，无副作用、无额外状态：
+ *
+ * 1. 显式换行符 —— 用户自己敲的回车，最强信号；
+ * 2. 字符数超过 [SingleLineMaxChars] —— 自动折行的近似。
+ *
+ * 代价：极窄字体下可能提前一点切换。这里选择"宁早勿晚"：形态切换早一拍读起来是
+ * "输入框长大了"，晚一拍则会出现文字已经折行、外壳却仍是胶囊的错位。
+ */
+private fun isMultiLineText(text: CharSequence): Boolean {
+    if (text.isEmpty()) return false
+    if (text.any { it == '\n' || it == '\r' }) return true
+    return text.length > SingleLineMaxChars
+}

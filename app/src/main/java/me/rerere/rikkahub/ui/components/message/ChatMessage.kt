@@ -1432,7 +1432,9 @@ private fun BubbleSurface(
             // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
             // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
             // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
-            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
+            // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1511,7 +1513,9 @@ private fun BubbleSurface(
             // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
             // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
             // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
-            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
+            // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1546,7 +1550,9 @@ private fun BubbleSurface(
             // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
             // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
             // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
-            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
+            // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
@@ -1581,7 +1587,9 @@ private fun BubbleSurface(
             // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
             // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
             // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
-            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
+            // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
+            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
                 MessageTimeLabel(messageTimeText)
             }
