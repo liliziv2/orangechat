@@ -77,10 +77,6 @@ private const val TAG = "GenerationHandler"
 // animateContentSize 的尺寸补间动画被不断打断重启），表现为打字机效果的"抖动/掉帧"。
 // 这里把推送频率限制在这个间隔以内，肉眼完全感知不到延迟，但能大幅降低重组频率。
 private const val STREAM_UI_THROTTLE_MS = 50L
-
-// 触发「正在搜索…」而不是「正在调用工具…」的工具名。
-// 只影响状态区文案，不影响任何工具行为、审批流程或调用参数。
-private val SEARCH_TOOL_NAMES = setOf("search_web", "scrape_web")
  
 @Serializable
 sealed interface GenerationChunk {
@@ -113,10 +109,11 @@ class GenerationHandler(
         pluginPromptInjections: List<String> = emptyList(),
         conversationId: String? = null,
     ): Flow<GenerationChunk> = flow {
-        // 生成一开始就先播报最基础的状态。之后每一次切换都由真实事件覆盖
-        // （整理上下文 / 读取记忆 / 调用工具 / 输出回答），没有任何定时器或
-        // 假动画 —— 用户看到的就是这一轮真实走到了哪一步。
-        processingStatus.value = context.getString(R.string.agent_status_thinking)
+        // 这里**不写**「正在思考…」。
+        //
+        // 生成一开始的「正在思考…」由 Rikka 原生的思考链自己表达（消息流里那一行
+        // 「栖 正在思考…」），状态区再写一遍就是同时出现两套。状态区只补充原生
+        // 没有表达的阶段 —— 也就是下面 step 0 的记忆 / 上下文那一段。
 
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -339,16 +336,11 @@ class GenerationHandler(
                                 error("Invalid tool arguments JSON for ${tool.toolName}: ${it.message}")
                             }
                             Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: $args")
-                            // 工具真正开始执行的那一刻才切状态：搜索类工具说
-                            // 「正在搜索…」，其余说「正在调用工具…」。这是执行
-                            // 事件本身，不是对模型意图的预判。
-                            processingStatus.value = context.getString(
-                                if (toolDef.name in SEARCH_TOOL_NAMES) {
-                                    R.string.agent_status_searching
-                                } else {
-                                    R.string.agent_status_tool
-                                }
-                            )
+                            // 工具开始执行 —— 这里不再播报「正在使用工具…」/「正在搜索…」。
+                            // 工具调用由 Rikka 原生的工具调用卡片表达（「调用工具 xxx 2.9s」），
+                            // 状态区再播报一次就是把同一件事说两遍。清空补充状态，
+                            // 让状态区让位给原生卡片。
+                            processingStatus.value = null
                             val result = toolDef.execute(args)
                             executedTools += tool.copy(
                                 output = result,
@@ -682,9 +674,10 @@ class GenerationHandler(
                 addAll(model.customBodies)
             }
         )
-        // 上下文已拼好，马上就要真正请求模型 —— 从这里到第一个回答 token
-        // 之间（包含模型自己的 reasoning 流）都算「正在思考…」。
-        processingStatus.value = context.getString(R.string.agent_status_thinking)
+        // 上下文已拼好，马上要真正请求模型。这一段（含模型自己的 reasoning 流）
+        // 由 Rikka 原生的思考链负责表达，所以这里清空补充状态、让状态区让位，
+        // 而不是再写一遍「正在思考…」。
+        processingStatus.value = null
         if (stream) {
             aiLoggingManager.addLog(
                 AILogging.Generation(

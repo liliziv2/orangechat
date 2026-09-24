@@ -1031,26 +1031,29 @@ private fun BoxScope.MessageJumper(
  * 呼吸点 + 一行 labelMedium 文字，透明度也压下去 —— 读起来是消息流里的一条
  * 注释，而不是一块 UI。
  *
- * 状态来源只有两个，都是真实的：
- * - [status]：由 GenerationHandler 在真实事件点写入
- *   （整理上下文 / 读取记忆 / 调用工具 / 搜索 / 整理回答）
- * - [answerStarted]：最后一条 assistant 消息是否已经有回答正文
+ * 状态来源只有 [status] 一个，由 GenerationHandler 在真实事件点写入 ——
+ * 而且**只写原生没有表达的阶段**（查看相关记忆 / 整理回答）。生成起点的
+ * 「正在思考…」和工具执行阶段都不写：前者归 Rikka 原生的思考链，后者归原生的
+ * 工具调用卡片，状态区再播报一次就是同一件事说两遍。
  *
  * 于是三种表现：
- * - 有 [status]：呼吸点 + 该状态文字（多步工具调用时会重新出现）
- * - 没有 [status] 且还没开始输出：兜底「正在思考…」
+ * - 有 [status]：呼吸点 + 该状态文字
  * - 没有 [status] 但已经开始输出：折叠成一行极轻的完成提示
+ * - 没有 [status] 且还没开始输出：整行不渲染（这一段归原生思考链）
  */
 @Composable
 private fun AgentStatusRow(
     status: String?,
     answerStarted: Boolean,
 ) {
-    val fallback = stringResource(R.string.agent_status_thinking)
     val doneText = stringResource(R.string.agent_status_done)
-    // 兜底只在「还没有任何状态、且回答也还没开始」时生效，避免回答已经在
-    // 流式输出、状态已被清空时又冒出一句「正在思考…」。
-    val active = status ?: if (answerStarted) null else fallback
+    // 没有兜底文案。
+    //
+    // 生成刚起、还没走到任何一个补充阶段时，这里整行不渲染 —— 「正在思考…」
+    // 由 Rikka 原生的思考链表达（消息流里那行「栖 正在思考…」），状态区再兜一句
+    // 就是同时出现两套。补充状态只在原生没表达的阶段出现（记忆 / 上下文）。
+    val active = status
+    if (active == null && !answerStarted) return
 
     Row(
         modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
