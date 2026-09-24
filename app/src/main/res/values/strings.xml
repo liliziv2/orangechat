@@ -846,8 +846,6 @@
   <string name="setting_model_page_translate_model">Translation Model</string>
   <string name="setting_model_page_translate_model_desc">The model used for translation features</string>
   <string name="setting_model_page_translate_prompt_vars">Variables: Source text: {source_text}, Target language: {target_lang}</string>
-  <string name="setting_page_about">About</string>
-  <string name="setting_page_about_desc">About this app</string>
   <string name="setting_page_assistant">Assistant</string>
   <string name="setting_page_assistant_desc">Set up personalized assistants (agents)</string>
   <string name="setting_page_built_in_tools">Built-in Tools</string>
@@ -875,10 +873,6 @@
   <string name="setting_page_default_model_desc">Set default models for each feature</string>
   <string name="setting_page_display_setting">Display Settings</string>
   <string name="setting_page_display_setting_desc">Manage display settings</string>
-  <string name="setting_page_documentation">Documentation</string>
-  <string name="setting_page_documentation_desc">View app usage instructions and help documentation</string>
-  <string name="setting_page_donate">Donate</string>
-  <string name="setting_page_donate_desc">If you like it, sponsor the author\'s work</string>
   <string name="setting_page_dynamic_color">Dynamic Color</string>
   <string name="setting_page_dynamic_color_desc">Use dynamic color</string>
   <string name="setting_page_extensions">Extensions</string>
@@ -889,11 +883,8 @@
   <string name="setting_page_mcp_desc">Configure MCP Servers</string>
   <string name="setting_page_message_display_settings">Message Display</string>
   <string name="setting_page_model_and_services">Models &amp; Services</string>
-  <string name="setting_page_no_share_app">No sharing app found</string>
   <string name="setting_page_providers">Providers</string>
   <string name="setting_page_providers_desc">Configure AI providers</string>
-  <string name="setting_page_request_logs">Request Logs</string>
-  <string name="setting_page_request_logs_desc">View HTTP request logs</string>
   <string name="setting_page_search_add_provider">Add Provider</string>
   <string name="setting_page_search_common_options">Common Options</string>
   <string name="setting_page_search_config">Configuration</string>
@@ -905,13 +896,6 @@
   <string name="setting_page_search_test_query_hint">Enter test query…</string>
   <string name="setting_page_search_test_run">Run Test</string>
   <string name="setting_page_search_title">Search Service</string>
-  <string name="setting_page_share">Share</string>
-  <string name="setting_page_share_desc">Share this app with friends</string>
-  <string name="setting_page_share_text">橘瓣 - Open Source Android AI Assistant\n\nWebsite: https://github.com/sue1231513/orangechat</string>
-  <string name="setting_page_sponsor_alert_confirm">Donate</string>
-  <string name="setting_page_sponsor_alert_desc">You have launched the app over 100 times! If you enjoy using it, please consider supporting the developer.</string>
-  <string name="setting_page_sponsor_alert_dismiss">Not Now</string>
-  <string name="setting_page_sponsor_alert_title">Support the Developer</string>
   <string name="setting_page_theme_setting">Theme Settings</string>
   <string name="setting_page_tts_service">Speech Services</string>
   <string name="setting_page_tts_service_desc">Configure text-to-speech and speech recognition providers</string>

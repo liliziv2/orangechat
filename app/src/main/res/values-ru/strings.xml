@@ -784,8 +784,6 @@
   <string name="setting_model_page_translate_model">Модель перевода</string>
   <string name="setting_model_page_translate_model_desc">Модель, используемая для функций перевода</string>
   <string name="setting_model_page_translate_prompt_vars">Переменные: Исходный текст: {source_text}, Целевой язык: {target_lang}</string>
-  <string name="setting_page_about">О приложении</string>
-  <string name="setting_page_about_desc">Об этом приложении</string>
   <string name="setting_page_assistant">Ассистент</string>
   <string name="setting_page_assistant_desc">Настроить персонализированных ассистентов (агентов)</string>
   <string name="setting_page_built_in_tools">Встроенные инструменты</string>
@@ -813,10 +811,6 @@
   <string name="setting_page_default_model_desc">Установить модели по умолчанию для каждой функции</string>
   <string name="setting_page_display_setting">Настройки отображения</string>
   <string name="setting_page_display_setting_desc">Управление настройками отображения</string>
-  <string name="setting_page_documentation">Документация</string>
-  <string name="setting_page_documentation_desc">Просмотрите инструкции по использованию приложения и справочную документацию</string>
-  <string name="setting_page_donate">Поддержать</string>
-  <string name="setting_page_donate_desc">Если вам нравится, поддержите автора</string>
   <string name="setting_page_dynamic_color">Динамический цвет</string>
   <string name="setting_page_dynamic_color_desc">Использовать динамический цвет</string>
   <string name="setting_page_extensions">Расширения</string>
@@ -827,11 +821,8 @@
   <string name="setting_page_mcp_desc">Настроить серверы MCP</string>
   <string name="setting_page_message_display_settings">Отображение сообщений</string>
   <string name="setting_page_model_and_services">Модели и службы</string>
-  <string name="setting_page_no_share_app">Приложение для обмена не найдено</string>
   <string name="setting_page_providers">Провайдеры</string>
   <string name="setting_page_providers_desc">Настроить поставщиков ИИ</string>
-  <string name="setting_page_request_logs">Журналы запросов</string>
-  <string name="setting_page_request_logs_desc">Просмотр журналов HTTP-запросов</string>
   <string name="setting_page_search_add_provider">Добавить поставщика</string>
   <string name="setting_page_search_common_options">Общие параметры</string>
   <string name="setting_page_search_config">Конфигурация</string>
@@ -843,13 +834,6 @@
   <string name="setting_page_search_test_query_hint">Введите тестовый запрос…</string>
   <string name="setting_page_search_test_run">Запустить тест</string>
   <string name="setting_page_search_title">Служба поиска</string>
-  <string name="setting_page_share">Поделиться</string>
-  <string name="setting_page_share_desc">Поделиться этим приложением с друзьями</string>
-  <string name="setting_page_share_text">橘瓣 — открытый Android-ассистент с ИИ\n\nСайт: https://github.com/sue1231513/orangechat</string>
-  <string name="setting_page_sponsor_alert_confirm">Пожертвовать</string>
-  <string name="setting_page_sponsor_alert_desc">Вы запустили приложение более 100 раз! Если вам нравится им пользоваться, пожалуйста, поддержите разработчика.</string>
-  <string name="setting_page_sponsor_alert_dismiss">Не сейчас</string>
-  <string name="setting_page_sponsor_alert_title">Поддержать разработчика</string>
   <string name="setting_page_theme_setting">Настройки темы</string>
   <string name="setting_page_tts_service">Служба преобразования текста в речь</string>
   <string name="setting_page_tts_service_desc">Настроить поставщиков службы преобразования текста в речь</string>
