@@ -1,13 +1,11 @@
 package me.rerere.rikkahub.ui.components.richtext
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -168,29 +166,12 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     val hasExpandable = expandedText.isNotEmpty()
     var expanded by remember { mutableStateOf(false) }
 
-    // 情绪标签是**附属信息**，不该占满整条消息宽度。
-    //
-    // 之前这里写死 fillMaxWidth：一个「装睡中」被拉成整行，右侧留出大片空白，
-    // 读起来像一张表单行 —— 而它其实只是三个字的情绪标注。改成内容自适应：
-    // 宽度只包住「图标 + 文字 + 箭头」，标签缩回自己的真实体量。
-    //
-    // 外层 Column 用的是默认的 Start 对齐，所以缩小后自然靠左，不需要额外 align。
     Surface(
-        // widthIn 是去掉 fillMaxWidth 之后必需的安全网：reason 由模型生成，
-        // 长度不受控。封顶之后长 reason 在胶囊内折行，而不是把胶囊撑成整行 ——
-        // 否则等于把刚去掉的 fillMaxWidth 换个方式装回来。
-        //
-        // 360dp：气泡内宽约 367dp（387 减去左右各 10dp 内边距），留 7dp 余量。
-        // 这个上限只在极端 reason 下才会碰到，正常三个字的标签远小于它。
         modifier = modifier
-            .widthIn(max = 360.dp)
+            .fillMaxWidth()
             .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f),
-        border = BorderStroke(
-            width = 0.5.dp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-        ),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
     ) {
         Row(
             modifier = Modifier
@@ -198,37 +179,34 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
                     if (hasExpandable) Modifier.clickable { expanded = !expanded }
                     else Modifier
                 )
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = preset.icon,
                 contentDescription = null,
                 tint = preset.tint.color(),
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(22.dp),
             )
-            // 去掉 weight(1f)：那是为了配合 fillMaxWidth 把文字推到左边，
-            // 现在整体自适应宽度，再撑满会把 Column 重新拉宽。
             Column(
-                modifier = Modifier.padding(horizontal = 7.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 10.dp),
             ) {
                 Text(
                     text = label,
                     fontSize = 13.sp,
-                    // SemiBold 在这么小的胶囊里读起来是「控件标题」；Medium 更像
-                    // 一句随口的备注，和「装睡中」这个语义也更贴。
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
                 )
                 if (expanded && hasExpandable) {
                     Text(
                         text = expandedText,
                         fontSize = 11.sp,
-                        fontStyle = FontStyle.Normal,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        // 不用 ellipsis：展开的意义就是让人把这句话读完，
-                        // 截断成「话到嘴边又咽了…」等于把功能删了一半。
-                        // 长文本靠 widthIn 上限在胶囊内折行。
+                        fontStyle = if (reason.isNotEmpty()) FontStyle.Italic else FontStyle.Normal,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                            alpha = if (reason.isNotEmpty()) 0.6f else 0.75f
+                        ),
                     )
                 }
             }
@@ -237,9 +215,7 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
                     imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .padding(start = 2.dp)
-                        .size(14.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
