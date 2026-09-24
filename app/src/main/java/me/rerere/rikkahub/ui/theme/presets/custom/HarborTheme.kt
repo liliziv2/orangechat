@@ -93,7 +93,7 @@ private val lightScheme = lightColorScheme(
     surfaceContainerLow = Color(0xFFEFEBE8),
     surfaceContainer = Color(0xFFECE9E6),
     // AI Bubble #EAE6E4
-    surfaceContainerHigh = Color(0xFFEAE6E4),
+    surfaceContainerHigh = Color(0xFFEFEBE8),
     surfaceContainerHighest = Color(0xFFE1DEDC),
 )
 
