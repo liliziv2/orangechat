@@ -27,6 +27,7 @@ import me.rerere.rikkahub.di.dataSourceModule
 import me.rerere.rikkahub.di.repositoryModule
 import me.rerere.rikkahub.di.viewModelModule
 import me.rerere.rikkahub.plugin.di.pluginModule
+import me.rerere.rikkahub.vocabulary.di.vocabularyModule
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.service.DailySummaryService
@@ -68,7 +69,16 @@ class RikkaHubApp : Application() {
             androidLogger()
             androidContext(this@RikkaHubApp)
             workManagerFactory()
-            modules(appModule, viewModelModule, dataSourceModule, repositoryModule, pluginModule)
+            modules(
+                appModule,
+                viewModelModule,
+                dataSourceModule,
+                repositoryModule,
+                pluginModule,
+                // 背单词模块（独立 vocabulary.db）。整块可拆：删掉这一项 +
+                // vocabulary/ 目录即可，主库和其余模块一行都不受影响。
+                vocabularyModule,
+            )
         }
         this.createNotificationChannel()
 
