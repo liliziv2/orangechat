@@ -20,9 +20,9 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
  *   Day   Background #F5EEE9 · Main Text #332827 · Global Text #403332
  *         User Bubble #B86F79 · AI Bubble #F1E5DE · Thinking Bubble #E1D0C5
  *         Accent #A95362 · Input #EEE1DB
- *   Night Background #181416 · Main Text #EEE5E5 · Global Text #D8CCCE
- *         User Bubble #8E4C59 · AI Bubble #2D2527 · Thinking Bubble #3B2F30
- *         Accent #CF7D8B · Input #272022
+ *   Night Background #412D26 · Main Text #EEE5E5 · Global Text #D8CCCE
+ *         User Bubble #623A41 · AI Bubble #4F362E · Thinking Bubble #553727
+ *         Accent #CF7D8B · Input #4F362E（默认 FLAT 模式与 AI 气泡同槽位）
  *
  * 锚点落到 M3 槽位，按聊天界面「实际读哪个槽位」对齐，不是按槽位名字：
  *   Background      -> background / surface
@@ -48,6 +48,12 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
  *      （用户气泡里的正文走的是 onSurface / onBackground。）
  *
  * 描边档 outline / outlineVariant 全部是有彩度的暖灰，没有一根黑描边。
+ *
+ * 夜间是「合成后」的色卡：本主题在 GLASS_BACKGROUND_THEMES 里（Theme.kt），
+ * 页面真实颜色由 RouteActivity 的「底图 + 三段 scrim」合成，所有 surface 槽位
+ * 又被 Theme.kt 乘上 interfaceSurfaceOpacity（默认 82%）。下面 Night 的色值是按
+ * 这条链路反解出来的名义值：相邻两档合成后只差 ΔL* 2~4，与 Tidal Echo 的实测
+ * 步长一致。数值推导见 st/crema_night.py。
  */
 
 val CreamRoseThemePreset by lazy {
@@ -108,47 +114,53 @@ private val lightScheme = lightColorScheme(
 )
 
 private val darkScheme = darkColorScheme(
-    // Accent #CF7D8B
+    // Accent #CF7D8B —— 保留粉身份。只做强调色（发送键等），不参与气泡材质。
     primary = Color(0xFFCF7D8B),
     onPrimary = Color(0xFF3A1A20),
     primaryContainer = Color(0xFF5A2F38),
     onPrimaryContainer = Color(0xFFF5DDE0),
     secondary = Color(0xFFC79AA2),
     onSecondary = Color(0xFF3A1A20),
-    // User Bubble #8E4C59
-    secondaryContainer = Color(0xFF8E4C59),
+    // 用户气泡 #623A41 —— 低饱和粉棕，与 AI 气泡同一材质，只差一档明度
+    // （合成后 ΔL* 3.40，Tidal Echo 实测参照 3.34）。旧值 #8E4C59 是高饱和粉，
+    // 合成后与页面差 24.5，是一块独立跳出来的色板，不是同一块材质。
+    secondaryContainer = Color(0xFF623A41),
     onSecondaryContainer = Color(0xFFD8CCCE),
     tertiary = Color(0xFFC4A79C),
     onTertiary = Color(0xFF3A1A20),
-    // Thinking Bubble #3B2F30
-    tertiaryContainer = Color(0xFF3B2F30),
+    // Thinking #553727 —— 比 AI 气泡只亮 ΔL* 0.70（旧值差 5.11，读作一块突兀亮色块）
+    tertiaryContainer = Color(0xFF553727),
     onTertiaryContainer = Color(0xFFD8CCCE),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    // Background #181416
-    background = Color(0xFF181416),
-    // Main Text #EEE5E5
+    // 页面 #412D26（暖棕）。本主题根 background 的 alpha 被 Theme.kt 置 0，
+    // 页面真实颜色由 RouteActivity 的 scrim 合成决定；这个值只在
+    // 「助手自定义底图」那条路的渐变遮罩里用到（rememberChatBackgroundVisuals）。
+    background = Color(0xFF412D26),
     onBackground = Color(0xFFEEE5E5),
-    surface = Color(0xFF181416),
+    surface = Color(0xFF412D26),
     onSurface = Color(0xFFEEE5E5),
-    surfaceVariant = Color(0xFF3A2E30),
-    // Global Text #D8CCCE
+    // Moodlet 徽章填充读这一槽位（surfaceVariant@0.45 叠在助手气泡上），必须比
+    // surfaceContainerHigh 明显亮：两档名义值差 ΔL* 4.7 -> 填充可见差 2.57。
+    // 这是批 12 的坑（同色叠加会让填充 ΔL* 归零），定色时不能只看「好不好看」。
+    surfaceVariant = Color(0xFF5D4037),
     onSurfaceVariant = Color(0xFFD8CCCE),
-    outline = Color(0xFF7A686A),
-    outlineVariant = Color(0xFF3F3335),
+    outline = Color(0xFF6F4D41),
+    outlineVariant = Color(0xFF6A493E),
     scrim = Color(0xFF000000),
     inverseSurface = Color(0xFFEEE5E5),
     inverseOnSurface = Color(0xFF332827),
     inversePrimary = Color(0xFFA95362),
-    surfaceDim = Color(0xFF141112),
-    surfaceBright = Color(0xFF4B3D3F),
-    surfaceContainerLowest = Color(0xFF100E0F),
-    // Input #272022
-    surfaceContainerLow = Color(0xFF272022),
-    surfaceContainer = Color(0xFF2A2224),
-    // AI Bubble #2D2527
-    surfaceContainerHigh = Color(0xFF2D2527),
-    surfaceContainerHighest = Color(0xFF45383A),
+    surfaceDim = Color(0xFF33231E),
+    surfaceBright = Color(0xFF614339),
+    surfaceContainerLowest = Color(0xFF372620),
+    // GLASS 模式的输入框读这一槽位（合成后 ΔL* 2.20 于页面，Tidal Echo 参照 2.20）
+    surfaceContainerLow = Color(0xFF49322B),
+    surfaceContainer = Color(0xFF4B342C),
+    // AI 气泡；默认（FLAT）模式下输入框也读这一槽位 —— 两者同材质是有意的，
+    // 不是漏配。旧值 #2D2527 与页面合成差 13.7（顶部），气泡像贴在灰底上的黑卡。
+    surfaceContainerHigh = Color(0xFF4F362E),
+    surfaceContainerHighest = Color(0xFF583D34),
 )

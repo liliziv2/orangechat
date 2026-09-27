@@ -472,20 +472,25 @@ class RouteActivity : ComponentActivity() {
                                     // 奶油玫瑰与 Harbor 共用同一张底图和铺图逻辑，
                                     // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。
                                     //
-                                    // 三段竖向渐变的结构与不透明度都不动，只把色号换成
-                                    // CreamRose 新色卡派生出来的值：日间是 Accent 压淡后的
-                                    // 暖粉 + Background，夜间是同一路子的暖褐 + Background。
-                                    // 没有一段是黑或白，底图始终是主体。
+                                    // 三段竖向渐变的结构不动，但**夜间的不透明度必须改**：
+                                    // 底图实测平均 L*=92.9（极亮的暖白纸纹），旧值 0.32/0.40/0.74
+                                    // 合成后页面顶部 L*=70 —— 一块中性灰，既不是深色也不是暖色，
+                                    // 这正是「脏灰黑」的来源。日间仍只换色号、不透明度沿用原值。
                                     val creamRosePainter = painterResource(
                                         id = R.drawable.harbor_chat_bg
                                     )
                                     val creamRoseScrim = if (LocalDarkMode.current) {
                                         listOf(
-                                            // Accent #CF7D8B 14% over Background #181416
-                                            Color(0xFF322326).copy(alpha = 0.32f),
-                                            Color(0xFF201A1C).copy(alpha = 0.40f),
-                                            // Background #181416
-                                            Color(0xFF181416).copy(alpha = 0.74f),
+                                            // 三段同色，只差 alpha —— 柔和 scrim 靠 alpha 斜坡做，
+                                            // 不靠换色号。实测合成（底图 L*=92.9）：
+                                            //   0.83 -> #403834  L*=24.0
+                                            //   0.87 -> #38302D  L*=20.5   <- 页面锚点
+                                            //   0.92 -> #2F2623  L*=16.0
+                                            // 页面比主题 background #412D26 略深：scrim 必须过压
+                                            // 才抵得住这么亮的底图，两者不是同一个量。
+                                            Color(0xFF1D1411).copy(alpha = 0.83f),
+                                            Color(0xFF1D1411).copy(alpha = 0.87f),
+                                            Color(0xFF1D1411).copy(alpha = 0.92f),
                                         )
                                     } else {
                                         listOf(
