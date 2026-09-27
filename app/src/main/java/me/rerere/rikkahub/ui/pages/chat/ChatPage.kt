@@ -68,12 +68,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
@@ -851,6 +853,16 @@ private fun ChatPageContent(
     }
 }
 
+// 顶栏右侧两个入口（语音 / 更多）共用同一套图标规格。
+//
+// 之前两个 Icon 都吃各自的隐式默认值：绘制尺寸走 ImageVector 的固有 24dp、着色走
+// TopAppBar 的 actionIconContentColor（onSurfaceVariant）。看着「统一」，但 HugeIcons 里
+// MoreVertical 是三个实心点、Voice 是细线轮廓，同样 24dp 下三点的墨水覆盖率明显更高，
+// 读起来比语音「重」一圈 —— 这就是三点显得突兀的来源。
+// 所以把两者都显式收到 22dp：规格从「隐式默认」变成「同一套显式常量」，
+// 同时压低顶栏右侧的存在感（用户本轮的主诉求是「上方偏重」）。
+private val TopBarActionIconSize = 22.dp
+
 @Composable
 private fun TopBar(
     settings: Settings,
@@ -925,6 +937,20 @@ private fun TopBar(
                         stringResource(R.string.assistant_page_default_assistant)
                     }
                     // 双头像版式：整栏只留助手名，像聊天软件的联系人标题；点它照样能改会话名
+                    //
+                    // 双头像版式下把这一行降一档（16sp/Medium -> 15sp/Normal）：它要跟左边的
+                    // 叠压头像读成一个整体，而不是一个独立的大标题 —— 浅色主题下
+                    // 「头像 + 大标题」叠在顶栏会让上方明显偏重。
+                    // 非双头像版式下这一行是会话标题（下面还挂着助手/模型/提供商副标题），
+                    // 是顶栏的主信息，保持原样不动。
+                    val titleStyle = if (topBarDualAvatar) {
+                        MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Normal,
+                        )
+                    } else {
+                        MaterialTheme.typography.titleMedium
+                    }
                     Text(
                         text = if (topBarDualAvatar) {
                             assistantName
@@ -932,7 +958,7 @@ private fun TopBar(
                             conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) }
                         },
                         maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = titleStyle,
                         overflow = TextOverflow.Ellipsis,
                     )
                     val subtitle = when {
@@ -959,7 +985,12 @@ private fun TopBar(
                     onVoiceCall()
                 }
             ) {
-                Icon(HugeIcons.Voice, "Voice Call")
+                Icon(
+                    imageVector = HugeIcons.Voice,
+                    contentDescription = "Voice Call",
+                    modifier = Modifier.size(TopBarActionIconSize),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             // 次要开关（如预览模式）收进溢出菜单，保持图标行只有抽屉/语音/更多。
@@ -970,7 +1001,12 @@ private fun TopBar(
                         showOverflowMenu = true
                     }
                 ) {
-                    Icon(HugeIcons.MoreVertical, "更多")
+                    Icon(
+                        imageVector = HugeIcons.MoreVertical,
+                        contentDescription = "更多",
+                        modifier = Modifier.size(TopBarActionIconSize),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 DropdownMenu(
                     expanded = showOverflowMenu,

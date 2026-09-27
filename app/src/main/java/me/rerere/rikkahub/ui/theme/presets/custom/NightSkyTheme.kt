@@ -48,7 +48,8 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
  *     surfaceContainer           2.40        3.60      卡片 / 顶栏 / 模型 pill
  *     surfaceBright              3.20        5.00      嵌套卡 / 列表项
  *     surfaceContainerHigh       4.02        6.00      AI 气泡 / FLAT 输入框 / 附件 chip
- *     tertiaryContainer          6.00        9.00      思考卡
+ *     tertiaryContainer          6.00        6.55      思考卡（**例外**：色值由用户原方案固定，
+ *                                                       不参与本轮的层级差放宽）
  *     secondaryContainer         7.37       11.10      用户气泡
  *     surfaceVariant             8.00       10.00      行内代码底 / Moodlet 徽章填充
  *
@@ -73,7 +74,8 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
  *   模型 pill       -> surfaceContainer（**不能**和输入框共用 High，否则两块糊在一起）
  *   用户气泡        -> secondaryContainer
  *   思考卡          -> tertiaryContainer（本主题在 THEME_THINKING_CONTAINER_THEMES 里；
- *                      SearchPage 也拿它当命中高亮底，所以多留一档分离度 ΔL* 6.0）
+ *                      色值固定为 #F1E6C9 / #3A3325，是星夜唯一的暖色层。
+ *                      SearchPage 也拿它当命中高亮底，Δ页面 5.30 / 6.55 仍够分离）
  *   输入框(GLASS)   -> surfaceContainerLow
  *   卡片 / 顶栏     -> surfaceContainer
  *   列表项 / 嵌套卡 -> surfaceBright
@@ -124,8 +126,14 @@ private val lightScheme = lightColorScheme(
     onSecondaryContainer = Color(0xFF243346),
     tertiary = Color(0xFF8A7A45),
     onTertiary = Color(0xFFFFFFFF),
-    // 思考卡：合成 L*90.8 / Δ页面 -6.00 / C*7.0（功能色，多留一档分离度）
-    tertiaryContainer = Color(0xFFE9E0D0),
+    // 思考卡：L*91.5 / Δ页面 -5.30。**这是星夜唯一的暖色层** —— 页面、AI 气泡、用户气泡、
+    // 输入框全是冷灰蓝，整套主题的暖黄重点就落在这里，所以色值由用户原方案固定
+    // （批 24 色表：思维链气泡 #F1E6C9 / #3A3325），不参与「提高层级差」的调整。
+    // 批 26/27 一度被改成 #E9E0D0（提亮 + 去饱和），暖色重点被稀释，本轮恢复。
+    //
+    // 它**不参与 Theme.kt:139-153 的 interfaceSurfaceOpacity 覆盖**（那份 copy 只列了
+    // 9 个 surface* 槽位），所以是实心的，**名义色就是屏幕上的颜色**，不用反解。
+    tertiaryContainer = Color(0xFFF1E6C9),
     onTertiaryContainer = Color(0xFF43391F),
     error = Color(0xFFBA1A1A),
     onError = Color(0xFFFFFFFF),
@@ -173,8 +181,8 @@ private val darkScheme = darkColorScheme(
     onSecondaryContainer = Color(0xFFE8EDF2),
     tertiary = Color(0xFFC4B78C),
     onTertiary = Color(0xFF2A2415),
-    // 思考卡：合成 L*24.0 / Δ页面 +9.00（批 26 是 +6.00）/ C*7.0
-    tertiaryContainer = Color(0xFF433D30),
+    // 思考卡：L*21.6 / Δ页面 +6.55。**星夜唯一的暖色层**，固定 #3A3325（理由见日间段）。
+    tertiaryContainer = Color(0xFF3A3325),
     onTertiaryContainer = Color(0xFFEDE4CC),
     error = Color(0xFFFFB4AB),
     onError = Color(0xFF690005),
