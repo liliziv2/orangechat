@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -756,7 +757,14 @@ fun ChatInput(
                     //
                     // 抽成一个 lambda 而不是复制两份：这四块带着 toaster、语音 ASR 状态机、
                     // 发送的三种行为，复制一遍就等于开了第二套并行实现。
-                    val trailingActions: @Composable () -> Unit = {
+                    //
+                    // 声明成 RowScope 的扩展，而不是普通 lambda —— 这不是风格问题。
+                    // 里面那个 AnimatedVisibility（发送按钮录音时淡出）在本项目可用的重载
+                    // 都带 Row/Column 接收者；普通 lambda 体里没有隐式接收者，编译器挑中
+                    // ColumnScope 版却拿不到接收者，直接报
+                    // "cannot be called in this context with an implicit receiver"（批 27 CI 就挂在这）。
+                    // 两处调用点都直接写在 Row 的 content 里，接收者天然可用。
+                    val trailingActions: @Composable RowScope.() -> Unit = {
                         // 搜索
                         val enableSearchMsg = stringResource(R.string.web_search_enabled)
                         val disableSearchMsg = stringResource(R.string.web_search_disabled)
