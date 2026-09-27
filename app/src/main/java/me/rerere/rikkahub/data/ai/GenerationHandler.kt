@@ -103,11 +103,13 @@ class GenerationHandler(
         pluginPromptInjections: List<String> = emptyList(),
         conversationId: String? = null,
     ): Flow<GenerationChunk> = flow {
-        // 这里**不写**「正在思考…」。
+        // 这里**不写**状态。
         //
         // 生成一开始的「正在思考…」由 Rikka 原生的思考链自己表达（消息流里那一行
-        // 「栖 正在思考…」），状态区再写一遍就是同时出现两套。状态区只补充原生
-        // 没有表达的阶段 —— 也就是下面 step 0 的记忆 / 上下文那一段。
+        // 「栖 正在思考…」），状态区再写一遍就是同时出现两套。状态区只在**原生还
+        // 没有东西可显示**的窗口里补位：一是下面 step 0 的记忆 / 上下文准备，
+        // 二是每次请求发出后、第一个 token 到达前的首包延迟（见 generateInternal
+        // 里发请求前那一处写入）。
 
         val provider = model.findProvider(settings.providers) ?: error("Provider not found")
         val providerImpl = providerManager.getProviderByType(provider)
@@ -668,10 +670,16 @@ class GenerationHandler(
                 addAll(model.customBodies)
             }
         )
-        // 上下文已拼好，马上要真正请求模型。这一段（含模型自己的 reasoning 流）
-        // 由 Rikka 原生的思考链负责表达，所以这里清空补充状态、让状态区让位，
-        // 而不是再写一遍「正在思考…」。
-        processingStatus.value = null
+        // 上下文已拼好，马上要真正请求模型。这里**不再清空**状态，而是换成中性的
+        // 「正在思考…」，并让它一直挂到本步第一个 part 到达（见下面 collect 里的说明）。
+        //
+        // 原来这里直接置 null，于是「正在查看相关记忆…」消失之后、模型第一个 token
+        // 到达之前有一段真空 —— 那正是首包延迟（TTFT），可能好几秒；而原生思考链要
+        // 等第一个 reasoning part 才有东西可显示，AgentStatusRow 在
+        // 「status == null && !answerStarted」时整行不渲染，用户看到的就是一片空白。
+        // 换成「正在思考…」既填上这段，也仍然守着「状态区只补充原生没表达的阶段」：
+        // 一旦原生思考链 / 工具卡片出现，状态区立刻让位，不会同时出现两套。
+        processingStatus.value = context.getString(R.string.agent_status_thinking)
         if (stream) {
             aiLoggingManager.addLog(
                 AILogging.Generation(
@@ -681,19 +689,34 @@ class GenerationHandler(
                     stream = true
                 )
             )
+            // 请求发出时的基线：最后一条消息的 role 与 part 数。用来判断「本步是否已经
+            // 产出了第一个 part」（见下面 collect 里的说明）。首步的助手消息还不存在，
+            // role 从 USER 变 ASSISTANT 即首个输出；后续步骤助手消息是复用的
+            // （handleMessageChunk 只在 role 变化时新建），新 part 只会让 part 数变多。
+            var observedRole = messages.lastOrNull()?.role
+            var observedPartCount = messages.lastOrNull()?.parts?.size ?: 0
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
             ).collect {
                 messages = messages.handleMessageChunk(chunk = it, model = model)
-                // 回答正文一旦开始流式输出，状态区就折叠成一行极轻的完成提示：
-                // 用户已经能看到答案本身，再转圈就是噪声。只认 Text 部分 ——
-                // reasoning 仍然属于「思考中」，此时不该收起。
-                if (processingStatus.value != null &&
-                    messages.lastOrNull()?.toText()?.isNotBlank() == true
-                ) {
-                    processingStatus.value = null
+                // 本步第一个 part 一到（Reasoning / Text / Tool 都算），状态区就让位：
+                // 那一刻原生的思考链（「栖 正在思考…」）或工具卡片已经有东西可显示，
+                // 状态区继续挂着就是同时出现两套。
+                //
+                // 判据不用 toText()：reasoning 阶段 toText() 恒为空，用它会把这整段
+                // 判成「还没开始输出」，于是「正在思考…」会和原生思考链同时挂着。
+                val lastMessage = messages.lastOrNull()
+                if (lastMessage != null) {
+                    if (processingStatus.value != null &&
+                        (lastMessage.role != observedRole ||
+                            lastMessage.parts.size > observedPartCount)
+                    ) {
+                        processingStatus.value = null
+                    }
+                    observedRole = lastMessage.role
+                    observedPartCount = lastMessage.parts.size
                 }
                 it.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
