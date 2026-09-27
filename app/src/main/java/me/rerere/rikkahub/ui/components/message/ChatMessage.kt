@@ -1957,17 +1957,25 @@ internal fun VoiceMessageBubble(
     ) {
         // 语音条只有一行：播放键 + 波形 + 时长。原来外面还套了一层 Column 撑「显示文字」按钮，
         // 那个按钮让气泡凭空高出一行、也把语音条的重心压偏，一并去掉。
+        //
+        // 尺寸：播放键与波形都取 32dp、行内垂直居中，上下各留 12dp ⇒ 气泡高 56dp，
+        // 比单行文本气泡（6 + 20 + 6 = 32dp）明显高一档 —— 语音条要一眼看出不是文字。
+        // 三个元素同高且不随时长变，所以 10″ 和 120″ 的语音条高度、版式完全一致。
+        //
+        // barWidth 在调用点传 3dp（VoiceWaveform 的默认值 2.5dp 不动）—— 那个实现
+        // 全局朗读条也在用，改默认值会连带把 TTSController 那条一起加粗。
+        // 132dp 里塞 28 根柱时 gap ≈ 1.6dp，柱仍明显宽于缝，不会糊成一条实心块。
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(
                 imageVector = if (isPlaying) HugeIcons.PauseCircle else HugeIcons.PlayCircle,
                 contentDescription = if (isPlaying) "Pause" else "Play",
                 tint = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(32.dp)
             )
             // 真波形：解码音频文件取振幅包络，点/拖可定位
             val playedColor = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
@@ -1979,7 +1987,8 @@ internal fun VoiceMessageBubble(
                 progress = progress,
                 playedColor = playedColor,
                 unplayedColor = unplayedColor,
-                modifier = Modifier.width(90.dp).height(24.dp),
+                modifier = Modifier.width(132.dp).height(32.dp),
+                barWidth = 3.dp,
                 onSeek = { ratio ->
                     mediaPlayer?.let { mp ->
                         val target = (ratio * mp.duration).toInt().coerceAtLeast(0)
@@ -1994,7 +2003,7 @@ internal fun VoiceMessageBubble(
             } else durationSec
             Text(
                 text = "${shownSec}″",
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelLarge,
                 color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSecondaryContainer,
             )
