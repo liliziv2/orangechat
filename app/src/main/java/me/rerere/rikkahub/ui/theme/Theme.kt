@@ -58,6 +58,19 @@ internal val THEME_BACKGROUND_SCRIM = mapOf(
  */
 internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose", "nightsky")
 
+/**
+ * 思考卡**真的画背景**的主题。
+ *
+ * 上面那个集合只表示「这些主题单独定义了思考气泡色」。但 `ChainOfThought` 默认不画背景
+ * （思考是消息流里的一行旁注，不是一张卡 —— 见 `ChatMessageReasoning.kt` 里那段注释），
+ * 所以光进 `THEME_THINKING_CONTAINER_THEMES`，`tertiaryContainer` 是**没有载体**的：
+ * 色值配了，屏幕上什么都不显示。
+ *
+ * 列在这里的主题才会把 `tertiaryContainer` 当气泡底色画出来。
+ * ⚠️ 这是「思考卡要不要长成一张卡」的开关，不是配色开关 —— 只放真的需要的主题。
+ */
+internal val THEME_THINKING_SURFACE_THEMES = setOf("nightsky")
+
 data class ScrimColors(
     val top: UInt,        // 顶部主题色覆盖
     val bottom: UInt,     // 底部底色反白

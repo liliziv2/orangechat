@@ -133,6 +133,11 @@ private val lightScheme = lightColorScheme(
     //
     // 它**不参与 Theme.kt:139-153 的 interfaceSurfaceOpacity 覆盖**（那份 copy 只列了
     // 9 个 surface* 槽位），所以是实心的，**名义色就是屏幕上的颜色**，不用反解。
+    //
+    // ⚠️ 这个色值要真的显示出来，还依赖 `ChainOfThought` 肯画背景 —— 它默认不画
+    // （思考是消息流里的一行旁注，不是一张卡），所以星夜被单独列进 Theme.kt 的
+    // `THEME_THINKING_SURFACE_THEMES`。只进 `THEME_THINKING_CONTAINER_THEMES` 是不够的：
+    // 那样色值没有载体，屏幕上什么都不显示 —— 批 24 加进来起一直如此。
     tertiaryContainer = Color(0xFFF1E6C9),
     onTertiaryContainer = Color(0xFF43391F),
     error = Color(0xFFBA1A1A),
