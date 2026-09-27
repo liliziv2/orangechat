@@ -1113,6 +1113,7 @@
   <string name="theme_name_harbor">Harbor</string>
   <string name="theme_name_creamrose">Cream Rose</string>
   <string name="theme_name_claude">Claude</string>
+  <string name="theme_name_nightsky">Night Sky</string>
   <string name="title_activity_safe_mode">Safe Mode</string>
   <string name="tools_warning">The current model does not have tool calling enabled. Please enable the model\'s tool capabilities in the settings to use features like search/MCP.</string>
   <string name="translate">Translate</string>

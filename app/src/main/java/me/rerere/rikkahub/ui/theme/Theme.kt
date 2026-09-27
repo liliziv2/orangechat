@@ -56,7 +56,7 @@ internal val THEME_BACKGROUND_SCRIM = mapOf(
  * 默认（以及其他主题）思考卡片与助手气泡共用 surfaceContainerHigh；列在这里的主题
  * 把「思考气泡」当成独立的一层，卡片改读 tertiaryContainer。
  */
-internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose")
+internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose", "nightsky")
 
 data class ScrimColors(
     val top: UInt,        // 顶部主题色覆盖

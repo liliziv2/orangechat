@@ -674,8 +674,8 @@ data class DisplaySetting(
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
     val showUserAvatar: Boolean = true,
-    /** 消息排版模式：署名行头像 / 气泡侧边头像。 */
-    val chatAvatarMode: ChatAvatarMode = ChatAvatarMode.HEADER,
+    /** 消息排版模式：署名行头像 / 气泡侧边头像。默认走气泡侧边（QQ 式并排）。 */
+    val chatAvatarMode: ChatAvatarMode = ChatAvatarMode.SIDE,
     /** 侧边头像模式下，在聊天页顶栏显示「对方 + 自己」的叠压双头像。 */
     val showTopBarDualAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
@@ -943,7 +943,7 @@ data class AppearanceSnapshot(
     val interfaceSurfaceOpacity: Float = 82f,
     val popupSurfaceOpacity: Float = 90f,
     val drawerSurfaceOpacity: Float = 100f,
-    val chatAvatarMode: ChatAvatarMode = ChatAvatarMode.HEADER,
+    val chatAvatarMode: ChatAvatarMode = ChatAvatarMode.SIDE,
     val showTopBarDualAvatar: Boolean = true,
     val showUserBubble: Boolean = true,
     val showDateTimeInMessage: Boolean = false,
