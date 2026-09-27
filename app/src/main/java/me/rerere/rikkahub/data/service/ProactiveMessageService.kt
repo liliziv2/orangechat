@@ -1222,6 +1222,10 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     } else {
                         assistant.id.toString()
                     },
+                    // 主动消息没有「用户这句话」：有设备事件上下文就拿它当查询，
+                    // 纯情绪 / 空闲触发时留空 —— 那正是「不看相关性、只按 decay 排」，
+                    // 与旧行为一致，也是这类唤醒唯一说得通的排序。
+                    query = deviceEventContext.orEmpty(),
                 )
                 if (memories.isNotEmpty()) {
                     appendLine()

@@ -989,6 +989,13 @@ class ChatService(
             checkInvalidMessages(conversationId)
             val conversation = getConversationFlow(conversationId).value
 
+            // 召回要按「用户这句话」挑相关的，所以把最后一条用户消息的原文交给读取侧。
+            // 用 toText() 而不是整条消息：记忆里存的是文字，图片 / 文件在这里没有匹配面。
+            val recallQuery = conversation.currentMessages
+                .lastOrNull { it.role == MessageRole.USER }
+                ?.toText()
+                .orEmpty()
+
             // start generating
             generationHandler.generateText(
                 settings = settings,
@@ -1017,6 +1024,7 @@ class ChatService(
                     } else {
                         assistant.id.toString()
                     },
+                    query = recallQuery,
                 ),
                 inputTransformers = buildList {
                     addAll(inputTransformers)

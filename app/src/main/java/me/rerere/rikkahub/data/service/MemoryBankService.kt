@@ -31,6 +31,15 @@ private const val DECAY_REFRESH_INTERVAL_MS = 30 * 60 * 1000L
 /** 注入 prompt 时默认召回条数。 */
 private const val PROMPT_RECALL_COUNT = 8
 
+/**
+ * 进 prompt 之前先取的候选池大小。
+ *
+ * 召回要「按当前消息挑相关的」，就得先有一批可挑的 —— 但**池子不是注入量**：
+ * 最终进 prompt 的仍然只有 [PROMPT_RECALL_COUNT] 条。200 条是本地 SQLite 一次
+ * 索引扫描的量级，不会成为瓶颈。
+ */
+private const val PROMPT_CANDIDATE_POOL = 200
+
 /** `source_type` 里表示"助手在对话中自行沉淀、未经用户确认"的取值。 */
 private const val SOURCE_TYPE_AUTO = "auto"
 
@@ -509,20 +518,61 @@ class MemoryBankService(
     /**
      * 注入 prompt 用的召回。
      *
-     * 这是 [recallRanked] 的"给模型看"版本：限定助手、只取前 [count] 条、转成
-     * [AssistantMemory]。顺手补一次随时间流逝的衰减重算。
+     * 与旧版的区别只有一个：**看当前消息**。
+     *
+     * 旧版没有 query 参数，内部直接 `getMemoriesByAssistantRanked` —— 那是「谁最近最鲜活」
+     * 的排序，跟用户这句话在说什么无关。结果就是聊到具体事时，模型手里那 [count] 条全是
+     * 「最近提过的事」，真正相关的那条可能排在两百名开外。
+     *
+     * 现在分三步：
+     * 1. 取一个 decay 排序的候选池（[PROMPT_CANDIDATE_POOL] 条）；
+     * 2. query 非空时用 [MemoryRelevance] 做相关性**闸门** —— 沾边的才留下，
+     *    留下的仍然按 `decay_score` 的顺序（池子本身就是 `decay_score DESC` 出来的）；
+     * 3. 取前 [count] 条，并对它们记一次召回（[touchMemory]）。
+     *
+     * 排序权重只有一个来源：[MemoryDecayEngine] 的 `decay_score`
+     * （importance × activation^0.3 × 时间 × 情绪 × …）。相关性只做闸门、不加权，
+     * 是为了不引入第二套并行排序框架。
+     *
+     * 闸门为空时回退到池子前 [count] 条：宁可给「最近最鲜活的」，也不要让模型突然
+     * 一条记忆都没有 —— 那比给错更伤。
+     *
+     * [query] 留空表示「这次没有可用的当前消息」（例如纯情绪 / 空闲触发的主动消息），
+     * 此时行为与旧版完全一致。
      */
     suspend fun recallForPrompt(
         assistantId: String?,
+        query: String = "",
         count: Int = PROMPT_RECALL_COUNT,
     ): List<AssistantMemory> = withContext(Dispatchers.IO) {
         refreshDecayScoresIfStale()
-        val rows = if (assistantId == null) {
-            memoryBankDAO.getMemoriesRanked(count)
+        val selected = selectForPrompt(assistantId, query, count)
+        // 进 prompt 才算「被想起来一次」：last_active 前移、activation_count +1、decay 重算。
+        // 只记入选的 —— 池子里落选的那些不记，否则池子一放大，全库的 activation 都会被平白抬高。
+        val now = System.currentTimeMillis()
+        selected.forEach { touchMemory(it.id, now) }
+        selected.map { it.toAssistantMemory() }
+    }
+
+    /**
+     * 候选池 → 相关性闸门 → 取前 [count] 条。分步理由见 [recallForPrompt]。
+     */
+    private suspend fun selectForPrompt(
+        assistantId: String?,
+        query: String,
+        count: Int,
+    ): List<MemoryBankEntity> {
+        val pool = if (assistantId == null) {
+            memoryBankDAO.getMemoriesRanked(PROMPT_CANDIDATE_POOL)
         } else {
-            memoryBankDAO.getMemoriesByAssistantRanked(assistantId, count)
+            memoryBankDAO.getMemoriesByAssistantRanked(assistantId, PROMPT_CANDIDATE_POOL)
         }
-        rows.map { it.toAssistantMemory() }
+        if (query.isBlank()) return pool.take(count)
+        val queryTokens = MemoryRelevance.tokenize(query)
+        if (queryTokens.isEmpty()) return pool.take(count)
+        // 池子已经是 decay_score DESC，filter 保持原序 —— 于是「沾边的里面按 decay 排」。
+        val hits = pool.filter { MemoryRelevance.overlap(queryTokens, it) > 0.0 }
+        return (hits.ifEmpty { pool }).take(count)
     }
 
     /**
