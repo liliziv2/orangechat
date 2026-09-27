@@ -32,6 +32,7 @@ const val MEMORY_SOURCE_CHAT_TOOL = "chat_tool"
 fun MemoryDraft.toWriteRequest(
     assistantId: String?,
     sourceType: String = MEMORY_SOURCE_CHAT_TOOL,
+    overlayOf: Int? = null,
 ): MemoryBankService.MemoryWriteRequest = MemoryBankService.MemoryWriteRequest(
     content = content,
     factTrack = factTrack,
@@ -41,6 +42,8 @@ fun MemoryDraft.toWriteRequest(
     domain = listOfNotNull(category.domainToken),
     importance = memoryPriorityToImportance(priority),
     sourceType = sourceType,
+    // 非空表示「这是对 #overlayOf 那条的新理解」—— 追加一行，旧行不动。
+    overlayOf = overlayOf,
 )
 
 /**
@@ -69,16 +72,27 @@ fun buildMemoryTools(
     json: Json,
     onCreation: suspend (MemoryDraft) -> AssistantMemory,
     onUpdate: suspend (Int, MemoryDraft) -> AssistantMemory,
-    onDelete: suspend (Int) -> Unit
+    onDelete: suspend (Int) -> Unit,
+    onOverlay: suspend (Int, MemoryDraft) -> AssistantMemory,
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
         description = """
             The memory tool stores long-term information across conversations.
-            Use `action` to control the operation: `create` (add), `edit` (update), `delete` (remove).
+            Use `action` to control the operation: `create` (add), `edit` (rewrite), `overlay` (reinterpret), `delete` (remove).
             - No relevant record: `create` + `content` + `fact_track` + `feel_track`
-            - Existing relevant record: `edit` + `id` + `content` + `fact_track` + `feel_track`
+            - Existing record that was WRONG: `edit` + `id` + `content` + `fact_track` + `feel_track`
+            - Existing record you now read DIFFERENTLY: `overlay` + `id` + `content` + `fact_track` + `feel_track`
             - Outdated/irrelevant record: `delete` + `id`
+
+            `edit` and `overlay` are NOT interchangeable. `edit` overwrites the record, because the
+            record itself was factually wrong. `overlay` ADDS a new record meaning "this is how I read
+            it now" while the original stays in the archive untouched — nothing is ever lost. Use
+            `overlay` when the facts did not change but your understanding of them did (for example:
+            you first took a remark as teasing, and later realised it was a real worry). Only the
+            newest understanding is recalled into later conversations, so the old one will not
+            contradict it.
+
             Memories will automatically appear in the <memories> tag in later conversations.
             Do not store sensitive information (e.g., ethnicity, religion, sexual orientation, political views, sex life, criminal records).
             You may store: preferred name, preferences, plans, work-related notes, chat style preferences, first chat time, etc.
@@ -115,6 +129,7 @@ fun buildMemoryTools(
             {"action":"create","content":"User said their preferred name is “A-Xing” and asked me to use it from now on.","fact_track":"User's preferred name is “A-Xing”; use it in future replies.","feel_track":"They brought it up themselves and sounded pleased about it — this matters to them.","category":"fact","priority":2}
             {"action":"edit","id":12,"content":"User corrected their preferred name to “A-Xing” and added that they prefer Chinese replies.","fact_track":"Preferred name is “A-Xing”; replies should be in Chinese.","feel_track":"The correction was matter-of-fact, not annoyed — just making sure I had it right.","priority":2}
             {"action":"delete","id":7}
+            {"action":"overlay","id":12,"content":"User brought up their late-night hours again, this time saying it is the only quiet stretch they get.","fact_track":"User writes late at night; the reason is that it is their only quiet hour.","feel_track":"The earlier reading was off — it is not insomnia or a habit, it is the one part of the day that is theirs.","category":"preference"}
         """.trimIndent(),
         parameters = {
             InputSchema.Obj(
@@ -126,26 +141,27 @@ fun buildMemoryTools(
                             buildJsonArray {
                                 add("create")
                                 add("edit")
+                                add("overlay")
                                 add("delete")
                             }
                         )
-                        put("description", "Operation to perform: create, edit, or delete")
+                        put("description", "Operation to perform: create, edit, overlay, or delete")
                     })
                     put("id", buildJsonObject {
                         put("type", "integer")
-                        put("description", "The id of the memory record (required for edit/delete)")
+                        put("description", "The id of the memory record (required for edit/overlay/delete)")
                     })
                     put("content", buildJsonObject {
                         put("type", "string")
-                        put("description", "The raw scene: what was said, in what tone, what was going on. Required for create/edit.")
+                        put("description", "The raw scene: what was said, in what tone, what was going on. Required for create/edit/overlay.")
                     })
                     put("fact_track", buildJsonObject {
                         put("type", "string")
-                        put("description", "The factual side of the SAME memory: what was done, the timeline, what was promised. Required for create/edit, and must not be empty.")
+                        put("description", "The factual side of the SAME memory: what was done, the timeline, what was promised. Required for create/edit/overlay, and must not be empty.")
                     })
                     put("feel_track", buildJsonObject {
                         put("type", "string")
-                        put("description", "The affective side of the SAME memory: how it felt, the warmth, what it changed. Required for create/edit, and must not be empty.")
+                        put("description", "The affective side of the SAME memory: how it felt, the warmth, what it changed. Required for create/edit/overlay, and must not be empty.")
                     })
                     put("category", buildJsonObject {
                         put("type", "string")
@@ -212,6 +228,14 @@ fun buildMemoryTools(
                     json.encodeToJsonElement(AssistantMemory.serializer(), memory)
                 }
 
+                // 与 edit 的区别是语义，不是参数：edit 是「这条记错了，覆盖掉」，
+                // overlay 是「我对它的理解变了，追加一条新理解，旧行不动」。
+                "overlay" -> {
+                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
+                    val memory = onOverlay(id, draftFromParams())
+                    json.encodeToJsonElement(AssistantMemory.serializer(), memory)
+                }
+
                 "delete" -> {
                     val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
                     onDelete(id)
@@ -221,7 +245,7 @@ fun buildMemoryTools(
                     }
                 }
 
-                else -> error("unknown action: $action, must be one of [create, edit, delete]")
+                else -> error("unknown action: $action, must be one of [create, edit, overlay, delete]")
             }
             listOf(UIMessagePart.Text(payload.toString()))
         }

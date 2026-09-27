@@ -71,6 +71,11 @@ class ToolSurfaceBuilder(
                         ?: error("memory #$id not found")
                 },
                 onDelete = { id -> memoryBankService.deleteMemory(id) },
+                onOverlay = { id, draft ->
+                    memoryBankService.writeMemory(
+                        draft.toWriteRequest(assistantId = memoryAssistantId, overlayOf = id)
+                    ).toAssistantMemory()
+                },
             ))
         }
         if (settings.enableWebSearch) {

@@ -152,7 +152,14 @@ class GenerationHandler(
                         },
                         onDelete = { id ->
                             memoryBankService.deleteMemory(id)
-                        }
+                        },
+                        // 新理解：追加一行 overlay，旧行不动。读取侧在注入 prompt 前会收敛到
+                        // 最新那条（MemoryBankService.resolveOverlays）。
+                        onOverlay = { id, draft ->
+                            memoryBankService.writeMemory(
+                                draft.toWriteRequest(assistantId = memoryAssistantId, overlayOf = id)
+                            ).toAssistantMemory()
+                        },
                     ).let(this::addAll)
                 }
                 // 文件写入工具 - AI可直接将文件内容写入设备或打包ZIP

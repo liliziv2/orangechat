@@ -471,9 +471,11 @@ class MemoryBankService(
      * "这条记错了，改掉"，不是"我对它有了新理解"。
      *
      * 后者（新理解）在 Elektron 里走 overlay 追加（[MemoryWriteRequest.overlayOf]），
-     * 旧记忆不动。那条路**现在还没有接**，原因是它需要读取侧能解析出"同一个话题里哪条才是
-     * 最新理解"；解析没做之前开放写入，同一个话题会以新旧两版同时出现在 prompt 里。
-     * 所以 [MemoryWriteRequest.overlayOf] 目前是一个已建好、未接线（也未校验）的能力。
+     * 旧记忆不动。那条路现在**已经接了**：写入侧是 `memory_tool` 的 `overlay` 动作，
+     * 读取侧由 [resolveOverlays] 在注入 prompt 前收敛到最新那条 ——
+     * 「解析没做之前不能开放写入」这个前置条件已经满足。
+     *
+     * `overlayOf` 指向的记忆必须存在，[writeMemory] 里有 `require`，不是凭空引用。
      */
     suspend fun updateMemory(
         id: Int,
@@ -547,11 +549,13 @@ class MemoryBankService(
     ): List<AssistantMemory> = withContext(Dispatchers.IO) {
         refreshDecayScoresIfStale()
         val selected = selectForPrompt(assistantId, query, count)
+        // overlay 收敛要排在 touch 之前：**注入的是哪一条，才算哪一条被想起来**。
+        val injected = resolveOverlays(selected)
         // 进 prompt 才算「被想起来一次」：last_active 前移、activation_count +1、decay 重算。
         // 只记入选的 —— 池子里落选的那些不记，否则池子一放大，全库的 activation 都会被平白抬高。
         val now = System.currentTimeMillis()
-        selected.forEach { touchMemory(it.id, now) }
-        selected.map { it.toAssistantMemory() }
+        injected.forEach { touchMemory(it.id, now) }
+        injected.map { it.toAssistantMemory() }
     }
 
     /**
@@ -573,6 +577,42 @@ class MemoryBankService(
         // 池子已经是 decay_score DESC，filter 保持原序 —— 于是「沾边的里面按 decay 排」。
         val hits = pool.filter { MemoryRelevance.overlap(queryTokens, it) > 0.0 }
         return (hits.ifEmpty { pool }).take(count)
+    }
+
+    /**
+     * overlay 读取侧解析：同一话题只保留**最新那条理解**。
+     *
+     * Elektron 里「我对它有了新理解」不是改旧行，而是追加一行 `overlay_of = 旧行`，
+     * 原始行永远不动 —— 所以「什么都没丢」这条不变量还在。代价是同一个话题会同时存在
+     * 新旧两版：两版都塞进 prompt，模型会同时读到「他喜欢 X」和「他现在不喜欢 X 了」，
+     * 那比不召回更糟。所以注入之前必须在这里收敛。
+     *
+     * 沿链走到底（新理解还可以再有新理解），用 visited 防环，不设魔法层数上限。
+     * 被替代的行**不删不改**：它仍然在库里，仍然能通过 [getOverlaysOf] 反查。
+     *
+     * 这里只处理「父行被选中、而它已经有新理解」的情况。一条 overlay 行自己也可能被
+     * 独立选中（它有自己的 decay_score），那走的是它自己的链，逻辑一样。
+     */
+    private suspend fun resolveOverlays(rows: List<MemoryBankEntity>): List<MemoryBankEntity> {
+        val resolved = mutableListOf<MemoryBankEntity>()
+        val seen = mutableSetOf<Int>()
+        rows.forEach { row ->
+            val latest = newestUnderstandingOf(row)
+            if (seen.add(latest.id)) resolved.add(latest)
+        }
+        return resolved
+    }
+
+    /** 沿 `overlay_of` 走到最新那条。见 [resolveOverlays]。 */
+    private suspend fun newestUnderstandingOf(row: MemoryBankEntity): MemoryBankEntity {
+        var current = row
+        val visited = mutableSetOf(current.id)
+        while (true) {
+            val next = memoryBankDAO.getOverlaysOf(current.id).lastOrNull { !it.archived }
+                ?: return current
+            if (!visited.add(next.id)) return current
+            current = next
+        }
     }
 
     /**
