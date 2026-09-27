@@ -488,14 +488,20 @@ class RouteActivity : ComponentActivity() {
                                         listOf(
                                             // 三段同色，只差 alpha —— 柔和 scrim 靠 alpha 斜坡做，
                                             // 不靠换色号。实测合成（底图 L*=92.9）：
-                                            //   0.83 -> #403834  L*=24.0
-                                            //   0.87 -> #38302D  L*=20.5   <- 页面锚点
-                                            //   0.92 -> #2F2623  L*=16.0
-                                            // 页面比主题 background #412D26 略深：scrim 必须过压
+                                            //   0.839 -> #3A3938  L*=24.0
+                                            //   0.875 -> #323130  L*=20.5   <- 页面锚点
+                                            //   0.920 -> #282827  L*=16.0
+                                            //
+                                            // 色号从暖棕 #1D1411 换成中性 #171716。底图是暖白纸纹，
+                                            // 压在它上面的 scrim 一旦带暖调，合成后的页面就成了一条
+                                            // 覆盖整屏的棕色带（页面 C*=4.6）—— 这就是「整屏棕滤镜」。
+                                            // 中性 scrim 合成后页面 C*=1.0，页面**亮度三段不动**。
+                                            //
+                                            // 页面比主题 background #323130 略深：scrim 必须过压
                                             // 才抵得住这么亮的底图，两者不是同一个量。
-                                            Color(0xFF1D1411).copy(alpha = 0.83f),
-                                            Color(0xFF1D1411).copy(alpha = 0.87f),
-                                            Color(0xFF1D1411).copy(alpha = 0.92f),
+                                            Color(0xFF171716).copy(alpha = 0.839f),
+                                            Color(0xFF171716).copy(alpha = 0.875f),
+                                            Color(0xFF171716).copy(alpha = 0.920f),
                                         )
                                     } else {
                                         listOf(
