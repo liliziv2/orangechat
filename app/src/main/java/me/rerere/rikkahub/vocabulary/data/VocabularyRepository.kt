@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.vocabulary.algorithm.CsvParser
+import me.rerere.rikkahub.vocabulary.algorithm.CsvError
 import me.rerere.rikkahub.vocabulary.algorithm.CsvRow
 import me.rerere.rikkahub.vocabulary.algorithm.MasteryCalculator
 import me.rerere.rikkahub.vocabulary.algorithm.ParseResult
@@ -52,6 +53,14 @@ class VocabularyRepository(
     val books: Flow<List<VocabularyEntity>> = vocabularyDao.getVisibleVocabularies()
 
     val deletedBooks: Flow<List<VocabularyEntity>> = vocabularyDao.getDeletedVocabularies()
+
+    /**
+     * 所有词库合计的待复习数（侧栏入口那行的小字用）。
+     *
+     * ⚠️ 这是**唯一**一个允许挂 Flow 的汇总数字，因为它显示在常驻组合的侧栏里，
+     * 不能在那儿挂轮询。列表页那套统计仍然是 suspend + 轮询，两者口径一致但用途不同。
+     */
+    val dueCount: Flow<Int> = cardDao.countDueAll(System.currentTimeMillis())
 
     suspend fun book(vocabId: Long): VocabularyEntity? = vocabularyDao.getVocabularyById(vocabId)
 
@@ -141,25 +150,35 @@ class VocabularyRepository(
     /**
      * 从用户选的文件导入一份 CSV。
      *
-     * 失败时 [Result] 里带的是一句能**直接给用户看**的说明（来自 CsvParser）。
+     * 失败时给的是**错误码**，不是文案 —— 这一层拿不到 Context，
+     * 文案由 UI 层按 [ImportResult.Failure.reason] 取资源。
+     *
+     * @param name 用户填的词库名。留空则用 [fallbackName]（由 UI 传一个本地化的默认名）
      */
-    suspend fun importCsv(uri: Uri, name: String): Result<Long> = withContext(Dispatchers.IO) {
-        runCatching {
-            val text = context.contentResolver.openInputStream(uri)
-                ?.use { it.bufferedReader().readText() }
-                ?: error("读不到这个文件")
+    suspend fun importCsv(uri: Uri, name: String, fallbackName: String): ImportResult =
+        withContext(Dispatchers.IO) {
+            val text = runCatching {
+                context.contentResolver.openInputStream(uri)
+                    ?.use { it.bufferedReader().readText() }
+            }.getOrNull()
+
+            if (text == null) return@withContext ImportResult.Failure(CsvError.UNREADABLE_FILE)
 
             when (val parsed = CsvParser.parse(text)) {
-                is ParseResult.Failure -> error(parsed.message)
-                is ParseResult.Success -> insertBook(
-                    name = name.trim().ifBlank { "导入的词库" },
-                    description = "导入的词库 · ${parsed.rows.size} 词",
-                    hasUnit = parsed.hasUnit,
-                    rows = parsed.rows,
-                )
+                is ParseResult.Failure -> ImportResult.Failure(parsed.reason, parsed.arg)
+                is ParseResult.Success -> {
+                    val id = insertBook(
+                        name = name.trim().ifBlank { fallbackName },
+                        // 简介留空：它是要落库的「用户数据」，写死中文就等于把语言钉死在
+                        // 导入那一刻。卡片上已经有进度那行，词数不缺地方显示。
+                        description = "",
+                        hasUnit = parsed.hasUnit,
+                        rows = parsed.rows,
+                    )
+                    ImportResult.Success(vocabId = id, count = parsed.rows.size)
+                }
             }
         }
-    }
 
     private suspend fun insertBook(
         name: String,
@@ -325,4 +344,17 @@ class VocabularyRepository(
         fun startOfDayMillis(): Long =
             LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
     }
+}
+
+/**
+ * 一次导入的结果。
+ *
+ * 失败带的是**错误码**而不是文案：Repository 层没有 Context，
+ * 在这里拼字符串就只能写死中文。文案归 UI 层。
+ */
+sealed interface ImportResult {
+    data class Success(val vocabId: Long, val count: Int) : ImportResult
+
+    /** [arg] 给带参数的文案用（目前是「按什么顺序排」要用到的列名提示） */
+    data class Failure(val reason: CsvError, val arg: String? = null) : ImportResult
 }

@@ -41,20 +41,17 @@ object CsvParser {
         val hasHeader = withHeader.firstOrNull()?.containsKey("word") == true
         val records = if (hasHeader) withHeader else parsePositional(text)
 
-        if (records.isEmpty()) return ParseResult.Failure("这个文件里没有单词")
+        if (records.isEmpty()) return ParseResult.Failure(CsvError.EMPTY_FILE)
 
         val usable = records.filter { it["word"].orEmpty().isNotBlank() }
         if (usable.isEmpty()) {
-            return ParseResult.Failure(
-                "没找到有效单词。第一行要么写列名，要么按 $COLUMN_HINT 这个顺序排"
-            )
+            return ParseResult.Failure(CsvError.NO_WORD, arg = COLUMN_HINT)
         }
 
         // 有词没释义的表导进来没法背 —— 不要静默收下，直接说哪儿不对
         if (usable.none { !it["translation"].isNullOrBlank() }) {
             return ParseResult.Failure(
-                if (hasHeader) "第一行缺少 translation 列，至少要有 word 和 translation 两列"
-                else "第一行要写列名：至少 word 和 translation 两列"
+                if (hasHeader) CsvError.MISSING_TRANSLATION else CsvError.NO_HEADER
             )
         }
 
@@ -156,6 +153,30 @@ sealed interface ParseResult {
     /** 解析成功。[hasUnit] 为 true 表示这份 CSV 带了 unit 列 */
     data class Success(val rows: List<CsvRow>, val hasUnit: Boolean) : ParseResult
 
-    /** 失败，[message] 是给用户看的说明 */
-    data class Failure(val message: String) : ParseResult
+    /**
+     * 失败。
+     *
+     * 这里**故意不给文案，只给错误码** —— 这一层是纯 Kotlin，拿不到 Context，
+     * 写死中文就等于让英文用户看中文。文案由 UI 层按 [reason] 取资源。
+     * [arg] 给需要带参数的文案用（目前只有「按什么顺序排」要用到列名提示）。
+     */
+    data class Failure(val reason: CsvError, val arg: String? = null) : ParseResult
+}
+
+/** 导入失败的原因。UI 层一个分支一条文案。 */
+enum class CsvError {
+    /** 文件打不开 / 读不出来（不是格式问题，是 IO 问题） */
+    UNREADABLE_FILE,
+
+    /** 文件里一行都没有 */
+    EMPTY_FILE,
+
+    /** 有行，但没有一行填了 word */
+    NO_WORD,
+
+    /** 表头缺 translation 列（认得出表头的情况） */
+    MISSING_TRANSLATION,
+
+    /** 第一行没写列名，按固定顺序硬认也认不出释义 */
+    NO_HEADER,
 }

@@ -169,6 +169,11 @@ import me.rerere.rikkahub.data.ai.tools.local.KnockRequestBuffer
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
+// 背单词（独立 vocabulary.db）。整块可拆：删掉这三行 import + 下面两处 entry<> +
+// Screen 里两个页面 + 侧栏入口，主库和其余模块一行都不受影响。
+import me.rerere.rikkahub.vocabulary.study.StudyMode
+import me.rerere.rikkahub.vocabulary.ui.VocabularyListPage
+import me.rerere.rikkahub.vocabulary.ui.VocabularyStudyPage
 import me.rerere.rikkahub.ui.pages.voice.IncomingCallBanner
 import me.rerere.rikkahub.ui.pages.voice.IncomingCallPage
 import me.rerere.rikkahub.ui.pages.voice.VoiceCallPage
@@ -938,6 +943,29 @@ class RouteActivity : ComponentActivity() {
                                 )
                             }
 
+                            // 背单词。页面只拿到「打开某本词库」这个回调，
+                            // 自己不认识 Screen —— 拆掉这个模块时不用动导航图。
+                            entry<Screen.VocabularyList> {
+                                val nav = LocalNavController.current
+                                VocabularyListPage(
+                                    onOpenBook = { vocabId, mode ->
+                                        nav.navigate(
+                                            Screen.VocabularyStudy(
+                                                vocabId = vocabId,
+                                                review = mode == StudyMode.REVIEW,
+                                            )
+                                        )
+                                    },
+                                )
+                            }
+
+                            entry<Screen.VocabularyStudy> { key ->
+                                VocabularyStudyPage(
+                                    vocabId = key.vocabId,
+                                    review = key.review,
+                                )
+                            }
+
                             }
                         )
                         AnimatedVisibility(
@@ -1262,4 +1290,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class Legal(val titleRes: Int, val contentRes: Int) : Screen
+
+    /** 词库列表（背单词）。 */
+    @Serializable
+    data object VocabularyList : Screen
+
+    /** 某一本词库的学习页。review = true 时只取到期复习卡。 */
+    @Serializable
+    data class VocabularyStudy(val vocabId: Long, val review: Boolean = false) : Screen
 }

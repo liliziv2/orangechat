@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
@@ -107,6 +108,9 @@ import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.LocalMaterialMode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
+// 背单词（独立 vocabulary.db）。拆掉这个模块时，把这一行 import + 下面两处
+// koinInject/collect + 那行入口 + DrawerVocabularyRow 一起删掉即可。
+import me.rerere.rikkahub.vocabulary.data.VocabularyRepository
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
@@ -149,6 +153,12 @@ fun ChatDrawerContent(
     val conversationJobs by vm.conversationJobs.collectAsStateWithLifecycle(
         initialValue = emptyMap(),
     )
+
+    // 背单词入口那行的状态。⚠️ 这里**不能**挂定时轮询 —— drawerContent 只是滑出屏幕、
+    // 没退出 composition，轮询会一直空转。所以只订两个 Flow（见 VocabularyRepository.dueCount）。
+    val vocabularyRepo = koinInject<VocabularyRepository>()
+    val vocabularyBooks by vocabularyRepo.books.collectAsStateWithLifecycle(initialValue = emptyList())
+    val vocabularyDue by vocabularyRepo.dueCount.collectAsStateWithLifecycle(initialValue = 0)
 
     // 昵称编辑状态
     val nicknameEditState = useEditState<String> { newNickname ->
@@ -349,6 +359,18 @@ fun ChatDrawerContent(
                 onClick = { navController.navigate(Screen.MessageSearch) },
                 drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
                 materialMode = settings.displaySetting.materialMode,
+            )
+
+            // 背单词入口。放在搜索下面，和它同一层级 —— 都是「去另一个地方」，
+            // 不是会话操作，所以不该混进下面的文件夹/会话列表。
+            //
+            // 空词库时**也显示**：这是唯一入口，藏起来的话第一次用的人根本找不到。
+            // 这时候小字改成「导入词库开始背词」，顺手把第一步说清楚。
+            DrawerVocabularyRow(
+                bookCount = vocabularyBooks.size,
+                dueCount = vocabularyDue,
+                onClick = { navController.navigate(Screen.VocabularyList) },
+                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
             )
 
             // 分隔线：把顶部的「搜索」和下面的「会话列表」分成两层。
@@ -921,6 +943,70 @@ private fun DrawerSearchRow(
             Text(
                 text = stringResource(R.string.chat_page_search_chats),
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * 侧栏的「背单词」入口行。形状/尺寸/底色都跟 [DrawerSearchRow] 对齐 ——
+ * 两者是同一层级的「去另一个地方」，视觉上不该分家。
+ *
+ * 右侧小字给的是**当下最该知道的那个数**：
+ *   有到期的 → 「N 词待复习」
+ *   没到期的 → 「N 个词库」
+ *   一本都没有 → 「导入词库开始背词」
+ */
+@Composable
+private fun DrawerVocabularyRow(
+    bookCount: Int,
+    dueCount: Int,
+    onClick: () -> Unit,
+    drawerItemAlpha: Float,
+) {
+    val trailing = when {
+        dueCount > 0 -> stringResource(R.string.vocabulary_drawer_due, dueCount)
+        bookCount > 0 -> stringResource(R.string.vocabulary_drawer_books, bookCount)
+        else -> stringResource(R.string.vocabulary_drawer_import_hint)
+    }
+
+    DrawerItemSurface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+        drawerItemAlpha = drawerItemAlpha,
+        materialMode = DisplayMaterialMode.FLAT,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Book01,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = stringResource(R.string.vocabulary_page_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

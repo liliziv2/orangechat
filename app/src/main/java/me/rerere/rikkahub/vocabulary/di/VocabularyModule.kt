@@ -5,6 +5,10 @@ import androidx.room.Room
 import me.rerere.rikkahub.vocabulary.VocabularyDatabase
 import me.rerere.rikkahub.vocabulary.data.VocabularyRepository
 import me.rerere.rikkahub.vocabulary.study.StudySessionStore
+import me.rerere.rikkahub.vocabulary.ui.VocabularyListVM
+import me.rerere.rikkahub.vocabulary.ui.VocabularyStudyVM
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 /**
@@ -43,5 +47,13 @@ val vocabularyModule = module {
             sessionDao = get(),
             sessionStore = get(),
         )
+    }
+
+    // ⚠️ ViewModel 只注入 Repository，**不要注入 Context / Application** ——
+    // 那样 Koin 会抛 InstanceCreationException，App 直接落到安全模式。
+    // 要 Context 就在 Composable 里取 LocalContext 传进去。
+    viewModelOf(::VocabularyListVM)
+    viewModel<VocabularyStudyVM> { params ->
+        VocabularyStudyVM(repository = get(), vocabId = params.get())
     }
 }

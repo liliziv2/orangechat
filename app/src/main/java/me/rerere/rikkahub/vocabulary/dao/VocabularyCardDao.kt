@@ -67,6 +67,22 @@ interface VocabularyCardDao {
     fun countMasteredCards(vocabId: Long): Flow<Int>
 
     /**
+     * 所有词库合计的待复习数（侧栏入口那行的小字用）。
+     *
+     * 口径必须和 [statsByBook] 的 `due` 完全一致，否则侧栏说 12、列表页加起来是 9。
+     *
+     * 返回 Flow 而不是 suspend：侧栏那个 Composable 是**常驻组合**的
+     * （`ModalNavigationDrawer` 的 drawerContent 只是滑出屏幕，没退出 composition），
+     * 在里面挂定时轮询会一直空转。代价是时间流逝本身不会触发重发 ——
+     * 但每次判卡都会写表、Flow 会重发，而侧栏小字差几分钟无所谓。
+     */
+    @Query(
+        "SELECT COUNT(*) FROM vocabulary_card WHERE learned = 1 " +
+            "AND next_review_date IS NOT NULL AND next_review_date <= :currentTime"
+    )
+    fun countDueAll(currentTime: Long): Flow<Int>
+
+    /**
      * 所有词库的进度汇总，**一条查询搞定**（列表页每本书的进度用）。
      *
      * ⚠️ 不要拿它当 Flow 用：`due` 依赖传进来的 [now]，时间过去了 Room 不会自动重发，
