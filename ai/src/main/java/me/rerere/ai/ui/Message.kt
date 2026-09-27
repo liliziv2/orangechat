@@ -72,8 +72,15 @@ data class UIMessage(
                     }
 
                     is UIMessagePart.Reasoning -> {
-                        // Skip empty reasoning deltas
-                        if (deltaPart.reasoning.isEmpty() && deltaPart.metadata == null) {
+                        // Skip blank reasoning deltas.
+                        //
+                        // 判据从 isEmpty() 放宽到 isBlank()：部分供应商会在正文中间回一个
+                        // 纯空白的 reasoning 分片（"\n" / " "）。这种分片既没有可显示内容，
+                        // 又会在下面插进两个 Text part 之间 —— 而 Text 只在「上一个 part
+                        // 也是 Text」时才合并（见上面的 Text 分支），于是「4k4」这种连续文本
+                        // 被永久劈成两个 part，渲染成两个气泡、中间还留一个「思考了 0.0 秒」。
+                        // 带 metadata 的分片仍然保留：thought signature 之类的元数据要回传供应商。
+                        if (deltaPart.reasoning.isBlank() && deltaPart.metadata == null) {
                             acc
                         } else {
                             val lastPart = acc.lastOrNull()

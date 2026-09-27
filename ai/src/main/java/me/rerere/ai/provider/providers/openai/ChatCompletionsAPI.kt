@@ -833,7 +833,10 @@ class ChatCompletionsAPI(
         return UIMessage(
             role = role,
             parts = buildList {
-                if (!reasoning.isNullOrEmpty()) {
+                // 判据从 isNullOrEmpty() 放宽到 isNullOrBlank()：纯空白的 reasoning 分片
+                // （"\n" / " "）没有可显示内容，放它进来只会在正文中间插出一个 0 秒的
+                // 空思考块，并把两侧的文本劈成两个 part（详见 UIMessage.appendDelta）。
+                if (!reasoning.isNullOrBlank()) {
                     add(
                         UIMessagePart.Reasoning(
                             reasoning = reasoning,
