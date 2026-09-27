@@ -543,12 +543,14 @@ fun ChatInput(
             }
         }
     }
-    // 容器形状恒为「编辑框」那一档（固定 28dp 圆角矩形），不再按单行/多行切换。
+    // 容器形状两态共用同一个常量：固定 28dp 圆角。
     //
-    // 新结构里容器恒有两行 —— 上面正文、下面操作 —— 高度起步就约 102dp。
-    // `percent = 50` 的胶囊半径恒等于半高，两端会变成半圆，底排的 + 与发送会被
-    // `.clip(containerShape)` 啃掉；而且 100dp 以上的「胶囊」在视觉上已经不是输入框，
-    // 是一颗药丸。所以这里是一个纯常量，不再有派生状态。
+    // 单行（胶囊）态容器正好 56dp 高 —— 28dp 半径恰好等于半高，它**就是**一颗胶囊。
+    // 多行（大卡片）态容器 106~162dp 高，同一个半径读作圆角卡片。
+    // 所以「从胶囊切到大卡片」时圆角是连续的，不是换了一个组件。
+    //
+    // 不能用 `percent = 50`：那个半径恒等于半高，多行态下会变成半径 53~81dp 的半圆，
+    // 底排的 + 与发送会被 `.clip(containerShape)` 啃掉。所以这里是一个纯常量。
     val containerShape = InputEditorShape
     val inputContainerBorder = if (useMaterialBorder) {
         // 与 MaterialMode.kt 的全局边框同步降到 0.07
@@ -621,16 +623,19 @@ fun ChatInput(
             // 以及功能按钮一多就和附件入口挤在同一条横向滚动里。
             Surface(
                 shape = RoundedCornerShape(50),
-                // 0.55 -> 0.80。
+                // 槽位从 surfaceContainerHigh 换到 surfaceContainer（批 27）。
                 //
-                // 半透明叠在页面背景上，实际颜色会被背景拉回去 —— 0.55 的
-                // surfaceContainerHigh 叠在近白的页面上，结果约等于页面本身，
-                // 「现在在跟哪个模型说话」这行上下文信息就读不出边界了。
-                // 提高不透明度只是把这一层材质显影，不加阴影、不加高光，
+                // 原来它和输入框是**同一个槽位**：FLAT 模式下输入框也读
+                // surfaceContainerHigh，两者只隔 6dp，叠在同一个页面上就是同一块颜色，
+                // pill 的下边缘和输入框的上边缘糊成一条，读不出这是两层。
+                // 换到低一档的 surfaceContainer（合成差 ΔL* 2.4）之后边界才立得住。
+                //
+                // 也不再手写 alpha：槽位本身带 interfaceSurfaceOpacity（默认 0.82），
+                // 手写 0.80 只会让它比同类表面更贴近页面，反而更糊。
                 // 形状、位置、尺寸全部不变。
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.80f),
-                // 一根发丝边。胶囊面积小、视觉重量低，只靠填充差（约 15 个 RGB 单位）
-                // 还不足以在小尺寸上读出边界，所以补一根边。
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                // 一根发丝边。胶囊面积小、视觉重量低，只靠填充差（与输入框合成差
+                // ΔL* 2.4）还不足以在小尺寸上读出边界，所以补一根边。
                 // 0.07 是全局统一的描边档位（与输入框、气泡同一档），
                 // 它只负责托起边界，不构成「描边感」。
                 border = BorderStroke(
@@ -722,209 +727,242 @@ fun ChatInput(
                             alpha = 1f,
                         )
                     }
-                    // 容器内是**两行**：上面正文输入区，下面操作行。
+                    // 两态：**少文字是细长胶囊，多文字才展开成大卡片**。
                     //
-                    // 之前是「一行横排」—— + / 输入 / 搜索 / 思考 / 语音 / 发送 全挤在同一条
-                    // 横向 Row 里，输入区被两侧按钮夹成一条窄缝（387dp 的容器里只剩约 139dp，
-                    // 一行只放得下 7~10 个中文字）。拆成两行之后正文独占整宽，长文本才读得顺。
-                    //
-                    // 两行的分工是固定的：
-                    //   上行 = 内容（用户在写什么）
-                    //   下行 = 操作（+ 在左下；搜索 / 思考 / 语音 / 发送 在右下）
-                    // 模型名不在这里 —— 它是「在跟谁说话」的上下文，单独做成容器上方的小胶囊。
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        // 正文输入区：整宽，不再被按钮挤压。
-                        //
-                        // 这一层不加水平内边距 —— 它的左右内缩由 M3 TextField 自己的
-                        // contentPadding（水平 16dp）提供。再加一层就变成 16 + N，
-                        // 文字会比下面那排按钮的图标更靠里，两行的左边缘对不齐。
-                        TextInputRow(
-                            state = state,
-                            onSendMessage = { sendMessage() },
-                            placeholder = inputPlaceholder,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = containerShape,
-                        )
+                    // 判据只能是「有换行符 或 长度 > SingleLineMaxChars」——
+                    // TextFieldState 不暴露实际行数，所以不能用行数当判据。
+                    // 胶囊态下 TextField 走 SingleLine，文字在框内横向滚动，
+                    // 高度恒为 M3 的 56dp —— 写几个字不会把容器撑高。
+                    val isMultiLine = state.textContent.text.contains('\n') ||
+                        state.textContent.text.length > SingleLineMaxChars
 
-                        // 操作行。
-                        //
-                        // 左右各 8dp 内边距是为了让图标与正文对齐：按钮 36dp、图标 20dp，
-                        // 图标在按钮里居中 ⇒ 图标左边缘 = 8 + (36 − 20)/2 = 16dp，
-                        // 与上面正文的 16dp 内缩重合。
-                        //
-                        // 底部 10dp 是算出来的，不是随手留的：容器圆角固定 28dp，
-                        // 发送按钮（40dp 实心圆）的右边缘落在距容器右边界 8dp 处，
-                        // 那里圆角已经把下边界抬高了 28 − √(28² − 20²) ≈ 8.4dp。
-                        // 按钮底边若只留 6dp 就会被 `.clip(containerShape)` 啃掉一角，
-                        // 10dp 留出约 1.6dp 余量。（旧版是胶囊，内缩要 12dp；
-                        // 胶囊删掉后那个常量 CapsuleButtonBottomInset 也一并删了。）
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 8.dp, end = 8.dp, bottom = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    // 「+」附件/扩展入口。两态共用同一份定义：位置不同（单行在正文左侧、
+                    // 多行在操作行最左），但尺寸、图标、行为必须完全一致，不能各写一遍。
+                    val attachButton: @Composable () -> Unit = {
+                        ActionIconButton(
+                            size = CapsuleActionSize,
+                            onClick = {
+                                expandToggle(ExpandState.Files)
+                            }) {
+                            Icon(
+                                imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
+                                contentDescription = stringResource(R.string.more_options),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+
+                    // 操作行的右侧功能组（搜索 / 思考 / 语音 / 发送）。同样两态共用。
+                    //
+                    // 抽成一个 lambda 而不是复制两份：这四块带着 toaster、语音 ASR 状态机、
+                    // 发送的三种行为，复制一遍就等于开了第二套并行实现。
+                    val trailingActions: @Composable () -> Unit = {
+                        // 搜索
+                        val enableSearchMsg = stringResource(R.string.web_search_enabled)
+                        val disableSearchMsg = stringResource(R.string.web_search_disabled)
+                        val chatModel = settings.getCurrentChatModel()
+                        Box(
+                            modifier = Modifier.size(CapsuleActionSize),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            // 「+」附件/扩展入口固定在操作行最左端：它是这一排的起点，
-                            // 不会因为右侧功能按钮变多被挤出视野。
-                            ActionIconButton(
-                                size = CapsuleActionSize,
-                                onClick = {
-                                    expandToggle(ExpandState.Files)
-                                }) {
-                                Icon(
-                                    imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
-                                    contentDescription = stringResource(R.string.more_options),
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
+                            SearchPickerButton(
+                                enableSearch = enableSearch,
+                                settings = settings,
+                                onToggleSearch = { enabled ->
+                                    onToggleSearch(enabled)
+                                    toaster.show(
+                                        message = if (enabled) enableSearchMsg else disableSearchMsg,
+                                        duration = 1.seconds,
+                                        type = if (enabled) {
+                                            ToastType.Success
+                                        } else {
+                                            ToastType.Normal
+                                        }
+                                    )
+                                },
+                                onUpdateSearchService = onUpdateSearchService,
+                                model = chatModel,
+                            )
+                        }
 
-                            // 弹簧：把右边的功能组推到行尾。
-                            Spacer(Modifier.weight(1f))
-
-                            // 搜索
-                            val enableSearchMsg = stringResource(R.string.web_search_enabled)
-                            val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                            val chatModel = settings.getCurrentChatModel()
+                        // 思考/调整
+                        val model = settings.getCurrentChatModel()
+                        if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
                             Box(
                                 modifier = Modifier.size(CapsuleActionSize),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                SearchPickerButton(
-                                    enableSearch = enableSearch,
-                                    settings = settings,
-                                    onToggleSearch = { enabled ->
-                                        onToggleSearch(enabled)
-                                        toaster.show(
-                                            message = if (enabled) enableSearchMsg else disableSearchMsg,
-                                            duration = 1.seconds,
-                                            type = if (enabled) {
-                                                ToastType.Success
-                                            } else {
-                                                ToastType.Normal
-                                            }
-                                        )
+                                ReasoningButton(
+                                    reasoningLevel = assistant.reasoningLevel,
+                                    onUpdateReasoningLevel = {
+                                        onUpdateAssistant(assistant.copy(reasoningLevel = it))
                                     },
-                                    onUpdateSearchService = onUpdateSearchService,
-                                    model = chatModel,
+                                    onlyIcon = true,
                                 )
                             }
+                        }
 
-                            // 思考/调整
-                            val model = settings.getCurrentChatModel()
-                            if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
-                                Box(
-                                    modifier = Modifier.size(CapsuleActionSize),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    ReasoningButton(
-                                        reasoningLevel = assistant.reasoningLevel,
-                                        onUpdateReasoningLevel = {
-                                            onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                        },
-                                        onlyIcon = true,
+                        // 语音：固定在发送左边。通话进行中禁用，避免两路麦克风冲突。
+                        if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
+                            ActionIconButton(
+                                size = CapsuleActionSize,
+                                onClick = {
+                                    when (asrState.status) {
+                                        ASRStatus.Listening -> {
+                                            asr.stop()
+                                        }
+
+                                        ASRStatus.Idle, ASRStatus.Error -> {
+                                            if (!asrPermission.allRequiredPermissionsGranted) {
+                                                asrPermission.requestPermissions()
+                                            } else {
+                                                voiceMessageMode = true
+                                                asr.start { transcript ->
+                                                    // Ignore transcript in voice message mode
+                                                }
+                                            }
+                                        }
+
+                                        ASRStatus.Connecting, ASRStatus.Stopping -> {}
+                                    }
+                                }
+                            ) {
+                                if (asrState.isRecording) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = HugeIcons.Voice,
+                                        contentDescription = "Voice",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
+                        }
 
-                            // 语音：固定在发送左边。通话进行中禁用，避免两路麦克风冲突。
-                            if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
-                                ActionIconButton(
-                                    size = CapsuleActionSize,
-                                    onClick = {
-                                        when (asrState.status) {
-                                            ASRStatus.Listening -> {
-                                                asr.stop()
-                                            }
-
-                                            ASRStatus.Idle, ASRStatus.Error -> {
-                                                if (!asrPermission.allRequiredPermissionsGranted) {
-                                                    asrPermission.requestPermissions()
-                                                } else {
-                                                    voiceMessageMode = true
-                                                    asr.start { transcript ->
-                                                        // Ignore transcript in voice message mode
-                                                    }
-                                                }
-                                            }
-
-                                            ASRStatus.Connecting, ASRStatus.Stopping -> {}
+                        // 发送：整条容器唯一使用主题强调色的实心按钮，固定在操作行最右端。
+                        // 空输入态降低透明度而不是换成灰色，保持可辨识但仍读作不可用。
+                        // 点击发送 / 长按无回答 / 生成中转取消，三种行为与原来完全一致。
+                        AnimatedVisibility(
+                            visible = !asrState.isRecording,
+                            enter = fadeIn() + scaleIn(),
+                            exit = fadeOut() + scaleOut(),
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(ActionButtonSize)
+                                    .clip(CircleShape)
+                                    .combinedClickable(
+                                        enabled = loading || !state.isEmpty(),
+                                        onClick = {
+                                            dismissExpand()
+                                            sendMessage()
+                                        }, onLongClick = {
+                                            dismissExpand()
+                                            sendMessageWithoutAnswer()
                                         }
-                                    }
-                                ) {
-                                    if (asrState.isRecording) {
-                                        androidx.compose.material3.CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = HugeIcons.Voice,
-                                            contentDescription = "Voice",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // 发送：整条容器唯一使用主题强调色的实心按钮，固定在操作行最右端。
-                            // 空输入态降低透明度而不是换成灰色，保持可辨识但仍读作不可用。
-                            // 点击发送 / 长按无回答 / 生成中转取消，三种行为与原来完全一致。
-                            AnimatedVisibility(
-                                visible = !asrState.isRecording,
-                                enter = fadeIn() + scaleIn(),
-                                exit = fadeOut() + scaleOut(),
+                                    )
                             ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(ActionButtonSize)
-                                        .clip(CircleShape)
-                                        .combinedClickable(
-                                            enabled = loading || !state.isEmpty(),
-                                            onClick = {
-                                                dismissExpand()
-                                                sendMessage()
-                                            }, onLongClick = {
-                                                dismissExpand()
-                                                sendMessageWithoutAnswer()
-                                            }
-                                        )
-                                ) {
-                                    val containerColor = when {
-                                        loading -> MaterialTheme.colorScheme.errorContainer
-                                        state.isEmpty() -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                                        else -> MaterialTheme.colorScheme.primary
-                                    }
-                                    val contentColor = when {
-                                        loading -> MaterialTheme.colorScheme.onErrorContainer
-                                        else -> MaterialTheme.colorScheme.onPrimary
-                                    }
-                                    Surface(
-                                        modifier = Modifier.fillMaxSize(),
-                                        shape = CircleShape,
-                                        color = containerColor,
-                                        content = {})
-                                    if (loading) {
-                                        KeepScreenOn()
-                                        Icon(
-                                            imageVector = HugeIcons.Cancel01,
-                                            contentDescription = stringResource(R.string.stop),
-                                            tint = contentColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = HugeIcons.ArrowUp02,
-                                            contentDescription = stringResource(R.string.send),
-                                            tint = contentColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
+                                val containerColor = when {
+                                    loading -> MaterialTheme.colorScheme.errorContainer
+                                    state.isEmpty() -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                    else -> MaterialTheme.colorScheme.primary
+                                }
+                                val contentColor = when {
+                                    loading -> MaterialTheme.colorScheme.onErrorContainer
+                                    else -> MaterialTheme.colorScheme.onPrimary
+                                }
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    shape = CircleShape,
+                                    color = containerColor,
+                                    content = {})
+                                if (loading) {
+                                    KeepScreenOn()
+                                    Icon(
+                                        imageVector = HugeIcons.Cancel01,
+                                        contentDescription = stringResource(R.string.stop),
+                                        tint = contentColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = HugeIcons.ArrowUp02,
+                                        contentDescription = stringResource(R.string.send),
+                                        tint = contentColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
+                        }
+                    }
+
+                    // 单行态 / 多行态共用同一个 Row，只换内边距与对齐 ——
+                    // 结构不变，按钮的位置就不会「跳」。
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                // 多行态把左右内缩让给下面的操作行：正文这一行要贴到 16dp
+                                // （M3 TextField 自带的 contentPadding）与图标对齐，
+                                // 再加 8dp 就变成 24dp，两行左边缘对不齐。
+                                start = if (isMultiLine) 0.dp else 8.dp,
+                                end = if (isMultiLine) 0.dp else 8.dp,
+                                // 多行态底排下方留 10dp：容器圆角固定 28dp，距边界 8dp 处
+                                // 下边界被抬高 28 − √(28² − 20²) ≈ 8.4dp，10dp 留 1.6dp 余量。
+                                // 单行态容器正好 56dp 高，按钮靠几何中线，不留内缩。
+                                bottom = if (isMultiLine) 10.dp else 0.dp,
+                            ),
+                        verticalAlignment = if (isMultiLine) {
+                            Alignment.Bottom
+                        } else {
+                            Alignment.CenterVertically
+                        },
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        // 单行态：「+」直接排在正文左边。
+                        if (!isMultiLine) {
+                            attachButton()
+                        }
+
+                        // 正文。**两态共用同一个调用点** —— 这是硬要求：
+                        // 挪到另一个分支的调用点，Compose 会把它当成另一个 composable
+                        // 销毁重建，输入焦点和光标位置一起丢，键盘会在切形态的瞬间收起。
+                        Column(modifier = Modifier.weight(1f)) {
+                            TextInputRow(
+                                state = state,
+                                onSendMessage = { sendMessage() },
+                                placeholder = inputPlaceholder,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = containerShape,
+                                singleLine = !isMultiLine,
+                            )
+
+                            // 多行态：操作行落在正文**下方**（P1 结构）。
+                            // 单行态不渲染这一行 —— 按钮与正文同排。
+                            if (isMultiLine) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 8.dp, end = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    attachButton()
+                                    Spacer(Modifier.weight(1f))
+                                    trailingActions()
+                                }
+                            }
+                        }
+
+                        // 单行态：功能组与正文同排，贴在行尾。
+                        if (!isMultiLine) {
+                            trailingActions()
                         }
                     }
                 }
@@ -1017,9 +1055,13 @@ private fun TextInputRow(
     onSendMessage: () -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
-    // 容器形状由 ChatInput 顶层传进来（恒为固定 28dp 圆角的编辑框形状）。
+    // 容器形状由 ChatInput 顶层传进来（恒为固定 28dp 圆角；单行态它恰好等于半高，
+    // 所以同一个常量在单行时是胶囊、多行时是圆角卡片）。
     // 这里不能直接用 ChatInput 的局部 containerShape —— 那是另一个函数的作用域。
     shape: Shape,
+    // 单行（胶囊）态走 TextFieldLineLimits.SingleLine：文字在框内横向滚动，
+    // 高度恒为 M3 的 56dp。多行（大卡片）态走 MultiLine(4)。
+    singleLine: Boolean,
 ) {
     val displaySettings = LocalDisplaySettings.current
     val filesManager: FilesManager = koinInject()
@@ -1089,13 +1131,24 @@ private fun TextInputRow(
             },
             // 上限从 5 行收到 4 行：5 行时外壳约 136–166dp（随字体缩放），已经超出
             // 「最大 120–140dp」；4 行固定 116dp。超出的文字在编辑区内部滚动。
-            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = InputMaxLines),
+            // 单行态走 SingleLine：文字横向滚动，高度锁在 M3 的 56dp，不会被字数撑高。
+            // 多行态才允许长到 4 行。切换只改这一个参数 —— TextFieldState 是外置的，
+            // 文字与光标都不受影响。
+            lineLimits = if (singleLine) {
+                TextFieldLineLimits.SingleLine
+            } else {
+                TextFieldLineLimits.MultiLine(maxHeightInLines = InputMaxLines)
+            },
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default
             ),
             onKeyboardAction = {
-                if (displaySettings.sendOnEnter && !state.isEmpty()) {
-                    onSendMessage()
+                when {
+                    displaySettings.sendOnEnter && !state.isEmpty() -> onSendMessage()
+                    // 单行（胶囊）态下按回车 = 用户主动要写多行：补一个换行，
+                    // 容器下一帧就按 isMultiLine 切成大卡片。
+                    // 不补的话 SingleLine 会把换行吃掉，用户永远进不了多行态。
+                    singleLine -> state.appendText("\n")
                 }
             },
             colors = TextFieldDefaults.colors().copy(
@@ -1175,7 +1228,7 @@ private val ActionButtonSize = 40.dp
 private val CapsuleActionSize = 36.dp
 
 /**
- * 正文输入区的行数上限与绝对高度上限。
+ * 正文输入区的行数上限与绝对高度上限（**只管多行态**）。
  *
  * 为什么两个都要，而不是只留一个：
  * - `maxHeightInLines` 决定「能看见几行」，但它的**实际高度会随系统字体缩放漂移** ——
@@ -1185,24 +1238,35 @@ private val CapsuleActionSize = 36.dp
  * 这两个值一致（4 行 = 4 × 20dp 行高 + 32dp 内边距 = 112dp），所以默认字体下由谁生效都一样；
  * 字体放大之后由 [InputMaxHeight] 生效，多出来的文字在编辑区内部滚动，不撑外壳。
  *
- * 上限只管正文区。容器总高 = 正文区(56~112) + 操作行(40) + 下内边距(10)，
- * 即空输入约 106dp、4 行约 162dp —— 高度仍由行数封顶，不会无限长。
+ * 容器总高：
+ *   单行（胶囊）态 = 正文区 56dp ⇒ 56dp，半径 28dp 恰好是半高，就是一颗胶囊
+ *   多行（大卡片）态 = 正文区 56~112 + 操作行 40 + 下内边距 10 ⇒ 106~162dp
+ * 两态都由行数封顶，不会无限长。
  */
 private const val InputMaxLines = 4
 private val InputMaxHeight = 112.dp
 
 /**
- * 输入容器的形状 —— 一个**较大的圆角矩形**，不是胶囊。这是唯一的容器形状。
+ * 单行（胶囊）态的字数上限 —— 超过它就切到多行（大卡片）态。
  *
- * 为什么不能用 `percent = 50`：那个半径恒等于高度的一半。新结构里容器恒有两行
- * （正文 + 操作），高度起步就约 106dp、4 行时约 162dp，两端会变成半径 53~81dp 的
- * 半圆：底排的 + 与发送会被 `.clip(containerShape)` 啃掉，多行文字的首尾也会被吃掉。
- * 所以用固定 28dp —— 四角圆润，但始终留着直边，明确读作"输入框"。
+ * 判据用**字数**而不是行数：`TextFieldState` 不暴露实际行数（批 17 的结论），只能估。
+ * 12 是「胶囊那一行还读得顺」的边界：胶囊里正文两侧被 + 与功能组夹着，360dp 屏幕上
+ * 正文可用宽度约 130dp（约 9 个中文字）。定得再高会出现「字已经写满还挤在胶囊里」；
+ * 定得太低又会一打字就展开，违背「不要一开始就是大卡片」。
+ */
+private const val SingleLineMaxChars = 12
+
+/**
+ * 输入容器的形状 —— 固定 28dp 圆角。**两态共用这一个常量。**
  *
- * 28dp 是「看得出是圆角矩形」与「不显得方」的折中：小于 16dp 会读成卡片，
- * 大于 32dp 在 162dp 高时又开始向胶囊靠。
+ * 单行（胶囊）态容器正好 56dp 高，28dp 半径恰好等于半高 ⇒ 它**就是**一颗标准胶囊。
+ * 多行（大卡片）态容器 106~162dp 高，同一个半径读作圆角卡片。
+ * 所以「从胶囊切到大卡片」时圆角是连续的，不会像换了一个组件。
  *
- * 底排按钮的底部内缩量就是从这个半径反算的（见 ChatInput 操作行那段注释）：
- * 半径 28dp 时，距边界 8dp 处下边界抬高约 8.4dp，所以留 10dp。
+ * 不能用 `percent = 50`：那个半径恒等于半高，多行态下会变成半径 53~81dp 的半圆，
+ * 底排的 + 与发送会被 `.clip(containerShape)` 啃掉，多行文字的首尾也会被吃掉。
+ *
+ * 底排按钮的底部内缩量就是从 28dp 这个半径反算的（见 ChatInput 操作行那段注释）：
+ * 半径 28dp 时，距边界 8dp 处下边界抬高约 8.4dp，所以多行态留 10dp。
  */
 private val InputEditorShape = RoundedCornerShape(28.dp)
