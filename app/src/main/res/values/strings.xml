@@ -774,7 +774,6 @@
   <string name="setting_display_page_show_user_avatar_title">Show User Avatar</string>
   <string name="setting_display_page_skip_crop_image_desc">Skip crop interface after importing images or taking photos</string>
   <string name="setting_display_page_skip_crop_image_title">Skip Image Editing</string>
-  <string name="setting_display_page_title">Display Settings</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">When enabled, TTS will only read content within quotation marks</string>
     <string name="setting_display_page_tts_english_only_title">English Only</string>
     <string name="setting_display_page_tts_english_only_desc">Read only the English parts aloud, skipping Chinese and other scripts</string>

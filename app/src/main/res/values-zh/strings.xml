@@ -725,7 +725,6 @@
   <string name="setting_display_page_show_user_avatar_title">显示用户头像</string>
   <string name="setting_display_page_skip_crop_image_desc">导入图片或拍照后跳过裁剪界面</string>
   <string name="setting_display_page_skip_crop_image_title">跳过图片编辑</string>
-  <string name="setting_display_page_title">显示设置</string>
   <string name="setting_display_page_tts_only_read_quoted_desc">启用后，TTS 仅朗读引号内的内容</string>
     <string name="setting_display_page_tts_english_only_title">只朗读英文</string>
     <string name="setting_display_page_tts_english_only_desc">只朗读文本里的英文部分，中文等其它文字跳过</string>
