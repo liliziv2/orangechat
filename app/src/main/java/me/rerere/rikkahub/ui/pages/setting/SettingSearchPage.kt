@@ -4,7 +4,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Delete01
-import me.rerere.hugeicons.stroke.MoreVertical
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,9 +21,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
@@ -275,7 +274,7 @@ private fun SearchProviderCard(
     canDelete: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier,
@@ -306,41 +305,37 @@ private fun SearchProviderCard(
                 SearchAbilityTagLine(options = service)
             }
 
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    imageVector = HugeIcons.MoreVertical,
-                    contentDescription = null
-                )
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                    border = materialModeBorderStroke(),
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.edit)) },
-                        onClick = {
-                            showMenu = false
-                            onEdit()
-                        },
-                        leadingIcon = {
-                            Icon(HugeIcons.PencilEdit01, contentDescription = null)
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.delete)) },
-                        onClick = {
-                            showMenu = false
-                            onDelete()
-                        },
-                        leadingIcon = {
-                            Icon(HugeIcons.Delete01, contentDescription = null)
-                        },
-                        enabled = canDelete
-                    )
-                }
-            }
+            ItemActionMenu(
+                actions = listOf(
+                    ItemAction(
+                        text = stringResource(R.string.edit),
+                        icon = HugeIcons.PencilEdit01,
+                        onClick = onEdit,
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.delete),
+                        icon = HugeIcons.Delete01,
+                        destructive = true,
+                        enabled = canDelete,
+                        onClick = { showDeleteDialog = true },
+                    ),
+                ),
+            )
 
         }
+    }
+    RikkaConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.delete),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    ) {
+        Text(service.displayName)
     }
 }
 

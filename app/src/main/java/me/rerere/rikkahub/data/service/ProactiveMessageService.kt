@@ -33,7 +33,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.canResumeToolExecution
-import me.rerere.ai.ui.handleMessageChunk
+import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -1562,13 +1562,15 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
             // 流式调用 AI（替代非流式 generateText，兼容 thinking 模型）
             var streamMessages = messages.toList()
             var receivedAnyChunk = false
+            // 本步是一条独立的响应流：用一个独立的合并器。
+            val chunkHandler = StreamChunkHandler(model)
             providerImpl.streamText(
                 providerSetting = providerSetting,
                 messages = messages,
                 params = params
             ).collect { chunk ->
                 receivedAnyChunk = true
-                streamMessages = streamMessages.handleMessageChunk(chunk = chunk, model = model)
+                streamMessages = chunkHandler.handle(streamMessages, chunk)
 
                 // 实时更新 session 状态，让打开的聊天界面能看到消息生成
                 val currentAiMessage = streamMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
@@ -1577,6 +1579,9 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     updateOrAppendAiMessage(conversationId, currentAiMessage)
                 }
             }
+
+            // 流式结束：结束还没关掉的思考段，否则 UI 会一直显示「思考中」。
+            streamMessages = chunkHandler.finish(streamMessages)
 
             // 流式结束，更新 messages
             messages = streamMessages.toMutableList()

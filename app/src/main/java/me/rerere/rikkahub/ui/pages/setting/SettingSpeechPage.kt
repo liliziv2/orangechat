@@ -7,7 +7,6 @@ import me.rerere.hugeicons.stroke.DragDropHorizontal
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Mic01
-import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.VolumeHigh
 import me.rerere.hugeicons.stroke.MusicNote03
@@ -31,6 +30,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -641,7 +643,7 @@ private fun TTSProviderItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showDropdownMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val tts = LocalTTSState.current
     val isSpeaking by tts.isSpeaking.collectAsState()
     val isAvailable by tts.isAvailable.collectAsState()
@@ -740,43 +742,38 @@ private fun TTSProviderItem(
                     }
                 }
 
-                IconButton(
-                    onClick = { showDropdownMenu = true }
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Tools,
-                        contentDescription = stringResource(R.string.setting_tts_page_more_options_content_description)
-                    )
-                    DropdownMenu(
-                        expanded = showDropdownMenu,
-                        onDismissRequest = { showDropdownMenu = false },
-                        border = materialModeBorderStroke(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.edit)) },
-                            onClick = {
-                                showDropdownMenu = false
-                                onEdit()
-                            },
-                            leadingIcon = {
-                                Icon(HugeIcons.PencilEdit01, contentDescription = null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.delete)) },
-                            onClick = {
-                                showDropdownMenu = false
-                                onDelete()
-                            },
-                            leadingIcon = {
-                                Icon(HugeIcons.Delete01, contentDescription = null)
-                            },
-                            enabled = provider.id != DEFAULT_SYSTEM_TTS_ID
-                        )
-                    }
-                }
+                ItemActionMenu(
+                    actions = listOf(
+                        ItemAction(
+                            text = stringResource(R.string.edit),
+                            icon = HugeIcons.PencilEdit01,
+                            onClick = onEdit,
+                        ),
+                        ItemAction(
+                            text = stringResource(R.string.delete),
+                            icon = HugeIcons.Delete01,
+                            destructive = true,
+                            enabled = provider.id != DEFAULT_SYSTEM_TTS_ID,
+                            onClick = { showDeleteDialog = true },
+                        ),
+                    ),
+                )
             }
         }
+    }
+
+    RikkaConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.delete),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    ) {
+        Text(provider.name.ifEmpty { stringResource(R.string.setting_tts_page_default_name) })
     }
 }
 
@@ -790,7 +787,7 @@ private fun ASRProviderItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showDropdownMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier,
@@ -860,41 +857,36 @@ private fun ASRProviderItem(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                IconButton(
-                    onClick = { showDropdownMenu = true }
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Tools,
-                        contentDescription = stringResource(R.string.setting_tts_page_more_options_content_description)
-                    )
-                    DropdownMenu(
-                        expanded = showDropdownMenu,
-                        onDismissRequest = { showDropdownMenu = false },
-                        border = materialModeBorderStroke(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.edit)) },
-                            onClick = {
-                                showDropdownMenu = false
-                                onEdit()
-                            },
-                            leadingIcon = {
-                                Icon(HugeIcons.PencilEdit01, contentDescription = null)
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.delete)) },
-                            onClick = {
-                                showDropdownMenu = false
-                                onDelete()
-                            },
-                            leadingIcon = {
-                                Icon(HugeIcons.Delete01, contentDescription = null)
-                            }
-                        )
-                    }
-                }
+                ItemActionMenu(
+                    actions = listOf(
+                        ItemAction(
+                            text = stringResource(R.string.edit),
+                            icon = HugeIcons.PencilEdit01,
+                            onClick = onEdit,
+                        ),
+                        ItemAction(
+                            text = stringResource(R.string.delete),
+                            icon = HugeIcons.Delete01,
+                            destructive = true,
+                            onClick = { showDeleteDialog = true },
+                        ),
+                    ),
+                )
             }
         }
+    }
+
+    RikkaConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.delete),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    ) {
+        Text(provider.name.ifEmpty { stringResource(R.string.setting_asr_page_default_name) })
     }
 }

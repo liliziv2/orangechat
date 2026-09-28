@@ -35,7 +35,7 @@ sealed interface MessagePartBlock {
  * 2. 分组结束后，相邻的两个 Text ContentBlock 并回一块。
  *
  * 背景：供应商偶尔会在正文中间回一个纯空白的 reasoning 分片（见
- * `UIMessage.appendDelta` 里的说明），流式累加时它会插进两个 Text part 之间，
+ * `StreamChunkHandler` 里的说明），流式累加时它会插进两个 Text part 之间，
  * 而 Text 只在「上一个 part 也是 Text」时才合并，于是「4k4」这种连续文本被永久
  * 劈成两个 part，渲染成两个气泡、中间还留一个「思考了 0.0 秒」的空思考块。
  *

@@ -21,9 +21,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -66,7 +65,6 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileDownload
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Refresh
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share03
@@ -540,7 +538,6 @@ private fun FileRow(
     onShare: () -> Unit = {},
     showDelete: Boolean = true,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -579,57 +576,30 @@ private fun FileRow(
                     )
                 }
             }
-            // 非目录文件显示"更多"下拉菜单（导出/分享）；目录不显示
+            // 次要操作统一收进 ⋮ 菜单（导出 / 分享 / 删除）
+            val rowActions = mutableListOf<ItemAction>()
             if (!entry.isDirectory) {
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = HugeIcons.MoreVertical,
-                            contentDescription = null,
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        border = materialModeBorderStroke(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workspace_detail_export)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.FileDownload,
-                                    contentDescription = null,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onExport()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workspace_detail_share)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.Share03,
-                                    contentDescription = null,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onShare()
-                            },
-                        )
-                    }
-                }
+                rowActions += ItemAction(
+                    text = stringResource(R.string.workspace_detail_export),
+                    icon = HugeIcons.FileDownload,
+                    onClick = onExport,
+                )
+                rowActions += ItemAction(
+                    text = stringResource(R.string.workspace_detail_share),
+                    icon = HugeIcons.Share03,
+                    onClick = onShare,
+                )
             }
             if (showDelete) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = HugeIcons.Delete01,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
+                rowActions += ItemAction(
+                    text = stringResource(R.string.delete),
+                    icon = HugeIcons.Delete01,
+                    destructive = true,
+                    onClick = onDelete,
+                )
+            }
+            if (rowActions.isNotEmpty()) {
+                ItemActionMenu(actions = rowActions)
             }
         }
     }

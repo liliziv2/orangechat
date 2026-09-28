@@ -504,6 +504,10 @@ class ResponseAPI(
             }
 
             "response.reasoning_summary_text.delta", "response.reasoning_text.delta" -> {
+                // 纯空白的 reasoning delta 没有可显示内容，放它进来只会在正文中间插出一个
+                // 0 秒的空思考块、并把两侧文本劈成两个 part（详见 StreamChunkHandler）。
+                val reasoningDelta = jsonObject["delta"]?.jsonPrimitive?.contentOrNull ?: ""
+                if (reasoningDelta.isBlank()) return null
                 return MessageChunk(
                     id = jsonObject["item_id"]?.jsonPrimitive?.contentOrNull ?: "",
                     model = "",
@@ -514,8 +518,7 @@ class ResponseAPI(
                                 role = MessageRole.ASSISTANT,
                                 parts = listOf(
                                     UIMessagePart.Reasoning(
-                                        reasoning = jsonObject["delta"]?.jsonPrimitive?.contentOrNull
-                                            ?: "",
+                                        reasoning = reasoningDelta,
                                         createdAt = Clock.System.now(),
                                         finishedAt = null
                                     )

@@ -555,7 +555,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             jsonObject.containsKey("text") -> {
                 val thought = jsonObject["thought"]?.jsonPrimitive?.booleanOrNull ?: false
                 val text = jsonObject["text"]?.jsonPrimitive?.content ?: ""
-                if (thought) UIMessagePart.Reasoning(
+                if (thought && text.isNotBlank()) UIMessagePart.Reasoning(
                     reasoning = text,
                     createdAt = Clock.System.now(),
                     finishedAt = null

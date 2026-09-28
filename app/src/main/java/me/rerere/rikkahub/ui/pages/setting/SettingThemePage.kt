@@ -27,6 +27,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.HorizontalDivider
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -73,6 +80,7 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
     val context = LocalContext.current
 
     var editingTheme by remember { mutableStateOf<CustomTheme?>(null) }
+    var deleteThemeTarget by remember { mutableStateOf<CustomTheme?>(null) }
     var showImportDialog by remember { mutableStateOf(false) }
     var showPrimaryPicker by remember { mutableStateOf(false) }
     var showSecondaryPicker by remember { mutableStateOf(false) }
@@ -168,20 +176,53 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
                                         }
                                         Spacer(Modifier.width(8.dp))
                                     }
-                                    TextButton(onClick = { editingTheme = custom }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("编辑", style = MaterialTheme.typography.labelMedium) }
-                                    TextButton(onClick = {
-                                        val json = themeJson.encodeToString(custom)
-                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                        clipboard.setPrimaryClip(ClipData.newPlainText("theme", json))
-                                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
-                                    }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("导出", style = MaterialTheme.typography.labelMedium) }
-                                    TextButton(onClick = { vm.deleteCustomTheme(custom.id) }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text("删除", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error) }
+                                    ItemActionMenu(
+                                        actions = listOf(
+                                            ItemAction(
+                                                text = "编辑",
+                                                icon = HugeIcons.PencilEdit01,
+                                                onClick = { editingTheme = custom },
+                                            ),
+                                            ItemAction(
+                                                text = "导出",
+                                                icon = HugeIcons.Copy01,
+                                                onClick = {
+                                                    val json = themeJson.encodeToString(custom)
+                                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                    clipboard.setPrimaryClip(ClipData.newPlainText("theme", json))
+                                                    Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                                                },
+                                            ),
+                                            ItemAction(
+                                                text = "删除",
+                                                icon = HugeIcons.Delete01,
+                                                destructive = true,
+                                                onClick = { deleteThemeTarget = custom },
+                                            ),
+                                        ),
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    deleteThemeTarget?.let { target ->
+        RikkaConfirmDialog(
+            show = true,
+            title = "删除主题",
+            confirmText = "删除",
+            dismissText = "取消",
+            onConfirm = {
+                vm.deleteCustomTheme(target.id)
+                deleteThemeTarget = null
+            },
+            onDismiss = { deleteThemeTarget = null },
+        ) {
+            Text(target.name)
         }
     }
 

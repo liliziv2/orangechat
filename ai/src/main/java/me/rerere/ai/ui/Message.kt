@@ -11,7 +11,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
-import me.rerere.ai.provider.Model
 import me.rerere.ai.util.json
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -31,130 +30,6 @@ data class UIMessage(
     val usage: TokenUsage? = null,
     val translation: String? = null
 ) {
-    private fun appendChunk(chunk: MessageChunk): UIMessage {
-        val choice = chunk.choices.getOrNull(0)
-        val message = choice?.delta ?: choice?.message
-        return message?.let { delta ->
-            // Handle Parts
-            var newParts = delta.parts.fold(parts) { acc, deltaPart ->
-                when (deltaPart) {
-                    is UIMessagePart.Text -> {
-                        // Skip empty text deltas
-                        if (deltaPart.text.isEmpty()) {
-                            acc
-                        } else {
-                            val lastPart = acc.lastOrNull()
-                            if (lastPart is UIMessagePart.Text) {
-                                // Append to the last Text part
-                                acc.dropLast(1) + lastPart.copy(text = lastPart.text + deltaPart.text)
-                            } else {
-                                // Create new Text part
-                                acc + deltaPart
-                            }
-                        }
-                    }
-
-                    is UIMessagePart.Image -> {
-                        val lastPart = acc.lastOrNull()
-                        if (lastPart is UIMessagePart.Image) {
-                            // Append to the last Image part (for streaming base64)
-                            acc.dropLast(1) + lastPart.copy(
-                                url = lastPart.url + deltaPart.url,
-                                metadata = deltaPart.metadata ?: lastPart.metadata
-                            )
-                        } else {
-                            // Create new Image part
-                            acc + UIMessagePart.Image(
-                                url = "data:image/png;base64,${deltaPart.url}",
-                                metadata = deltaPart.metadata,
-                            )
-                        }
-                    }
-
-                    is UIMessagePart.Reasoning -> {
-                        // Skip blank reasoning deltas.
-                        //
-                        // 判据从 isEmpty() 放宽到 isBlank()：部分供应商会在正文中间回一个
-                        // 纯空白的 reasoning 分片（"\n" / " "）。这种分片既没有可显示内容，
-                        // 又会在下面插进两个 Text part 之间 —— 而 Text 只在「上一个 part
-                        // 也是 Text」时才合并（见上面的 Text 分支），于是「4k4」这种连续文本
-                        // 被永久劈成两个 part，渲染成两个气泡、中间还留一个「思考了 0.0 秒」。
-                        // 带 metadata 的分片仍然保留：thought signature 之类的元数据要回传供应商。
-                        if (deltaPart.reasoning.isBlank() && deltaPart.metadata == null) {
-                            acc
-                        } else {
-                            val lastPart = acc.lastOrNull()
-                            if (lastPart is UIMessagePart.Reasoning) {
-                                // Append to the last Reasoning part
-                                acc.dropLast(1) + UIMessagePart.Reasoning(
-                                    reasoning = lastPart.reasoning + deltaPart.reasoning,
-                                    createdAt = lastPart.createdAt,
-                                    finishedAt = null,
-                                ).also {
-                                    it.metadata = deltaPart.metadata ?: lastPart.metadata
-                                }
-                            } else {
-                                // Create new Reasoning part
-                                acc + deltaPart
-                            }
-                        }
-                    }
-
-                    is UIMessagePart.Tool -> {
-                        if (deltaPart.toolCallId.isBlank()) {
-                            // No ID yet - append to the last Tool if it also has no ID
-                            val lastTool = acc.lastOrNull { it is UIMessagePart.Tool } as? UIMessagePart.Tool
-                            if (lastTool != null) {
-                                acc.map { part ->
-                                    if (part === lastTool) part.merge(deltaPart) else part
-                                }
-                            } else {
-                                acc + deltaPart.copy()
-                            }
-                        } else {
-                            // Has ID - find and update by ID, or insert new
-                            val existsPart = acc.find {
-                                it is UIMessagePart.Tool && it.toolCallId == deltaPart.toolCallId
-                            } as? UIMessagePart.Tool
-                            if (existsPart == null) {
-                                acc + deltaPart.copy()
-                            } else {
-                                acc.map { part ->
-                                    if (part is UIMessagePart.Tool && part.toolCallId == deltaPart.toolCallId) {
-                                        part.merge(deltaPart)
-                                    } else part
-                                }
-                            }
-                        }
-                    }
-
-                    else -> {
-                        println("delta part append not supported: $deltaPart")
-                        acc
-                    }
-                }
-            }
-            // Handle Reasoning End
-            if (parts.filterIsInstance<UIMessagePart.Reasoning>()
-                    .isNotEmpty() && delta.parts.filterIsInstance<UIMessagePart.Reasoning>()
-                    .isEmpty()
-            ) {
-                newParts = newParts.map { part ->
-                    if (part is UIMessagePart.Reasoning && part.finishedAt == null) {
-                        part.copy(finishedAt = Clock.System.now())
-                    } else part
-                }
-            }
-            // Handle annotations
-            val newAnnotations = delta.annotations.ifEmpty {
-                annotations
-            }
-            copy(
-                parts = newParts,
-                annotations = newAnnotations,
-            )
-        } ?: this
-    }
 
     fun summaryAsText(): String {
         return "[${role.name}]: " + parts.joinToString(separator = "\n") { part ->
@@ -196,10 +71,6 @@ data class UIMessage(
         it is UIMessagePart.Image && it.url.startsWith("data:")
     }
 
-    operator fun plus(chunk: MessageChunk): UIMessage {
-        return this.appendChunk(chunk)
-    }
-
     companion object {
         fun system(prompt: String) = UIMessage(
             role = MessageRole.SYSTEM,
@@ -215,28 +86,6 @@ data class UIMessage(
             role = MessageRole.ASSISTANT,
             parts = listOf(UIMessagePart.Text(prompt))
         )
-    }
-}
-
-/**
- * 处理MessageChunk合并
- *
- * @receiver 已有消息列表
- * @param chunk 消息chunk
- * @param model 模型, 可以不传，如果传了，会把模型id写入到消息，标记是哪个模型输出的消息
- * @return 新消息列表
- */
-fun List<UIMessage>.handleMessageChunk(chunk: MessageChunk, model: Model? = null): List<UIMessage> {
-    require(this.isNotEmpty()) {
-        "messages must not be empty"
-    }
-    val choice = chunk.choices.getOrNull(0) ?: return this
-    val message = choice.delta ?: choice.message ?: return this
-    if (this.last().role != message.role) {
-        return this + (UIMessage(modelId = model?.id, role = message.role, parts = emptyList()) + chunk)
-    } else {
-        val last = this.last() + chunk
-        return this.dropLast(1) + last
     }
 }
 

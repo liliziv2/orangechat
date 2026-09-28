@@ -37,7 +37,7 @@ import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
-import me.rerere.ai.ui.handleMessageChunk
+import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
@@ -699,15 +699,17 @@ class GenerationHandler(
             // 请求发出时的基线：最后一条消息的 role 与 part 数。用来判断「本步是否已经
             // 产出了第一个 part」（见下面 collect 里的说明）。首步的助手消息还不存在，
             // role 从 USER 变 ASSISTANT 即首个输出；后续步骤助手消息是复用的
-            // （handleMessageChunk 只在 role 变化时新建），新 part 只会让 part 数变多。
+            // （StreamChunkHandler 只在 role 变化时新建），新 part 只会让 part 数变多。
             var observedRole = messages.lastOrNull()?.role
             var observedPartCount = messages.lastOrNull()?.parts?.size ?: 0
+            // 本步是一条独立的响应流：用一个独立的合并器，流结束后 finish() 收尾。
+            val chunkHandler = StreamChunkHandler(model)
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
             ).collect {
-                messages = messages.handleMessageChunk(chunk = it, model = model)
+                messages = chunkHandler.handle(messages, it)
                 // 本步第一个 part 一到（Reasoning / Text / Tool 都算），状态区就让位：
                 // 那一刻原生的思考链（「栖 正在思考…」）或工具卡片已经有东西可显示，
                 // 状态区继续挂着就是同时出现两套。
@@ -736,6 +738,9 @@ class GenerationHandler(
                 }
                 onUpdateMessages(messages)
             }
+            // 流结束：结束还没关掉的思考段，否则 UI 会一直显示「思考中」。
+            messages = chunkHandler.finish(messages)
+            onUpdateMessages(messages)
         } else {
             aiLoggingManager.addLog(
                 AILogging.Generation(
@@ -750,7 +755,7 @@ class GenerationHandler(
                 messages = internalMessages,
                 params = params,
             )
-            messages = messages.handleMessageChunk(chunk = chunk, model = model)
+            messages = StreamChunkHandler(model).handle(messages, chunk)
             chunk.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex) {
@@ -788,6 +793,7 @@ class GenerationHandler(
  
             var messages = listOf(UIMessage.user(prompt))
             var translatedText = ""
+            val translateChunkHandler = StreamChunkHandler(model)
  
             providerHandler.streamText(
                 providerSetting = provider,
@@ -797,7 +803,7 @@ class GenerationHandler(
                     reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
                 ),
             ).collect { chunk ->
-                messages = messages.handleMessageChunk(chunk)
+                messages = translateChunkHandler.handle(messages, chunk)
                 translatedText = messages.lastOrNull()?.toText() ?: ""
  
                 if (translatedText.isNotBlank()) {
@@ -805,6 +811,7 @@ class GenerationHandler(
                     emit(translatedText)
                 }
             }
+            messages = translateChunkHandler.finish(messages)
         } else {
             // Use Qwen MT model with special translation options
             val messages = listOf(UIMessage.user(sourceText))

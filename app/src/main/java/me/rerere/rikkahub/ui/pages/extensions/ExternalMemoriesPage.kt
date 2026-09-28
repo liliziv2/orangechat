@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,12 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -48,7 +45,6 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Brain01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
-import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.rikkahub.data.model.ExternalMemory
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -178,8 +174,6 @@ private fun ExternalMemoryItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CustomColors.cardColorsOnSurfaceContainer
@@ -228,33 +222,21 @@ private fun ExternalMemoryItem(
                 }
             }
 
-            Box {
-                IconButton(onClick = { expanded = true }) {
-                    Icon(HugeIcons.MoreVertical, contentDescription = null)
-                }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    border = materialModeBorderStroke(),
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("编辑") },
-                        leadingIcon = { Icon(HugeIcons.Edit01, null) },
-                        onClick = {
-                            expanded = false
-                            onEdit()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("删除") },
-                        leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                        onClick = {
-                            expanded = false
-                            onDelete()
-                        }
-                    )
-                }
-            }
+            ItemActionMenu(
+                actions = listOf(
+                    ItemAction(
+                        text = "编辑",
+                        icon = HugeIcons.Edit01,
+                        onClick = onEdit,
+                    ),
+                    ItemAction(
+                        text = "删除",
+                        icon = HugeIcons.Delete01,
+                        destructive = true,
+                        onClick = onDelete,
+                    ),
+                ),
+            )
         }
     }
 }

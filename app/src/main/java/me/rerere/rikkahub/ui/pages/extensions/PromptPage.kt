@@ -45,7 +45,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -59,13 +58,11 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +93,9 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ExportDialog
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -321,82 +321,69 @@ private fun ModeInjectionCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val swipeState = rememberSwipeToDismissBoxState()
-    val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     val exporter = rememberExporter(injection, ModeInjectionSerializer)
 
-    SwipeToDismissBox(
-        state = swipeState,
-        backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { scope.launch { swipeState.reset() } }) {
-                    Icon(HugeIcons.Cancel01, null)
-                }
-                FilledIconButton(onClick = {
-                    scope.launch {
-                        onDelete()
-                        swipeState.reset()
-                    }
-                }) {
-                    Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
-                }
-            }
-        },
-        enableDismissFromStartToEnd = false,
-        modifier = modifier
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = CustomColors.listItemColors.containerColor
+        )
     ) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = CustomColors.listItemColors.containerColor
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                Text(
+                    text = injection.name.ifEmpty { stringResource(R.string.prompt_page_unnamed) },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = injection.name.ifEmpty { stringResource(R.string.prompt_page_unnamed) },
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Tag(type = TagType.INFO) {
-                            Text(getPositionLabel(injection.position))
-                        }
-                        Tag(type = TagType.DEFAULT) {
-                            Text(stringResource(R.string.prompt_page_priority_format, injection.priority))
-                        }
-                        if (!injection.enabled) {
-                            Tag(type = TagType.WARNING) {
-                                Text(stringResource(R.string.prompt_page_disabled))
-                            }
+                    Tag(type = TagType.INFO) {
+                        Text(getPositionLabel(injection.position))
+                    }
+                    Tag(type = TagType.DEFAULT) {
+                        Text(stringResource(R.string.prompt_page_priority_format, injection.priority))
+                    }
+                    if (!injection.enabled) {
+                        Tag(type = TagType.WARNING) {
+                            Text(stringResource(R.string.prompt_page_disabled))
                         }
                     }
                 }
-                IconButton(onClick = { showExportDialog = true }) {
-                    Icon(HugeIcons.Share03, stringResource(R.string.export_title))
-                }
-                IconButton(onClick = onEdit) {
-                    Icon(HugeIcons.Tools, stringResource(R.string.prompt_page_edit))
-                }
             }
+            ItemActionMenu(
+                actions = listOf(
+                    ItemAction(
+                        text = stringResource(R.string.export_title),
+                        icon = HugeIcons.Share03,
+                        onClick = { showExportDialog = true },
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.prompt_page_edit),
+                        icon = HugeIcons.Tools,
+                        onClick = onEdit,
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.prompt_page_delete),
+                        icon = HugeIcons.Delete01,
+                        destructive = true,
+                        onClick = { showDeleteDialog = true },
+                    ),
+                ),
+            )
         }
     }
 
@@ -405,6 +392,20 @@ private fun ModeInjectionCard(
             exporter = exporter,
             onDismiss = { showExportDialog = false }
         )
+    }
+
+    RikkaConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.prompt_page_delete),
+        dismissText = stringResource(R.string.prompt_page_cancel),
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    ) {
+        Text(injection.name.ifEmpty { stringResource(R.string.prompt_page_unnamed) })
     }
 }
 
@@ -733,93 +734,80 @@ private fun LorebookCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val swipeState = rememberSwipeToDismissBoxState()
-    val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     val exporter = rememberExporter(book, LorebookSerializer)
 
-    SwipeToDismissBox(
-        state = swipeState,
-        backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { scope.launch { swipeState.reset() } }) {
-                    Icon(HugeIcons.Cancel01, null)
-                }
-                FilledIconButton(onClick = {
-                    scope.launch {
-                        onDelete()
-                        swipeState.reset()
-                    }
-                }) {
-                    Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
-                }
-            }
-        },
-        enableDismissFromStartToEnd = false,
-        modifier = modifier
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = CustomColors.listItemColors.containerColor
+        )
     ) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = CustomColors.listItemColors.containerColor
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                Text(
+                    text = book.name.ifEmpty { stringResource(R.string.prompt_page_unnamed_lorebook) },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (book.description.isNotEmpty()) {
                     Text(
-                        text = book.name.ifEmpty { stringResource(R.string.prompt_page_unnamed_lorebook) },
-                        style = MaterialTheme.typography.titleSmall,
+                        text = book.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (book.description.isNotEmpty()) {
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Tag(type = TagType.INFO) {
                         Text(
-                            text = book.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            stringResource(
+                                R.string.prompt_page_entries_count_format,
+                                book.entries.size
+                            )
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Tag(type = TagType.INFO) {
-                            Text(
-                                stringResource(
-                                    R.string.prompt_page_entries_count_format,
-                                    book.entries.size
-                                )
-                            )
-                        }
-                        if (!book.enabled) {
-                            Tag(type = TagType.WARNING) {
-                                Text(stringResource(R.string.prompt_page_disabled))
-                            }
+                    if (!book.enabled) {
+                        Tag(type = TagType.WARNING) {
+                            Text(stringResource(R.string.prompt_page_disabled))
                         }
                     }
                 }
-                IconButton(onClick = { showExportDialog = true }) {
-                    Icon(HugeIcons.Share03, stringResource(R.string.export_title))
-                }
-                IconButton(onClick = onEdit) {
-                    Icon(HugeIcons.Tools, stringResource(R.string.prompt_page_edit))
-                }
             }
+            ItemActionMenu(
+                actions = listOf(
+                    ItemAction(
+                        text = stringResource(R.string.export_title),
+                        icon = HugeIcons.Share03,
+                        onClick = { showExportDialog = true },
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.prompt_page_edit),
+                        icon = HugeIcons.Tools,
+                        onClick = onEdit,
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.prompt_page_delete),
+                        icon = HugeIcons.Delete01,
+                        destructive = true,
+                        onClick = { showDeleteDialog = true },
+                    ),
+                ),
+            )
         }
     }
 
@@ -828,6 +816,20 @@ private fun LorebookCard(
             exporter = exporter,
             onDismiss = { showExportDialog = false }
         )
+    }
+
+    RikkaConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.prompt_page_delete),
+        dismissText = stringResource(R.string.prompt_page_cancel),
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    ) {
+        Text(book.name.ifEmpty { stringResource(R.string.prompt_page_unnamed_lorebook) })
     }
 }
 
@@ -967,6 +969,7 @@ private fun RegexInjectionEntryCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -1002,13 +1005,36 @@ private fun RegexInjectionEntryCard(
                     }
                 }
             }
-            IconButton(onClick = onEdit) {
-                Icon(HugeIcons.Tools, stringResource(R.string.prompt_page_edit))
-            }
-            IconButton(onClick = onDelete) {
-                Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
-            }
+            ItemActionMenu(
+                actions = listOf(
+                    ItemAction(
+                        text = stringResource(R.string.prompt_page_edit),
+                        icon = HugeIcons.Tools,
+                        onClick = onEdit,
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.prompt_page_delete),
+                        icon = HugeIcons.Delete01,
+                        destructive = true,
+                        onClick = { showDeleteDialog = true },
+                    ),
+                ),
+            )
         }
+    }
+
+    RikkaConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.prompt_page_delete),
+        dismissText = stringResource(R.string.prompt_page_cancel),
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    ) {
+        Text(entry.name.ifEmpty { stringResource(R.string.prompt_page_unnamed_entry) })
     }
 }
 

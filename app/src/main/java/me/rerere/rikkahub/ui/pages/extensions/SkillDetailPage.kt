@@ -16,7 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -212,23 +213,22 @@ private fun FileItem(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    imageVector = Lucide.FilePen,
-                    contentDescription = stringResource(R.string.edit),
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-            if (skillFile.relativePath != "SKILL.md") {
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = Lucide.Trash2,
-                        contentDescription = stringResource(R.string.delete),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
+            ItemActionMenu(
+                actions = listOf(
+                    ItemAction(
+                        text = stringResource(R.string.edit),
+                        icon = Lucide.FilePen,
+                        onClick = onEdit,
+                    ),
+                    ItemAction(
+                        text = stringResource(R.string.delete),
+                        icon = Lucide.Trash2,
+                        destructive = true,
+                        enabled = skillFile.relativePath != "SKILL.md",
+                        onClick = onDelete,
+                    ),
+                ),
+            )
         }
     }
 }
