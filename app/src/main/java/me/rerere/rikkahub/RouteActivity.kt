@@ -138,7 +138,6 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDisplayGeneralPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayIllustrationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayMessagePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayNotificationPage
-import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPresetPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayUserProfilePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayTransparencyPage
@@ -661,9 +660,6 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingDisplayNotification> {
                                 SettingDisplayNotificationPage()
                             }
-                            entry<Screen.SettingDisplayPreset> {
-                                SettingDisplayPresetPage()
-                            }
                             entry<Screen.SettingDisplayUserProfile> {
                                 SettingDisplayUserProfilePage()
                             }
@@ -1147,9 +1143,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingDisplayNotification : Screen
-
-    @Serializable
-    data object SettingDisplayPreset : Screen
 
     @Serializable
     data object SettingDisplayUserProfile : Screen
