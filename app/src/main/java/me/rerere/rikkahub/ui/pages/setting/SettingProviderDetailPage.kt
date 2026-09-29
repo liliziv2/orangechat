@@ -11,6 +11,7 @@ import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Cancel01
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,6 +44,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
+import androidx.compose.material3.FloatingToolbarDefaults.standardFloatingToolbarColors
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +55,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -132,6 +137,33 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
+// ---- 模型页底部区域的视觉常量（本文件内共用，不引第二套设计语言）----
+//
+// 统一后的层级：页面底 = background；内容卡 / 浮动操作条 = 同一个 shapes.medium 圆角
+// + 同一条 outlineVariant 发丝描边；底部导航 = 与页面同色 + 顶部发丝分隔线。
+
+/** 模型卡图标底座：比原来的 36dp 收一圈，底座不再抢图标本身的注意力。 */
+private val ProviderModelIconSize = 32.dp
+
+/** 图标底座 = onSurface 的低透明度叠加 ⇒ 中性浅灰/半透明，不跟着主题强调色跑。 */
+private const val ProviderModelIconBaseAlpha = 0.06f
+
+/** 底部导航两项等宽，不收窄的话 M3 的 weight(1f) 会把它们推到屏幕 25% / 75%。 */
+private val ProviderNavBarMaxWidth = 240.dp
+
+/** 底部导航图标统一 24dp：两个 HugeIcons 的墨水覆盖率不同，同尺寸才读得出同一重量。 */
+private val ProviderNavIconSize = 24.dp
+
+/** 底部导航只用颜色区分选中态，不画 M3 默认那颗 secondaryContainer 椭圆胶囊。 */
+@Composable
+private fun providerNavItemColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = MaterialTheme.colorScheme.onSurface,
+    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+    indicatorColor = Color.Transparent,
+    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+)
+
 @Composable
 fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -191,27 +223,52 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
             )
         },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = pager.currentPage == 0,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_configuration)) },
-                    icon = { Icon(HugeIcons.Tools, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(0)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // 导航条本体与页面同色，只留一条发丝线做分界（和模型卡的描边同一个 token）
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.widthIn(max = ProviderNavBarMaxWidth),
+                ) {
+                    NavigationBarItem(
+                        selected = pager.currentPage == 0,
+                        label = { Text(stringResource(id = R.string.setting_provider_page_configuration)) },
+                        icon = {
+                            Icon(
+                                HugeIcons.Tools,
+                                null,
+                                modifier = Modifier.size(ProviderNavIconSize),
+                            )
+                        },
+                        colors = providerNavItemColors(),
+                        onClick = {
+                            scope.launch {
+                                pager.animateScrollToPage(0)
+                            }
                         }
-                    }
-                )
-                NavigationBarItem(
-                    selected = pager.currentPage == 1,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_models)) },
-                    icon = { Icon(HugeIcons.Package01, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(1)
+                    )
+                    NavigationBarItem(
+                        selected = pager.currentPage == 1,
+                        label = { Text(stringResource(id = R.string.setting_provider_page_models)) },
+                        icon = {
+                            Icon(
+                                HugeIcons.Package01,
+                                null,
+                                modifier = Modifier.size(ProviderNavIconSize),
+                            )
+                        },
+                        colors = providerNavItemColors(),
+                        onClick = {
+                            scope.launch {
+                                pager.animateScrollToPage(1)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         },
         containerColor = settingsScaffoldContainerColor(),
@@ -469,7 +526,18 @@ private fun ModelList(
             expanded = expanded,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = -ScreenOffset),
+                .offset(y = -ScreenOffset)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = MaterialTheme.shapes.medium,
+                ),
+            // 不再是 64dp 大胶囊：与模型卡同一个圆角、同一条发丝描边、同一个白底
+            colors = standardFloatingToolbarColors(
+                toolbarContainerColor = MaterialTheme.colorScheme.surface,
+                toolbarContentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+            shape = MaterialTheme.shapes.medium,
         ) {
             AddModelButton(
                 models = modelList,
@@ -733,7 +801,9 @@ private fun AddModelButton(
         Button(
             onClick = {
                 dialogState.open(Model())
-            }
+            },
+            // 保留橙色主操作，但圆角跟卡片/操作条同一套，不再是独立的胶囊
+            shape = MaterialTheme.shapes.medium,
         ) {
             Row(
                 modifier = Modifier,
@@ -1253,12 +1323,21 @@ private fun ModelCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
+                // 原来的 secondaryContainer 是主题里最重的一档（离页面 ΔL* 11+），
+                // 换成 onSurface 低透明度叠加：中性浅灰、半透明、不跟主题强调色跑。
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ProviderModelIconBaseAlpha),
+                // 这个底色不在 colorScheme 的槽位表里，contentColorFor 认不出来会回落到
+                // 外层 LocalContentColor。这里显式钉死 onSurface，免得卡片前景色一变、
+                // 图标跟着漂（原来底座是 secondaryContainer，图标走的是 onSecondaryContainer）。
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 shape = MaterialTheme.shapes.small,
             ) {
                 AutoAIIcon(
                     name = model.modelId,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(ProviderModelIconSize),
+                    // AutoAIIcon 内部还会再画一个同尺寸的 Surface。底座只由外层画一次，
+                    // 内层给透明，避免同一个底座叠两层。
+                    color = Color.Transparent,
                 )
             }
             Column(
