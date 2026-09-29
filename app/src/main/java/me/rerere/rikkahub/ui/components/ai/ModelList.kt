@@ -681,15 +681,37 @@ private fun ModelItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // 这一层只是承载 Logo 的材质容器，Logo 本身才是内容。
+                //
+                // 原来用的是 secondaryContainer —— 那是「用户气泡」槽位，合成后离页面
+                // ΔL* 11.10（比 AI 气泡还高一档），而且它不在 Theme.kt 那 9 个带 82%
+                // 透明度合成的槽位里，是实心色。结果整列模型卡最抢眼的元素变成了一排
+                // 主题色方块，把模型自身的 Logo 压下去了。
+                //
+                // 换成 surfaceContainer：中性 surface 体系、走同一套 82% 合成，并且
+                // 它本来就是主题文档里给「卡片 / 顶栏 / 模型 pill」用的槽位。
+                // 实测合成后离卡片 ΔL*（五套正式主题，日 / 夜）：
+                //     港口 2.44/4.91  奶油玫瑰 2.62/3.56  Claude 2.53/4.78
+                //     Minimal 2.40/4.11  星夜 2.49/3.31
+                // 日间五主题几乎同值（2.40~2.62）—— 正是「接近卡片但略有层次差异」；
+                // 夜间 3.3~4.9，仍在 AI 气泡（surfaceContainerHigh，6.00）之下。
+                // 比旧值 11.10 降了一个数量级，且没有为 Logo 单独建一套配色。
+                //
+                // 内层 AutoAIIcon 自带一层 Surface（默认也是 secondaryContainer），
+                // 传 Transparent 让它只留形状、不叠第二层底色，颜色全部由这一层决定。
+                // Logo 自身的绘制色取自 AIIcon.kt:33 的 LocalContentColor（即卡片前景），
+                // 不受这里 color 影响，所以换槽位不会改 Logo 的颜色。
+                // 尺寸从 40dp（4dp 内边距 + 32dp）收到 34dp（3dp + 28dp），降一点视觉重量。
                 Surface(
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                     shape = MaterialTheme.shapes.small,
                 ) {
                     AutoAIIcon(
                         name = model.modelId,
                         modifier = Modifier
-                            .padding(4.dp)
-                            .size(32.dp)
+                            .padding(3.dp)
+                            .size(28.dp),
+                        color = Color.Transparent,
                     )
                 }
                 Column(
