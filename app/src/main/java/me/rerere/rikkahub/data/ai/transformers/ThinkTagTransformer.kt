@@ -5,6 +5,7 @@ import kotlinx.datetime.toInstant
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.hasVisibleReasoning
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -41,10 +42,12 @@ internal fun UIMessage.splitThinkTags(
                 val captured = THINKING_REGEX.find(part.text)?.groupValues?.getOrNull(1)?.trim()
                 // 可见文本：不管有没有思考内容，`<think>` 标记都要摘掉，否则会漏到用户眼前。
                 val visible = part.copy(text = part.text.replace(THINKING_REGEX, ""))
-                if (captured.isNullOrBlank()) {
+                if (captured == null || !captured.hasVisibleReasoning()) {
                     // `<think>` 里什么都没有（或只有空白 / 零宽字符）。只摘标记，**不要**造
                     // 一个空的 Reasoning part —— 那会在 UI 上渲染出一行「思考了 0.x 秒」的空
-                    // 思考块，还会把前后文本切成两个气泡。理由与 `StreamChunkHandler` 同一条。
+                    // 思考块，还会把前后文本切成两个气泡，而且这条链路的输出是**落库**的
+                    // （`GenerationHandler` 末尾的 `onGenerationFinish`），不拦下来就会持久化。
+                    // 判据与 `StreamChunkHandler` / `groupMessageParts` 同一条，别用 `isBlank()`。
                     listOf(visible)
                 } else {
                     listOf(

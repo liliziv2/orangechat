@@ -139,23 +139,31 @@ private val INVISIBLE_REASONING_CHARS = setOf(
 )
 
 /**
- * 这段思考是否真的有**可见内容**。
+ * 这段文本里是否有**可见内容**。
  *
- * 比 `reasoning.isBlank()` 严一档。供应商会发只有元数据、没有正文的分片：
- * Anthropic 的 `signature_delta` 只带 `signature`，OpenAI Responses 的
- * `output_item.added` / `output_item.done` 只带 `encrypted_content`。这类分片在屏幕上
- * 什么都显示不出来，但一旦被当成「一段思考」，UI 就会渲染出一行「思考了 0.x 秒」的
- * 空思考块，还会把两侧正文劈成两个 part。
+ * 判据比 `isBlank()` 严一档：除了空白字符，还要排除零宽 / 不可见字符
+ * （`INVISIBLE_REASONING_CHARS`）—— 它们在屏幕上不占任何可见位置，`isBlank()` 却对它们
+ * 返回 false。
  *
- * 它们**必须保留**（回传供应商时要带签名 / 加密内容），所以判据用在「要不要当一段思考」
- * 上，而不是用来丢弃 part：
+ * 供应商会发只有元数据、没有正文的分片：Anthropic 的 `signature_delta` 只带 `signature`，
+ * OpenAI Responses 的 `output_item.added` / `output_item.done` 只带 `encrypted_content`。
+ * 这类分片在屏幕上什么都显示不出来，但一旦被当成「一段思考」，UI 就会渲染出一行
+ * 「思考了 0.x 秒」的空思考块，还会把两侧正文劈成两个 part。
+ *
+ * **所有「这段内容算不算空」的判断都走这里，别再用 `isBlank()`**：
  * - 累加器（`StreamChunkHandler`）用它决定「这个分片要不要开新段、要不要切断文本」；
- * - 渲染层（`groupMessageParts`）用它决定「这个 part 要不要渲染成思考节点」。
+ * - 渲染层（`groupMessageParts`）用它决定「这个 part 要不要渲染成思考节点」；
+ * - `<think>` 拆分（`ThinkTagTransformer`）用它决定「要不要造 Reasoning part」。
+ *
+ * 注意：元数据（签名 / 加密内容）**必须保留**（回传供应商要用），所以这个判据只用来决定
+ * 「要不要把它当成一段思考」，不是用来丢弃 part。
  */
-fun UIMessagePart.Reasoning.hasVisibleReasoning(): Boolean = reasoning.any { char ->
+fun String.hasVisibleReasoning(): Boolean = any { char ->
     !char.isWhitespace() && char !in INVISIBLE_REASONING_CHARS
 }
 
+/** 这段思考是否有可见内容，见 [String.hasVisibleReasoning]。 */
+fun UIMessagePart.Reasoning.hasVisibleReasoning(): Boolean = reasoning.hasVisibleReasoning()
 
 fun List<UIMessage>.limitContext(size: Int): List<UIMessage> {
     if (size <= 0 || this.size <= size) return this

@@ -71,6 +71,33 @@ class ThinkTagTransformerTest {
         assertEquals("just text", out.visibleText())
     }
 
+    // ---------- 空 <think> 不能变成空思考节点（这条链路的输出会落库）----------
+
+    @Test
+    fun `empty think block only strips the markers and creates no reasoning part`() {
+        val out = message(MessageRole.ASSISTANT, "<think></think>你好")
+            .splitThinkTags(closedAt, null)
+        assertNull(out.reasoningPart())
+        assertEquals("你好", out.visibleText())
+    }
+
+    @Test
+    fun `blank only think block creates no reasoning part`() {
+        val out = message(MessageRole.ASSISTANT, "<think> \n </think>你好")
+            .splitThinkTags(closedAt, null)
+        assertNull(out.reasoningPart())
+        assertEquals("你好", out.visibleText())
+    }
+
+    @Test
+    fun `zero width only think block creates no reasoning part`() {
+        // 零宽字符不是空白字符，`isBlank()` 会放行 —— 判据必须是 hasVisibleReasoning()。
+        val out = message(MessageRole.ASSISTANT, "<think>\u200B</think>你好")
+            .splitThinkTags(closedAt, null)
+        assertNull(out.reasoningPart())
+        assertEquals("你好", out.visibleText())
+    }
+
     @Test
     fun `non text parts survive so the tool chain stays intact`() {
         val tool = UIMessagePart.Tool(toolCallId = "call-1", toolName = "search", input = "{}")
