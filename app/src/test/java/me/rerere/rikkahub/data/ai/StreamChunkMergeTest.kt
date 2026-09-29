@@ -92,7 +92,10 @@ class StreamChunkMergeTest {
     }
 
     @Test
-    fun `blank reasoning delta with metadata is kept for provider round trip`() {
+    fun `metadata only reasoning delta neither splits text nor creates a part`() {
+        // 旧实现把「只带签名、没有正文」的思考分片当成一段新思考：既建了一个空 part，
+        // 又 closeText() 把两侧文本劈成两个 part —— UI 上就是「a / 思考了 0.x 秒 / b」。
+        // 现在它只并元数据，不动分段。详见 StreamChunkHandler 与 ReasoningSegmentTest。
         val handler = StreamChunkHandler(model)
         var messages = listOf(UIMessage.user("hello"))
         val signature = buildJsonObject { put("signature", "sig") }
@@ -102,10 +105,8 @@ class StreamChunkMergeTest {
         messages = handler.handle(messages, chunkOf(text("b")))
 
         val parts = messages.last().parts
-        assertEquals(3, parts.size)
-        assertEquals("a", (parts[0] as UIMessagePart.Text).text)
-        assertEquals(signature, (parts[1] as UIMessagePart.Reasoning).metadata)
-        assertEquals("b", (parts[2] as UIMessagePart.Text).text)
+        assertEquals(1, parts.size)
+        assertEquals("ab", (parts[0] as UIMessagePart.Text).text)
     }
 
     @Test

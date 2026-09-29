@@ -128,6 +128,35 @@ fun List<UIMessagePart>.isEmptyUIMessage(): Boolean {
     }
 }
 
+/**
+ * 零宽 / 不可见字符。
+ *
+ * 它们在屏幕上不占任何可见位置，但 `Char.isWhitespace()` 对其中大部分返回 false，
+ * 于是能骗过 `isBlank()` —— 一个「看起来是空的」思考分片就这样变成了一段可渲染的思考。
+ */
+private val INVISIBLE_REASONING_CHARS = setOf(
+    '\u0000', '\u00AD', '\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF',
+)
+
+/**
+ * 这段思考是否真的有**可见内容**。
+ *
+ * 比 `reasoning.isBlank()` 严一档。供应商会发只有元数据、没有正文的分片：
+ * Anthropic 的 `signature_delta` 只带 `signature`，OpenAI Responses 的
+ * `output_item.added` / `output_item.done` 只带 `encrypted_content`。这类分片在屏幕上
+ * 什么都显示不出来，但一旦被当成「一段思考」，UI 就会渲染出一行「思考了 0.x 秒」的
+ * 空思考块，还会把两侧正文劈成两个 part。
+ *
+ * 它们**必须保留**（回传供应商时要带签名 / 加密内容），所以判据用在「要不要当一段思考」
+ * 上，而不是用来丢弃 part：
+ * - 累加器（`StreamChunkHandler`）用它决定「这个分片要不要开新段、要不要切断文本」；
+ * - 渲染层（`groupMessageParts`）用它决定「这个 part 要不要渲染成思考节点」。
+ */
+fun UIMessagePart.Reasoning.hasVisibleReasoning(): Boolean = reasoning.any { char ->
+    !char.isWhitespace() && char !in INVISIBLE_REASONING_CHARS
+}
+
+
 fun List<UIMessage>.limitContext(size: Int): List<UIMessage> {
     if (size <= 0 || this.size <= size) return this
 

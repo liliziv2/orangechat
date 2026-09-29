@@ -1,5 +1,6 @@
 ﻿package me.rerere.ai.ui
 
+import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.provider.Model
 import kotlin.time.Clock
 
@@ -20,9 +21,12 @@ import kotlin.time.Clock
  * 供应商的 [MessageChunk] 里没有段 id（同一段文本的所有增量共用响应 id），所以段 id 由本类
  * 自己发号：text-1 / reasoning-2 / image-3。
  *
- * 最关键的一条：**纯空白且无 metadata 的思考增量直接丢弃，而且不关段**。供应商偶尔会在正文
- * 中间回一个换行这样的空思考分片，它既没有可显示内容，一旦被当成「类型切换」处理就会把两侧
- * 文本劈成两个 part。丢弃它，两侧文本才能留在同一段里。
+ * 最关键的一条：**没有可见思考内容的分片（纯空白、或只带签名 / 加密内容的元数据分片）不开新段、
+ * 也不切断文本段**。供应商偶尔会在正文中间回一个换行，Anthropic 会在思考块末尾补一个只带
+ * `signature` 的 `signature_delta`，OpenAI Responses 会在 item 起止各发一次只带
+ * `encrypted_content` 的事件 —— 它们既没有可显示内容，一旦被当成「类型切换」处理就会把两侧
+ * 文本劈成两个 part、并凭空多出一行「思考了 0.x 秒」的空思考块。元数据并进已有的思考段保留，
+ * 文本段保持打开，两侧文本才能留在同一段里。
  *
  * [handle] 不修改传入的消息列表，返回包含更新后消息的新列表；列表末尾不是助手消息时会先补
  * 一条空的助手消息。
@@ -109,10 +113,22 @@ class StreamChunkHandler(private val model: Model? = null) {
             }
 
             is UIMessagePart.Reasoning -> {
-                // 纯空白且无 metadata 的思考分片：既没有可显示内容，又会在正文中间插出一个
-                // 0 秒的空思考块、把两侧文本劈成两个 part。直接丢弃，**且不关段**。
-                // 带 metadata 的分片仍然保留：thought signature 之类的元数据要回传供应商。
-                if (deltaPart.reasoning.isBlank() && deltaPart.metadata == null) return
+                // 没有可见思考内容的分片：供应商只发元数据的事件（Anthropic 的
+                // signature_delta 只带签名，OpenAI Responses 的 output_item.added/done
+                // 只带 encrypted_content），或者偶尔只回一个空白 / 零宽字符。
+                //
+                // 它**不是一段思考的开始**，两件事都不能做：
+                //  - 不能开新段 —— 否则 UI 上凭空多出一行「思考了 0.x 秒」的空思考块；
+                //  - 不能当类型切换 —— 否则 closeText() 会把两侧正文劈成两个 part、
+                //    渲染成两个气泡（「报 / 空思考 / 正文」那个现象就是这么来的）。
+                //
+                // 元数据必须留着（回传供应商要带签名 / 加密内容），所以并进已有的思考段：
+                // 优先当前开着的那段，否则最近一个 Reasoning part。一段思考都没有时，
+                // 这个签名没有可签的内容，丢弃。
+                if (!deltaPart.hasVisibleReasoning()) {
+                    deltaPart.metadata?.let { attachReasoningMetadata(parts, it) }
+                    return
+                }
                 closeText()
                 closeImage()
                 val id = reasoningId ?: nextId(SEGMENT_REASONING).also { reasoningId = it }
@@ -203,6 +219,27 @@ class StreamChunkHandler(private val model: Model? = null) {
         if (reasoning.finishedAt == null) {
             parts[index] = reasoning.copy(finishedAt = Clock.System.now())
         }
+    }
+
+    /**
+     * 把只带元数据的思考分片并进已有的思考段：优先当前开着的那段，否则最近一个
+     * Reasoning part。返回是否找到了落点。
+     *
+     * 已有 metadata 的键**保留**、新键并进去 —— 签名和加密内容可能分两次到达，
+     * 覆盖式赋值会把先到的那份丢掉。
+     */
+    private fun attachReasoningMetadata(
+        parts: MutableList<UIMessagePart>,
+        metadata: JsonObject,
+    ): Boolean {
+        val openIndex = reasoningId?.let { reasoningPartIndexes[it] }
+        val index = openIndex?.takeIf { parts.getOrNull(it) is UIMessagePart.Reasoning }
+            ?: parts.indexOfLast { it is UIMessagePart.Reasoning }
+        val existing = parts.getOrNull(index) as? UIMessagePart.Reasoning ?: return false
+        parts[index] = existing.copy(
+            metadata = JsonObject((existing.metadata ?: JsonObject(emptyMap())) + metadata)
+        )
+        return true
     }
 
     private fun closeImage() {

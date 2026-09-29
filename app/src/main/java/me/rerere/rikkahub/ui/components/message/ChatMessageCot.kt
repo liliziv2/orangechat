@@ -2,6 +2,7 @@
 
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.hasVisibleReasoning
 
 /**
  * 思考步骤类型，用于分组 Reasoning 和 Tool
@@ -30,14 +31,19 @@ sealed interface MessagePartBlock {
  *
  * 另外两条规则，目的都是让「被空思考块劈开的连续文本」重新变成一个气泡：
  *
- * 1. 内容为空白（Reasoning.reasoning 为 `isBlank()`）的 Reasoning 分片不参与分组 ——
- *    它既没有可显示的内容，又会在下面把两侧的 Text 切成两个 ContentBlock；
+ * 1. 没有可见内容（`Reasoning.hasVisibleReasoning()` 为 false）的 Reasoning 分片不参与
+ *    分组 —— 它既没有可显示的内容，又会在下面把两侧的 Text 切成两个 ContentBlock；
  * 2. 分组结束后，相邻的两个 Text ContentBlock 并回一块。
  *
- * 背景：供应商偶尔会在正文中间回一个纯空白的 reasoning 分片（见
- * `StreamChunkHandler` 里的说明），流式累加时它会插进两个 Text part 之间，
- * 而 Text 只在「上一个 part 也是 Text」时才合并，于是「4k4」这种连续文本被永久
- * 劈成两个 part，渲染成两个气泡、中间还留一个「思考了 0.0 秒」的空思考块。
+ * 背景：供应商偶尔会在正文中间回一个纯空白的 reasoning 分片，Anthropic 还会在思考块末尾
+ * 补一个只带 `signature` 的 `signature_delta`（见 `StreamChunkHandler` 里的说明），流式
+ * 累加时它会插进两个 Text part 之间，而 Text 只在「上一个 part 也是 Text」时才合并，于是
+ * 「4k4」这种连续文本被永久劈成两个 part，渲染成两个气泡、中间还留一个「思考了 0.0 秒」
+ * 的空思考块。
+ *
+ * **这两条现在是兜底，不是主修**：新消息由 `StreamChunkHandler` 保证「没有可见内容的思考
+ * 分片不开新段、也不切断文本段」，压根不会产生这种 part。留着它们是为了把**旧版本已经存进
+ * 数据库**的那种消息也一起修好（分组是渲染时算的，历史消息不用迁移）。
  *
  * 正常流式路径下相邻 Text 不会出现（累加器会把连续 Text delta 合并成同一个 part），
  * 所以规则 2 只在规则 1 生效时才有实际效果。
@@ -56,8 +62,10 @@ fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
     this.fastForEachIndexed { index, part ->
         when (part) {
             is UIMessagePart.Reasoning -> {
-                // 空白分片直接跳过，且**不 flush** —— 两侧的 Text 才能在下面并回一块。
-                if (part.reasoning.isNotBlank()) {
+                // 没有可见内容的分片直接跳过，且**不 flush** —— 两侧的 Text 才能在下面并回一块。
+                // 判据是 `hasVisibleReasoning()` 而不是 `isNotBlank()`：只带签名 / 加密内容的
+                // 元数据分片、以及只带零宽字符的分片，都显示不出任何东西（见 ai 模块 Message.kt）。
+                if (part.hasVisibleReasoning()) {
                     currentThinkingSteps.add(ThinkingStep.ReasoningStep(part))
                 }
             }
