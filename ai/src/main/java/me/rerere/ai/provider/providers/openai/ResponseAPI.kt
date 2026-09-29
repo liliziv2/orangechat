@@ -36,9 +36,11 @@ import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.util.HttpDiagnostics
 import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.joinUrl
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
@@ -76,7 +78,7 @@ class ResponseAPI(
             stream = false,
         )
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/responses")
+            .url(joinUrl(providerSetting.baseUrl, "/responses"))
             .headers(params.customHeaders.toHeaders())
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader(
@@ -90,12 +92,31 @@ class ResponseAPI(
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
         val response = client.newCall(request).await()
+        val responseContentType = response.header("Content-Type")
+        val finalUrl = response.request.url.toString()
+        val diagnostics = HttpDiagnostics.describeHttpResponse(
+            code = response.code,
+            requestUrl = request.url.toString(),
+            finalUrl = finalUrl,
+            contentType = responseContentType,
+            contentLength = response.header("Content-Length"),
+        )
         if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
+            val errorBody = response.body?.string()
+            Log.e(TAG, "generateText failed: $diagnostics")
+            if (HttpDiagnostics.looksLikeHtml(responseContentType, errorBody)) {
+                throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, errorBody)
+            }
+            throw Exception("Failed to get response: ${response.code} $errorBody")
         }
 
         val bodyStr = response.body?.string() ?: ""
         Log.i(TAG, "generateText: $bodyStr")
+        // 网关 / CDN 拦截时即使 HTTP 200 也可能返回 HTML 挑战页，先识别再交给 JSON 解析。
+        if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyStr)) {
+            Log.e(TAG, "generateText: response body is HTML, not JSON: $diagnostics")
+            throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, bodyStr)
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
         val output = parseResponseOutput(bodyJson)
 
@@ -174,12 +195,36 @@ class ResponseAPI(
                 println("[onFailure] 发生错误: ${t?.javaClass?.name} ${t?.message} / $response")
 
                 val bodyRaw = response?.body?.stringSafe()
+                val responseContentType = response?.header("Content-Type")
+                val finalUrl = response?.request?.url?.toString()
+                // 诊断：状态码 / 请求 URL / 最终 URL / Content-Type / Content-Length（不含 Authorization）。
+                if (response != null) {
+                    val diagMsg = "onFailure: " + HttpDiagnostics.describeHttpResponse(
+                        code = response.code,
+                        requestUrl = request.url.toString(),
+                        finalUrl = finalUrl,
+                        contentType = responseContentType,
+                        contentLength = response.header("Content-Length"),
+                    )
+                    Log.e(TAG, diagMsg)
+                }
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
-                        val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        println(bodyElement)
-                        exception = bodyElement.parseErrorDetail()
-                        Log.i(TAG, "onFailure: $exception")
+                        if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyRaw)) {
+                            // 服务器返回 HTML（通常是网关/CDN 拦截页）而不是 JSON。
+                            // 不能交给 JSON 解析器，否则真实状态码 / URL 会被原始解析异常掩盖。
+                            exception = HttpDiagnostics.htmlResponseException(
+                                code = response?.code ?: -1,
+                                finalUrl = finalUrl,
+                                contentType = responseContentType,
+                                body = bodyRaw,
+                            )
+                        } else {
+                            val bodyElement = Json.parseToJsonElement(bodyRaw)
+                            println(bodyElement)
+                            exception = bodyElement.parseErrorDetail()
+                            Log.i(TAG, "onFailure: $exception")
+                        }
                     }
                 } catch (e: Throwable) {
                     Log.w(TAG, "onFailure: failed to parse from $bodyRaw")

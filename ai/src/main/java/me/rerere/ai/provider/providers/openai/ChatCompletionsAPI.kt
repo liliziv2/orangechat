@@ -41,9 +41,11 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.util.HttpDiagnostics
 import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.joinUrl
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
@@ -83,7 +85,7 @@ class ChatCompletionsAPI(
             )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
+            .url(joinUrl(providerSetting.baseUrl, providerSetting.chatCompletionsPath))
             .headers(params.customHeaders.toHeaders())
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
@@ -93,15 +95,36 @@ class ChatCompletionsAPI(
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
         val response = client.newCall(request).await()
+        val responseContentType = response.header("Content-Type")
+        val finalUrl = response.request.url.toString()
+        val diagnostics = HttpDiagnostics.describeHttpResponse(
+            code = response.code,
+            requestUrl = request.url.toString(),
+            finalUrl = finalUrl,
+            contentType = responseContentType,
+            contentLength = response.header("Content-Length"),
+        )
         if (!response.isSuccessful) {
             val errorBody = response.body?.string()
-            val errorMsg = "generateText: HTTP ${response.code} error response body: $errorBody"
+            val errorMsg = "generateText: $diagnostics | error response body: $errorBody"
             Log.e(TAG, errorMsg)
             Logging.log(TAG, errorMsg)
+            if (HttpDiagnostics.looksLikeHtml(responseContentType, errorBody)) {
+                throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, errorBody)
+            }
             throw Exception("Failed to get response: ${response.code} $errorBody")
         }
 
         val bodyStr = response.body?.string() ?: ""
+
+        // 网关 / CDN 拦截时即使 HTTP 200 也可能返回 HTML 挑战页。先识别再决定怎么解析，
+        // 否则下面会把 HTML 交给 JSON 解析器，抛出的原始异常会掩盖真实原因。
+        if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyStr)) {
+            val htmlMsg = "generateText: $diagnostics | response body is HTML, not JSON"
+            Log.e(TAG, htmlMsg)
+            Logging.log(TAG, htmlMsg)
+            throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, bodyStr)
+        }
 
         // 检测响应是否为 SSE 格式（某些 API 即使 stream=false 也返回 SSE）
         val isSSE = bodyStr.trimStart().startsWith("data:")
@@ -225,7 +248,7 @@ class ChatCompletionsAPI(
         )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
+            .url(joinUrl(providerSetting.baseUrl, providerSetting.chatCompletionsPath))
             .headers(params.customHeaders.toHeaders())
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
@@ -345,6 +368,21 @@ class ChatCompletionsAPI(
                 Logging.log(TAG, failureMsg)
 
                 val bodyRaw = response?.body?.stringSafe()
+                val responseContentType = response?.header("Content-Type")
+                val finalUrl = response?.request?.url?.toString()
+                // 诊断：状态码 / 请求 URL / 最终 URL（重定向后）/ Content-Type / Content-Length。
+                // 只读响应侧信息，不含 Authorization，因此不会把 token 写进日志。
+                if (response != null) {
+                    val diagMsg = "onFailure: " + HttpDiagnostics.describeHttpResponse(
+                        code = response.code,
+                        requestUrl = request.url.toString(),
+                        finalUrl = finalUrl,
+                        contentType = responseContentType,
+                        contentLength = response.header("Content-Length"),
+                    )
+                    Log.e(TAG, diagMsg)
+                    Logging.log(TAG, diagMsg)
+                }
                 // 记录上游返回的原始响应体, 便于排查 400/500 等错误的具体原因
                 if (!bodyRaw.isNullOrBlank()) {
                     val bodyMsg = "onFailure: raw response body (HTTP ${response?.code}): $bodyRaw"
@@ -353,11 +391,24 @@ class ChatCompletionsAPI(
                 }
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
-                        val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        exception = bodyElement.parseErrorDetail()
-                        val detailMsg = "onFailure: parsed error detail: $exception"
-                        Log.e(TAG, detailMsg)
-                        Logging.log(TAG, detailMsg)
+                        if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyRaw)) {
+                            // 服务器返回的是 HTML（通常是网关/CDN 拦截页），不是 JSON。
+                            // 绝不能把它交给 JSON 解析器：那样最终抛给用户的是 kotlinx 的
+                            // "Unexpected JSON token ... JSON input: <!DOCTYPE html>"，
+                            // 真实的状态码 / Content-Type / 最终 URL 会被完全掩盖。
+                            exception = HttpDiagnostics.htmlResponseException(
+                                code = response?.code ?: -1,
+                                finalUrl = finalUrl,
+                                contentType = responseContentType,
+                                body = bodyRaw,
+                            )
+                        } else {
+                            val bodyElement = Json.parseToJsonElement(bodyRaw)
+                            exception = bodyElement.parseErrorDetail()
+                            val detailMsg = "onFailure: parsed error detail: $exception"
+                            Log.e(TAG, detailMsg)
+                            Logging.log(TAG, detailMsg)
+                        }
                     }
                 } catch (e: Throwable) {
                     val parseMsg = "onFailure: failed to parse error body: $bodyRaw"

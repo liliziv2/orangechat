@@ -1,6 +1,7 @@
 ﻿package me.rerere.ai.provider.providers
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -27,7 +28,9 @@ import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.ImageGenerationResult
 import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.util.HttpDiagnostics
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.joinUrl
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.toHeaders
@@ -40,6 +43,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
+
+private const val TAG = "OpenAIProvider"
 
 class OpenAIProvider(
     private val client: OkHttpClient,
@@ -55,17 +60,36 @@ class OpenAIProvider(
         withContext(Dispatchers.IO) {
             val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
             val request = Request.Builder()
-                .url("${providerSetting.baseUrl}/models")
+                .url(joinUrl(providerSetting.baseUrl, "/models"))
                 .addHeader("Authorization", "Bearer $key")
                 .get()
                 .build()
 
             val response = client.newCall(request).await()
+            val responseContentType = response.header("Content-Type")
+            val finalUrl = response.request.url.toString()
+            val diagnostics = HttpDiagnostics.describeHttpResponse(
+                code = response.code,
+                requestUrl = request.url.toString(),
+                finalUrl = finalUrl,
+                contentType = responseContentType,
+                contentLength = response.header("Content-Length"),
+            )
             if (!response.isSuccessful) {
-                error("Failed to get models: ${response.code} ${response.body?.string()}")
+                val errorBody = response.body?.string()
+                Log.e(TAG, "listModels failed: $diagnostics")
+                if (HttpDiagnostics.looksLikeHtml(responseContentType, errorBody)) {
+                    throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, errorBody)
+                }
+                error("Failed to get models: ${response.code} $errorBody")
             }
 
             val bodyStr = response.body?.string() ?: ""
+            // 网关 / CDN 拦截时即使 HTTP 200 也可能返回 HTML 挑战页，先识别再交给 JSON 解析。
+            if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyStr)) {
+                Log.e(TAG, "listModels: response body is HTML, not JSON: $diagnostics")
+                throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, bodyStr)
+            }
             val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
             val data = bodyJson["data"]?.jsonArray ?: return@withContext emptyList()
 
@@ -85,7 +109,7 @@ class OpenAIProvider(
         val url = if (providerSetting.balanceOption.apiPath.startsWith("http")) {
             providerSetting.balanceOption.apiPath
         } else {
-            "${providerSetting.baseUrl}${providerSetting.balanceOption.apiPath}"
+            joinUrl(providerSetting.baseUrl, providerSetting.balanceOption.apiPath)
         }
         val request = Request.Builder()
             .url(url)
@@ -93,11 +117,30 @@ class OpenAIProvider(
             .get()
             .build()
         val response = client.newCall(request).await()
+        val responseContentType = response.header("Content-Type")
+        val finalUrl = response.request.url.toString()
+        val diagnostics = HttpDiagnostics.describeHttpResponse(
+            code = response.code,
+            requestUrl = request.url.toString(),
+            finalUrl = finalUrl,
+            contentType = responseContentType,
+            contentLength = response.header("Content-Length"),
+        )
         if (!response.isSuccessful) {
-            error("Failed to get balance: ${response.code} ${response.body?.string()}")
+            val errorBody = response.body?.string()
+            Log.e(TAG, "getBalance failed: $diagnostics")
+            if (HttpDiagnostics.looksLikeHtml(responseContentType, errorBody)) {
+                throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, errorBody)
+            }
+            error("Failed to get balance: ${response.code} $errorBody")
         }
 
         val bodyStr = response.body.string()
+        // 网关 / CDN 拦截时即使 HTTP 200 也可能返回 HTML 挑战页，先识别再交给 JSON 解析。
+        if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyStr)) {
+            Log.e(TAG, "getBalance: response body is HTML, not JSON: $diagnostics")
+            throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, bodyStr)
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
         val value = bodyJson.getByKey(providerSetting.balanceOption.resultPath)
         val digitalValue = value.toFloatOrNull()
@@ -166,7 +209,7 @@ class OpenAIProvider(
         )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/embeddings")
+            .url(joinUrl(providerSetting.baseUrl, "/embeddings"))
             .headers(params.customHeaders.toHeaders())
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
@@ -221,7 +264,7 @@ class OpenAIProvider(
         )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/images/generations")
+            .url(joinUrl(providerSetting.baseUrl, "/images/generations"))
             .headers(params.customHeaders.toHeaders())
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
@@ -301,7 +344,7 @@ class OpenAIProvider(
         }
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/images/edits")
+            .url(joinUrl(providerSetting.baseUrl, "/images/edits"))
             .headers(params.customHeaders.toHeaders())
             .addHeader("Authorization", "Bearer $key")
             .post(bodyBuilder.build())
