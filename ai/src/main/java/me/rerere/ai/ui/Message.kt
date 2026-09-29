@@ -129,20 +129,34 @@ fun List<UIMessagePart>.isEmptyUIMessage(): Boolean {
 }
 
 /**
- * 零宽 / 不可见字符。
+ * 「屏幕上什么都不显示，但 `isBlank()` 放行」的字符判据。
  *
- * 它们在屏幕上不占任何可见位置，但 `Char.isWhitespace()` 对其中大部分返回 false，
- * 于是能骗过 `isBlank()` —— 一个「看起来是空的」思考分片就这样变成了一段可渲染的思考。
+ * 两类：
+ * - **格式字符（Cf）**：零宽连接符（U+200B..U+200F）、双向控制符（U+202A..U+202E、
+ *   U+2066..U+2069）、软连字符（U+00AD）、BOM（U+FEFF）、阿拉伯字母标记（U+061C）等；
+ * - **控制字符（Cc）**：C0 / C1 控制符 —— `\t` `\n` `\r` 这些真空白已由 `isWhitespace()`
+ *   先挡掉，剩下的都不可见。
+ *
+ * **按 Unicode 类别判定，不枚举码点**：格式字符的集合还在增长，枚举必然漏。第一版就是枚举的，
+ * 漏了 U+200E / U+200F 这类双向标记 —— 它们同样不可见，却照样能骗过 `isBlank()`。
+ *
+ * 另外补一组「韩文填充符」：它们是 `Lo` 字母，类别判定抓不到，但在屏幕上同样不占位置。
  */
-private val INVISIBLE_REASONING_CHARS = setOf(
-    '\u0000', '\u00AD', '\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF',
-)
+private val BLANK_RENDERING_LETTERS = setOf('\u115F', '\u1160', '\u3164', '\uFFA0')
+
+private fun Char.isInvisibleReasoningChar(): Boolean {
+    if (this in BLANK_RENDERING_LETTERS) return true
+    return when (Character.getType(this)) {
+        Character.FORMAT.toInt(), Character.CONTROL.toInt() -> true
+        else -> false
+    }
+}
 
 /**
  * 这段文本里是否有**可见内容**。
  *
  * 判据比 `isBlank()` 严一档：除了空白字符，还要排除零宽 / 不可见字符
- * （`INVISIBLE_REASONING_CHARS`）—— 它们在屏幕上不占任何可见位置，`isBlank()` 却对它们
+ * （见 [isInvisibleReasoningChar]）—— 它们在屏幕上不占任何可见位置，`isBlank()` 却对它们
  * 返回 false。
  *
  * 供应商会发只有元数据、没有正文的分片：Anthropic 的 `signature_delta` 只带 `signature`，
@@ -159,7 +173,7 @@ private val INVISIBLE_REASONING_CHARS = setOf(
  * 「要不要把它当成一段思考」，不是用来丢弃 part。
  */
 fun String.hasVisibleReasoning(): Boolean = any { char ->
-    !char.isWhitespace() && char !in INVISIBLE_REASONING_CHARS
+    !char.isWhitespace() && !char.isInvisibleReasoningChar()
 }
 
 /** 这段思考是否有可见内容，见 [String.hasVisibleReasoning]。 */

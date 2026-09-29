@@ -203,6 +203,14 @@ class ReasoningSegmentTest {
         assertEquals("4k4", (parts[0] as UIMessagePart.Text).text)
     }
 
+    @Test
+    fun `invisible only reasoning delta from the provider does not create a part`() {
+        // 零宽 + 双向标记，`isBlank()` 都会放行；累加器必须按可见性判据丢掉它们。
+        val parts = run(text("4k"), reasoning("\u200B\u200E\u200F"), text("4"))
+        assertEquals(1, parts.size)
+        assertEquals("4k4", (parts[0] as UIMessagePart.Text).text)
+    }
+
     // ---------- 历史消息兜底（旧版本已经存进库的消息） ----------
 
     @Test
@@ -222,6 +230,15 @@ class ReasoningSegmentTest {
     @Test
     fun `zero width only reasoning is not rendered as a thinking node`() {
         val parts = listOf(reasoning("\u200B"))
+        assertEquals(0, parts.thinkingBlocks().size)
+    }
+
+    @Test
+    fun `bidi marks and control characters are not rendered as a thinking node`() {
+        // U+200E / U+200F（LRM / RLM）与 C1 控制符在屏幕上同样不占位置，但都不满足
+        // `Char.isWhitespace()` ⇒ `isBlank()` 会放行。判据必须按 Unicode 类别来，不能枚举码点：
+        // 第一版只枚举了 7 个零宽字符，恰好漏掉这一批。
+        val parts = listOf(reasoning("\u200E\u200F\u0085\u0001"))
         assertEquals(0, parts.thinkingBlocks().size)
     }
 
