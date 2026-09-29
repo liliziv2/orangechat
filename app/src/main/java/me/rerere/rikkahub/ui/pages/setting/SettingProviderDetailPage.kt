@@ -10,8 +10,8 @@ import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Cancel01
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,8 +44,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
-import androidx.compose.material3.FloatingToolbarDefaults.standardFloatingToolbarColors
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -84,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -139,8 +138,9 @@ import kotlin.uuid.Uuid
 
 // ---- 模型页底部区域的视觉常量（本文件内共用，不引第二套设计语言）----
 //
-// 统一后的层级：页面底 = background；内容卡 / 浮动操作条 = 同一个 shapes.medium 圆角
-// + 同一条 outlineVariant 发丝描边；底部导航 = 与页面同色 + 顶部发丝分隔线。
+// 目标 = 「轻、空、平」：底部不新增任何边框 / 容器 / 阴影 / 胶囊。
+// 层级只靠颜色和字重拉：页面底 = background；导航 = 与页面同色；
+// 图标底座 = onSurface 低透明度叠加；主操作 = 主题橙，单独一个按钮。
 
 /** 模型卡图标底座：比原来的 36dp 收一圈，底座不再抢图标本身的注意力。 */
 private val ProviderModelIconSize = 32.dp
@@ -154,7 +154,7 @@ private val ProviderNavBarMaxWidth = 240.dp
 /** 底部导航图标统一 24dp：两个 HugeIcons 的墨水覆盖率不同，同尺寸才读得出同一重量。 */
 private val ProviderNavIconSize = 24.dp
 
-/** 底部导航只用颜色区分选中态，不画 M3 默认那颗 secondaryContainer 椭圆胶囊。 */
+/** 底部导航只用颜色 + 字重区分选中态，不画 M3 默认那颗 secondaryContainer 椭圆胶囊。 */
 @Composable
 private fun providerNavItemColors() = NavigationBarItemDefaults.colors(
     selectedIconColor = MaterialTheme.colorScheme.onSurface,
@@ -162,6 +162,20 @@ private fun providerNavItemColors() = NavigationBarItemDefaults.colors(
     indicatorColor = Color.Transparent,
     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+)
+
+/**
+ * 导航项文案：选中项加一档字重。颜色之外再补一层「轻重」，
+ * 这样即使两块颜色在小屏上看着差不多，也还能读出当前项。
+ * 不加任何背景/胶囊 —— 底部的"选中感"只由颜色和字重承担。
+ */
+@Composable
+private fun ProviderNavLabel(
+    @StringRes resId: Int,
+    selected: Boolean,
+) = Text(
+    text = stringResource(id = resId),
+    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
 )
 
 @Composable
@@ -223,52 +237,50 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            // 与页面同色、零抬升、不画分隔线 ⇒ 导航条直接"化"进页面背景，没有分层。
+            // 收窄 + 居中只是不让 M3 的 weight(1f) 把两项推到屏幕 25% / 75%（纯间距，不是容器）。
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.background,
+                tonalElevation = 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = ProviderNavBarMaxWidth)
+                    .align(Alignment.CenterHorizontally),
             ) {
-                // 导航条本体与页面同色，只留一条发丝线做分界（和模型卡的描边同一个 token）
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier.widthIn(max = ProviderNavBarMaxWidth),
-                ) {
-                    NavigationBarItem(
-                        selected = pager.currentPage == 0,
-                        label = { Text(stringResource(id = R.string.setting_provider_page_configuration)) },
-                        icon = {
-                            Icon(
-                                HugeIcons.Tools,
-                                null,
-                                modifier = Modifier.size(ProviderNavIconSize),
-                            )
-                        },
-                        colors = providerNavItemColors(),
-                        onClick = {
-                            scope.launch {
-                                pager.animateScrollToPage(0)
-                            }
+                NavigationBarItem(
+                    selected = pager.currentPage == 0,
+                    label = { ProviderNavLabel(R.string.setting_provider_page_configuration, pager.currentPage == 0) },
+                    icon = {
+                        Icon(
+                            HugeIcons.Tools,
+                            null,
+                            modifier = Modifier.size(ProviderNavIconSize),
+                        )
+                    },
+                    colors = providerNavItemColors(),
+                    onClick = {
+                        scope.launch {
+                            pager.animateScrollToPage(0)
                         }
-                    )
-                    NavigationBarItem(
-                        selected = pager.currentPage == 1,
-                        label = { Text(stringResource(id = R.string.setting_provider_page_models)) },
-                        icon = {
-                            Icon(
-                                HugeIcons.Package01,
-                                null,
-                                modifier = Modifier.size(ProviderNavIconSize),
-                            )
-                        },
-                        colors = providerNavItemColors(),
-                        onClick = {
-                            scope.launch {
-                                pager.animateScrollToPage(1)
-                            }
+                    }
+                )
+                NavigationBarItem(
+                    selected = pager.currentPage == 1,
+                    label = { ProviderNavLabel(R.string.setting_provider_page_models, pager.currentPage == 1) },
+                    icon = {
+                        Icon(
+                            HugeIcons.Package01,
+                            null,
+                            modifier = Modifier.size(ProviderNavIconSize),
+                        )
+                    },
+                    colors = providerNavItemColors(),
+                    onClick = {
+                        scope.launch {
+                            pager.animateScrollToPage(1)
                         }
-                    )
-                }
+                    }
+                )
             }
         },
         containerColor = settingsScaffoldContainerColor(),
@@ -522,22 +534,13 @@ private fun ModelList(
                 }
             }
         }
+        // 页面底部单独的一个操作按钮：只保留 M3 自带的一点点悬浮感，
+        // 不再给它套边框 / 卡面 / 卡片圆角 —— 上面的模型卡已经是卡片语言了。
         HorizontalFloatingToolbar(
             expanded = expanded,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = -ScreenOffset)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = MaterialTheme.shapes.medium,
-                ),
-            // 不再是 64dp 大胶囊：与模型卡同一个圆角、同一条发丝描边、同一个白底
-            colors = standardFloatingToolbarColors(
-                toolbarContainerColor = MaterialTheme.colorScheme.surface,
-                toolbarContentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-            shape = MaterialTheme.shapes.medium,
+                .offset(y = -ScreenOffset),
         ) {
             AddModelButton(
                 models = modelList,
