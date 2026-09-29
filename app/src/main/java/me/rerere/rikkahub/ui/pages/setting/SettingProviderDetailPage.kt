@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -238,14 +239,19 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
         },
         bottomBar = {
             // 与页面同色、零抬升、不画分隔线 ⇒ 导航条直接"化"进页面背景，没有分层。
-            // 收窄 + 居中只是不让 M3 的 weight(1f) 把两项推到屏幕 25% / 75%（纯间距，不是容器）。
+            //
+            // ⚠️ 这里用 wrapContentWidth(CenterHorizontally) 而不是 Box + Modifier.align()：
+            // bottomBar 的槽位里没有 BoxScope，`Modifier.align` 只有 Box/Column/Row 的作用域里才有，
+            // 直接写会 Unresolved reference 'align'（CI 36548895176 就是这么挂的）。
+            // wrapContentWidth 让宽约束先收成内容宽度、再把这块内容居中，效果一样且不依赖作用域。
+            //
+            // 收窄只是不让 M3 的 weight(1f) 把两项推到屏幕 25% / 75%（纯间距，不是容器、不是边框）。
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.background,
                 tonalElevation = 0.dp,
                 modifier = Modifier
-                    .fillMaxWidth()
                     .widthIn(max = ProviderNavBarMaxWidth)
-                    .align(Alignment.CenterHorizontally),
+                    .wrapContentWidth(Alignment.CenterHorizontally),
             ) {
                 NavigationBarItem(
                     selected = pager.currentPage == 0,
