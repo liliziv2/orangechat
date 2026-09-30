@@ -96,7 +96,13 @@ internal fun FilesPicker(
     ) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            // 三个入口整体偏左的根因就在这一行的对齐：Arrangement.spacedBy 不带 alignment
+            // 的那个重载等价于「间距 + Alignment.Start」—— 整行从 FlowRow 左边缘开始排，
+            // 剩下的宽度全堆在右边。补上 CenterHorizontally 之后，每行先按内容宽度收拢、
+            // 再相对 FlowRow 的**全宽**居中。FlowRow 的 horizontalArrangement 逐行生效，
+            // 所以 Google 那种 5 入口折成 3+2 时两行各自居中，不会为 3 入口弄坏 Google。
+            // 间距仍是 16dp，保持 P2 的入口间距，只是不再贴左。
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             TakePicButton(onLaunchCamera = onTakePic)

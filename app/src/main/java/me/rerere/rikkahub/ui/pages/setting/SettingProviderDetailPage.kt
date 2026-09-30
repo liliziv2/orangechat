@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -243,53 +242,59 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
         bottomBar = {
             // 与页面同色、零抬升、不画分隔线 ⇒ 导航条直接"化"进页面背景，没有分层。
             //
-            // ⚠️ 这里用 wrapContentWidth(CenterHorizontally) 而不是 Box + Modifier.align()：
-            // bottomBar 的槽位里没有 BoxScope，`Modifier.align` 只有 Box/Column/Row 的作用域里才有，
-            // 直接写会 Unresolved reference 'align'（CI 36548895176 就是这么挂的）。
-            // wrapContentWidth 让宽约束先收成内容宽度、再把这块内容居中，效果一样且不依赖作用域。
+            // 居中必须交给一个**真正全宽**的父容器。只写
+            // `widthIn(max).wrapContentWidth(CenterHorizontally)` 是不够的：wrapContentWidth
+            // 只把**节点自身**收成内容宽度、并在**节点内部**对齐，而这个节点随后被 Scaffold
+            // 从左起点摆放 ⇒ 得到一块贴着左边缘的 240dp 区域，看起来依旧偏左。
+            // 所以下面换成 Box 吃满整宽、由它居中；Box 只是定位层，不带背景/边框/阴影。
+            // 注：bottomBar 槽位没有 BoxScope，Modifier.align 只有 Box/Column/Row 作用域里才有，
+            // 直接写在槽位上会 Unresolved reference 'align'，套一层 Box 就绕开了这个限制。
             //
             // 收窄只是不让 M3 的 weight(1f) 把两项推到屏幕 25% / 75%（纯间距，不是容器、不是边框）。
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.background,
-                tonalElevation = 0.dp,
-                modifier = Modifier
-                    .widthIn(max = ProviderNavBarMaxWidth)
-                    .wrapContentWidth(Alignment.CenterHorizontally),
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
             ) {
-                NavigationBarItem(
-                    selected = pager.currentPage == 0,
-                    label = { ProviderNavLabel(R.string.setting_provider_page_configuration, pager.currentPage == 0) },
-                    icon = {
-                        Icon(
-                            HugeIcons.Tools,
-                            null,
-                            modifier = Modifier.size(ProviderNavIconSize),
-                        )
-                    },
-                    colors = providerNavItemColors(),
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(0)
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.widthIn(max = ProviderNavBarMaxWidth),
+                ) {
+                    NavigationBarItem(
+                        selected = pager.currentPage == 0,
+                        label = { ProviderNavLabel(R.string.setting_provider_page_configuration, pager.currentPage == 0) },
+                        icon = {
+                            Icon(
+                                HugeIcons.Tools,
+                                null,
+                                modifier = Modifier.size(ProviderNavIconSize),
+                            )
+                        },
+                        colors = providerNavItemColors(),
+                        onClick = {
+                            scope.launch {
+                                pager.animateScrollToPage(0)
+                            }
                         }
-                    }
-                )
-                NavigationBarItem(
-                    selected = pager.currentPage == 1,
-                    label = { ProviderNavLabel(R.string.setting_provider_page_models, pager.currentPage == 1) },
-                    icon = {
-                        Icon(
-                            HugeIcons.Package01,
-                            null,
-                            modifier = Modifier.size(ProviderNavIconSize),
-                        )
-                    },
-                    colors = providerNavItemColors(),
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(1)
+                    )
+                    NavigationBarItem(
+                        selected = pager.currentPage == 1,
+                        label = { ProviderNavLabel(R.string.setting_provider_page_models, pager.currentPage == 1) },
+                        icon = {
+                            Icon(
+                                HugeIcons.Package01,
+                                null,
+                                modifier = Modifier.size(ProviderNavIconSize),
+                            )
+                        },
+                        colors = providerNavItemColors(),
+                        onClick = {
+                            scope.launch {
+                                pager.animateScrollToPage(1)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         },
         containerColor = settingsScaffoldContainerColor(),
