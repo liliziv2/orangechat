@@ -1,11 +1,6 @@
 ﻿package me.rerere.rikkahub.ui.components.message
  
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -17,11 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,7 +43,6 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
-import me.rerere.rikkahub.ui.components.ui.icons.OrangePetalIcon
 import me.rerere.rikkahub.ui.context.LocalDisplaySettings
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.extractThinkingTitle
@@ -200,39 +192,29 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
     ControlledChainOfThoughtStep(
         expanded = state.expandState == ReasoningCardState.Expanded,
         onExpandedChange = { state.onExpandedChange(it, loading) },
-        // 轻入口的图标：橘瓣自己的花瓣。
+        // 不给图标。
         //
-        // OrangePetalIcon 是用户提供的品牌图形，此前全仓零调用 —— 它原本属于
-        // 「卡片容器 + 秒数胶囊」那一套，批 28 把卡片拆掉之后图标就一直悬空。
-        // 现在捡回来当思考入口的标识：入口于是仍然带着橘瓣自己的脸，
-        // 而不是又一个通用 sparkles。
-        //
-        // 旧注释写「不给图标、靠 ChainOfThought 画的 8dp 小圆点交代步骤」，
-        // 那句话已经过时 —— 组件现在 icon == null 时完全不占位。
-        icon = { ReasoningPetalIcon(loading = loading) },
+        // 批 40 曾把橘瓣花瓣挂在这里当标识，现在按用户要求整条撤掉：入口只留
+        // 文字状态，也不拿别的图标顶替。ChainOfThought 在 icon == null 时
+        // 完全不占位，所以左侧不留空档。
+        icon = null,
         label = {
             if (showThinkingTitle) {
                 ReasoningTitle(title = thinkingTitle!!)
             } else {
-                // 轻量自然语言状态。
+                // 轻量文字状态，三态各一句：
+                //   生成中     → 「思考中」
+                //   完成、折叠 → 「思考 · 32m」
+                //   完成、展开 → 「思考过程」（这就是展开后那个面板的标题）
                 //
-                // 生成中：「栖 正在思考…」；带工具调用时：「栖 正在使用工具…」。
-                // 结束后才交代耗时，且耗时不再是主体 —— 它只是这行文字的收尾。
-                // 助手名为空时退回中性主语，不硬塞产品名。
-                val who = assistant?.name?.takeIf { it.isNotBlank() }
+                // 不再带助手名前缀（原来是「栖 正在思考…」）：入口是旁注，交代状态
+                // 就够，不必再报一次是谁在思考。也不带图标，不拿别的图形顶替。
                 Text(
-                    text = if (loading) {
-                        if (who != null) {
-                            stringResource(R.string.reasoning_status_thinking_named, who)
-                        } else {
-                            stringResource(R.string.reasoning_status_thinking)
-                        }
-                    } else {
-                        // 完成态不再报「思考了 1940.3 秒」。
-                        // 一次 32 分钟的思考会渲染成四位整数 + 一位小数，而它只是
-                        // 一行旁注 —— 数字比它要交代的信息长得多。压成 32m 这种记号，
-                        // 入口读起来才真的轻。
-                        stringResource(
+                    text = when {
+                        loading -> stringResource(R.string.reasoning_status_thinking)
+                        state.expandState == ReasoningCardState.Expanded ->
+                            stringResource(R.string.reasoning_panel_title)
+                        else -> stringResource(
                             R.string.reasoning_entry_label,
                             compactDuration(state.duration)
                         )
@@ -267,50 +249,6 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
         },
     )
 }
- 
- 
-/**
- * 思考入口的图标 —— 橘瓣自己的花瓣（见 [OrangePetalIcon]）。
- *
- * 生成中转一圈（1.6s/圈、线性）：这是「正在思考」唯一的动效，幅度很小，
- * 不改变行高、不参与布局测量。结束之后走 else 分支 —— 无限动画会随分支
- * 一起 dispose，历史消息里的入口不会继续空转。
- */
-@Composable
-private fun ReasoningPetalIcon(loading: Boolean) {
-    if (loading) {
-        val transition = rememberInfiniteTransition(label = "reasoning-petal")
-        val angle by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = PetalSpinMillis, easing = LinearEasing),
-            ),
-            label = "reasoning-petal-angle",
-        )
-        ReasoningPetal(angle = angle)
-    } else {
-        ReasoningPetal(angle = 0f)
-    }
-}
-
-@Composable
-private fun ReasoningPetal(angle: Float) {
-    Icon(
-        imageVector = OrangePetalIcon,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .size(PetalIconSize)
-            .graphicsLayer { rotationZ = angle },
-    )
-}
-
-/** 入口图标尺寸。比 ChainOfThought 的 20dp 图标位小一档：它是标识，不是按钮。 */
-private val PetalIconSize = 15.dp
-
-/** 花瓣转一圈的时长。偏慢 —— 这是旁注上的呼吸，不是加载指示器。 */
-private const val PetalSpinMillis = 1600
 
 /**
  * 极短的耗时记号（只给入口用，不进正文）。
