@@ -12,6 +12,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Cancel01
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -150,6 +151,17 @@ private val ProviderModelIconSize = 32.dp
  * 不参与构图。
  */
 private const val ProviderModelIconBaseAlpha = 0.04f
+
+/**
+ * 模型卡的描边透明度。
+ *
+ * 描边是这张卡**唯一**的分界线 —— 卡片底色是 `surface`，和页面底色同色，
+ * 去掉描边卡片就散了。但 M3 的 `outlinedCardBorder()` 用的是满不透明的
+ * `outlineVariant`，是全 App 最实的一根线：别处的描边都带 alpha
+ * （助手气泡 0.18、材质边框 0.07）。压到 0.55 之后它从「一圈壳」退回成一根
+ * 发丝，卡片靠留白与内容立住，而不是靠边。
+ */
+private const val ProviderModelCardBorderAlpha = 0.55f
 
 /** 底部导航两项等宽，不收窄的话 M3 的 weight(1f) 会把它们推到屏幕 25% / 75%。 */
 private val ProviderNavBarMaxWidth = 240.dp
@@ -1328,7 +1340,13 @@ private fun ModelCard(
         }
     }
 
-    OutlinedCard(modifier = modifier) {
+    OutlinedCard(
+        modifier = modifier,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = ProviderModelCardBorderAlpha),
+        ),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1360,7 +1378,10 @@ private fun ModelCard(
             ) {
                 Text(
                     text = model.displayName,
-                    style = MaterialTheme.typography.titleSmall,
+                    // 模型名是这张卡的主体，标签只是它的注脚。titleSmall 与 11sp 的
+                    // 标签只差一档，再加上标签原来的高饱和填充，主次是反的 ——
+                    // 抬到 titleMedium 之后「内容占主体、标签退成注脚」才成立。
+                    style = MaterialTheme.typography.titleMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

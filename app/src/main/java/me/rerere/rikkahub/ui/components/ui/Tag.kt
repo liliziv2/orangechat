@@ -27,6 +27,21 @@ enum class TagType {
     INFO
 }
 
+/**
+ * 标签填充的透明度。
+ *
+ * 四个彩色系的 `extendColors.*2` 是**实色** —— 它们不在 Theme.kt 那份会被乘
+ * `interfaceSurfaceOpacity` 的槽位表里，所以一直是全 App 饱和度最高的一块。
+ * 模型卡上一次并排最多五颗（providerOverwrite / type / modality / ability 两颗），
+ * 几颗高饱和胶囊压在模型名下面，视线先被标签抓走。
+ *
+ * 压到 0.62 而不是直接改色值：`extendColors` 是主题无关的常量表，改它等于五个
+ * 主题一起变；叠一层 alpha 是让填充与它所在的面合成 —— 浅色主题下变淡、深色主题
+ * 下变沉，两边都读作「降饱和」而不是「换了一个颜色」。文字色不动：填充变淡之后
+ * `gray8 / red8 / orange8 / blue8` 的对比反而更清楚。
+ */
+private const val TagFillAlpha = 0.62f
+
 @Composable
 fun Tag(
     modifier: Modifier = Modifier,
@@ -40,7 +55,7 @@ fun Tag(
         TagType.WARNING -> MaterialTheme.extendColors.orange2
         TagType.INFO -> MaterialTheme.extendColors.blue2
         else -> MaterialTheme.colorScheme.tertiaryContainer
-    }
+    }.copy(alpha = TagFillAlpha)
     val textColor = when (type) {
         TagType.SUCCESS -> MaterialTheme.extendColors.gray8
         TagType.ERROR -> MaterialTheme.extendColors.red8
