@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.assistant
 
+import androidx.compose.foundation.clickable
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Add01
@@ -21,12 +22,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -190,8 +190,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 modifier = Modifier
                     .fillMaxSize()
                     .imePadding(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp),
                 state = lazyListState,
             ) {
                 lazyItems(filteredAssistants, key = { assistant -> assistant.id }) { assistant ->
@@ -398,17 +397,15 @@ private fun AssistantItem(
     onEdit: () -> Unit,
     onShowActions: () -> Unit,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onEdit,
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onEdit)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -427,7 +424,7 @@ private fun AssistantItem(
 
                 Text(
                     text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -477,6 +474,7 @@ private fun AssistantItem(
                 )
             }
         }
+        SettingsRowDivider()
     }
 }
 

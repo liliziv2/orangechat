@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +42,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -337,14 +339,11 @@ private fun PluginFolderContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
     ) {
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
                 )
@@ -376,13 +375,13 @@ private fun PluginFolderContent(
             item {
                 Text(
                     text = "文件夹",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
             }
             items(items = folders, key = { it.id }) { folder ->
                 val count = plugins.count { it.folderId == folder.id }
-                FolderCard(
+                FolderRow(
                     folder = folder,
                     pluginCount = count,
                     onClick = { onFolderClick(folder) },
@@ -401,8 +400,8 @@ private fun PluginFolderContent(
                 ) {
                     Text(
                         text = "未分组插件",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp)
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                     if (folders.isEmpty() && ungroupedPlugins.isEmpty()) {
                         Text(
@@ -418,7 +417,7 @@ private fun PluginFolderContent(
         if (ungroupedPlugins.isEmpty() && folders.isNotEmpty()) {
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
@@ -434,7 +433,7 @@ private fun PluginFolderContent(
         }
 
         items(items = ungroupedPlugins, key = { it.manifest.id }) { plugin ->
-            PluginCard(
+            PluginRow(
                 plugin = plugin,
                 onClick = { onPluginClick(plugin) },
                 onToggle = { enabled -> onTogglePlugin(plugin, enabled) },
@@ -446,13 +445,13 @@ private fun PluginFolderContent(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderCard(
+private fun FolderRow(
     folder: PluginFolder,
     pluginCount: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
@@ -463,7 +462,7 @@ private fun FolderCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
@@ -477,7 +476,7 @@ private fun FolderCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = folder.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -488,11 +487,12 @@ private fun FolderCard(
                 )
             }
         }
+        SettingsRowDivider()
     }
 }
 
 @Composable
-internal fun PluginCard(
+internal fun PluginRow(
     plugin: PluginInfo,
     onClick: () -> Unit,
     onToggle: (Boolean) -> Unit,
@@ -500,11 +500,15 @@ internal fun PluginCard(
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -515,7 +519,7 @@ internal fun PluginCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = plugin.manifest.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -545,6 +549,7 @@ internal fun PluginCard(
                 )
             }
         }
+        SettingsRowDivider()
     }
 
     if (showDeleteConfirm) {

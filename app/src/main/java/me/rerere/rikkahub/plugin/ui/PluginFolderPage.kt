@@ -125,13 +125,10 @@ fun PluginFolderPage(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp)
                 ) {
                     items(items = folderPlugins, key = { it.manifest.id }) { plugin ->
-                        PluginCard(
+                        PluginRow(
                             plugin = plugin,
                             onClick = { onNavigateToDetail(plugin.manifest.id) },
                             onToggle = { enabled ->
