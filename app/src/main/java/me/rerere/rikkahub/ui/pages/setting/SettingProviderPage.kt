@@ -529,7 +529,7 @@ private fun ProviderItem(
                 modifier = Modifier
                     .weight(1f)
                     .clickable(onClick = onClick)
-                    .padding(vertical = 12.dp, start = 16.dp, end = 4.dp),
+                    .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
