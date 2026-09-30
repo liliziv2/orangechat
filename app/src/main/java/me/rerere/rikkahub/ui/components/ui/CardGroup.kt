@@ -254,6 +254,27 @@ fun SettingsRowDivider(modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * P2/P3 设置页的**分组标题**，与 [SettingsRowDivider] 成对使用。
+ *
+ * 层级规则（见 `SETTINGS-TREE.md`）：
+ *   P1 设置首页   —— 大标题 + [CardGroup] 分组容器（组标题是 titleSmallEmphasized + 主题色）
+ *   P2/P3 具体设置 —— 分组标题 + 连续设置行 + [SettingsRowDivider]，**不再套容器**
+ *
+ * 比 P1 的组标题收一级：字号不变，但去掉主题色强调、改用 onSurfaceVariant，
+ * 让它读起来是一个安静的分组标签，而不是跟页面大标题抢层级。
+ * 组与组之间的留白由它的 top padding 提供，所以页面本身不必再排 spacedBy。
+ */
+@Composable
+fun SettingsSectionTitle(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
+    )
+}
+
 @Composable
 fun CardGroup(
     modifier: Modifier = Modifier,
