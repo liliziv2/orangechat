@@ -122,35 +122,28 @@ fun SettingSearchDetailPage(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
-            contentPadding = padding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = padding + PaddingValues(vertical = 8.dp),
         ) {
             item("config") {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = CustomColors.listItemColors.containerColor
-                    )
+                Column(
+                    modifier = Modifier
+                        .animateContentSize()
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .animateContentSize()
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.setting_page_search_config),
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                    Text(
+                        text = stringResource(R.string.setting_page_search_config),
+                        style = MaterialTheme.typography.titleSmall
+                    )
 
-                        SearchServiceOptionsEditor(
-                            options = options,
-                            onUpdateOptions = { save(it) }
-                        )
+                    SearchServiceOptionsEditor(
+                        options = options,
+                        onUpdateOptions = { save(it) }
+                    )
 
-                        ProvideTextStyle(MaterialTheme.typography.labelMedium) {
-                            SearchService.getService(options).Description()
-                        }
+                    ProvideTextStyle(MaterialTheme.typography.labelMedium) {
+                        SearchService.getService(options).Description()
                     }
                 }
             }
@@ -240,112 +233,106 @@ private fun SearchTestSection(
     var result by remember { mutableStateOf<Result<SearchResult>?>(null) }
     val scope = rememberCoroutineScope()
 
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
+    Column(
+        modifier = Modifier
+            .animateContentSize()
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .animateContentSize()
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Text(
+            text = stringResource(R.string.setting_page_search_test),
+            style = MaterialTheme.typography.titleSmall
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.setting_page_search_test),
-                style = MaterialTheme.typography.titleMedium
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(stringResource(R.string.setting_page_search_test_query_hint)) },
+                singleLine = true
             )
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text(stringResource(R.string.setting_page_search_test_query_hint)) },
-                    singleLine = true
-                )
-
-                IconButton(
-                    onClick = {
-                        if (query.isNotBlank() && !testing) {
-                            testing = true
-                            result = null
-                            scope.launch {
-                                val service = SearchService.getService(options)
-                                val params = JsonObject(
-                                    mapOf("query" to JsonPrimitive(query))
-                                )
-                                result = service.search(params, commonOptions, options)
-                                testing = false
-                            }
+            IconButton(
+                onClick = {
+                    if (query.isNotBlank() && !testing) {
+                        testing = true
+                        result = null
+                        scope.launch {
+                            val service = SearchService.getService(options)
+                            val params = JsonObject(
+                                mapOf("query" to JsonPrimitive(query))
+                            )
+                            result = service.search(params, commonOptions, options)
+                            testing = false
                         }
-                    },
-                    enabled = query.isNotBlank() && !testing
-                ) {
-                    if (testing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(4.dp),
-                            strokeWidth = 2.dp
+                    }
+                },
+                enabled = query.isNotBlank() && !testing
+            ) {
+                if (testing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(4.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = HugeIcons.Play,
+                        contentDescription = stringResource(R.string.setting_page_search_test_run)
+                    )
+                }
+            }
+        }
+
+        result?.let { res ->
+            res.onSuccess { searchResult ->
+                searchResult.answer?.let { answer ->
+                    Text(
+                        text = answer,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                searchResult.items.forEachIndexed { index, item ->
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                         )
-                    } else {
-                        Icon(
-                            imageVector = HugeIcons.Play,
-                            contentDescription = stringResource(R.string.setting_page_search_test_run)
-                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "${index + 1}. ${item.title}",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                text = item.url,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = item.text.take(200),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
-
-            result?.let { res ->
-                res.onSuccess { searchResult ->
-                    searchResult.answer?.let { answer ->
-                        Text(
-                            text = answer,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    searchResult.items.forEachIndexed { index, item ->
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "${index + 1}. ${item.title}",
-                                    style = MaterialTheme.typography.titleSmall
-                                )
-                                Text(
-                                    text = item.url,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = item.text.take(200),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-                res.onFailure { error ->
-                    Text(
-                        text = error.message ?: stringResource(R.string.search_detail_unknown_error),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+            res.onFailure { error ->
+                Text(
+                    text = error.message ?: stringResource(R.string.search_detail_unknown_error),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
     }

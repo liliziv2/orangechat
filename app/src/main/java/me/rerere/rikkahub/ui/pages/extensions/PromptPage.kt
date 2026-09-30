@@ -44,13 +44,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -223,8 +223,7 @@ private fun ModeInjectionTab(
                     onExpand = { expanded = true },
                     onCollapse = { expanded = false }
                 ),
-            contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 128.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp) + PaddingValues(bottom = 128.dp),
             state = lazyListState
         ) {
             if (modeInjections.isEmpty()) {
@@ -254,7 +253,7 @@ private fun ModeInjectionTab(
                         state = reorderableState,
                         key = injection.id
                     ) { isDragging ->
-                        ModeInjectionCard(
+                        ModeInjectionRow(
                             injection = injection,
                             modifier = Modifier
                                 .longPressDraggableHandle()
@@ -315,7 +314,7 @@ private fun ModeInjectionTab(
 }
 
 @Composable
-private fun ModeInjectionCard(
+private fun ModeInjectionRow(
     injection: PromptInjection.ModeInjection,
     modifier: Modifier = Modifier,
     onEdit: () -> Unit,
@@ -325,16 +324,11 @@ private fun ModeInjectionCard(
     var showExportDialog by remember { mutableStateOf(false) }
     val exporter = rememberExporter(injection, ModeInjectionSerializer)
 
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -385,6 +379,7 @@ private fun ModeInjectionCard(
                 ),
             )
         }
+        SettingsRowDivider()
     }
 
     if (showExportDialog) {
@@ -638,8 +633,7 @@ private fun LorebookTab(
                     onExpand = { expanded = true },
                     onCollapse = { expanded = false }
                 ),
-            contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 128.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp) + PaddingValues(bottom = 128.dp),
             state = lazyListState
         ) {
             if (lorebooks.isEmpty()) {
@@ -669,7 +663,7 @@ private fun LorebookTab(
                         state = reorderableState,
                         key = book.id
                     ) { isDragging ->
-                        LorebookCard(
+                        LorebookRow(
                             book = book,
                             modifier = Modifier
                                 .longPressDraggableHandle()
@@ -728,7 +722,7 @@ private fun LorebookTab(
 }
 
 @Composable
-private fun LorebookCard(
+private fun LorebookRow(
     book: Lorebook,
     modifier: Modifier = Modifier,
     onEdit: () -> Unit,
@@ -738,16 +732,11 @@ private fun LorebookCard(
     var showExportDialog by remember { mutableStateOf(false) }
     val exporter = rememberExporter(book, LorebookSerializer)
 
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -809,6 +798,7 @@ private fun LorebookCard(
                 ),
             )
         }
+        SettingsRowDivider()
     }
 
     if (showExportDialog) {

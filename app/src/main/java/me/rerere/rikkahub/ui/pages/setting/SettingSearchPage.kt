@@ -26,6 +26,7 @@ import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -121,8 +122,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
-            contentPadding = it + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = it + PaddingValues(vertical = 8.dp),
             state = lazyListState
         ) {
             items(settings.searchServices, key = { it.id }) { service ->
@@ -130,7 +130,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                     state = reorderableState,
                     key = service.id
                 ) { isDragging ->
-                    SearchProviderCard(
+                    SearchProviderRow(
                         service = service,
                         onEdit = {
                             nav.navigate(Screen.SettingSearchDetail(service.id.toString()))
@@ -267,7 +267,7 @@ private fun AddProviderDialog(
 }
 
 @Composable
-private fun SearchProviderCard(
+private fun SearchProviderRow(
     service: SearchServiceOptions,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -276,16 +276,11 @@ private fun SearchProviderCard(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -300,7 +295,7 @@ private fun SearchProviderCard(
             ) {
                 Text(
                     text = service.displayName,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleSmall
                 )
                 SearchAbilityTagLine(options = service)
             }
@@ -323,6 +318,7 @@ private fun SearchProviderCard(
             )
 
         }
+        SettingsRowDivider()
     }
     RikkaConfirmDialog(
         show = showDeleteDialog,
@@ -372,36 +368,30 @@ private fun CommonOptions(
     var commonOptions by remember(settings.searchCommonOptions) {
         mutableStateOf(settings.searchCommonOptions)
     }
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.setting_page_search_common_options),
-                style = MaterialTheme.typography.titleMedium
-            )
+        Text(
+            text = stringResource(R.string.setting_page_search_common_options),
+            style = MaterialTheme.typography.titleSmall
+        )
 
-            FormItem(
-                label = {
-                    Text(stringResource(R.string.setting_page_search_result_size))
-                }
-            ) {
-                OutlinedNumberInput(
-                    value = commonOptions.resultSize,
-                    onValueChange = {
-                        commonOptions = commonOptions.copy(resultSize = it)
-                        onUpdate(commonOptions)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
+        FormItem(
+            label = {
+                Text(stringResource(R.string.setting_page_search_result_size))
             }
+        ) {
+            OutlinedNumberInput(
+                value = commonOptions.resultSize,
+                onValueChange = {
+                    commonOptions = commonOptions.copy(resultSize = it)
+                    onUpdate(commonOptions)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
