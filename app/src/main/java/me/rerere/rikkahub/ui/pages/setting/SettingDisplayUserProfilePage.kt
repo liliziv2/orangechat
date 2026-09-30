@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Card
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -61,58 +60,58 @@ fun SettingDisplayUserProfilePage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Card(modifier = Modifier.padding(horizontal = 8.dp)) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "资料卡内容会作为一段简短介绍加到系统提示词里，帮助助手记住你是谁。留空的字段不会注入。",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedTextField(
-                            value = displaySetting.userNickname,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(userNickname = it))
-                            },
-                            label = { Text("昵称") },
-                            placeholder = { Text("助手怎么称呼你") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = displaySetting.userBio,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(userBio = it))
-                            },
-                            label = { Text("简介") },
-                            placeholder = { Text("职业、爱好、作息、常聊的话题…") },
-                            minLines = 3,
-                            maxLines = 8,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = displaySetting.userPersona,
-                            onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(userPersona = it))
-                            },
-                            label = { Text("人设 / 扮演身份") },
-                            placeholder = { Text("在角色扮演里你的身份、性格、说话方式") },
-                            minLines = 3,
-                            maxLines = 8,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "资料卡内容会作为一段简短介绍加到系统提示词里，帮助助手记住你是谁。留空的字段不会注入。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = displaySetting.userNickname,
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(userNickname = it))
+                        },
+                        label = { Text("昵称") },
+                        placeholder = { Text("助手怎么称呼你") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = displaySetting.userBio,
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(userBio = it))
+                        },
+                        label = { Text("简介") },
+                        placeholder = { Text("职业、爱好、作息、常聊的话题…") },
+                        minLines = 3,
+                        maxLines = 8,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = displaySetting.userPersona,
+                        onValueChange = {
+                            updateDisplaySetting(displaySetting.copy(userPersona = it))
+                        },
+                        label = { Text("人设 / 扮演身份") },
+                        placeholder = { Text("在角色扮演里你的身份、性格、说话方式") },
+                        minLines = 3,
+                        maxLines = 8,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp),
                     title = { Text("注入设置") },
                 ) {
                     item(
@@ -130,21 +129,21 @@ fun SettingDisplayUserProfilePage(vm: SettingVM = koinViewModel()) {
                 }
             }
             item {
-                Card(modifier = Modifier.padding(horizontal = 8.dp)) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = "可用占位符",
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Text(
-                            text = "{{nickname}} 昵称\n{{user_bio}} 简介\n{{user_persona}} 人设",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "可用占位符",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        text = "{{nickname}} 昵称\n{{user_bio}} 简介\n{{user_persona}} 人设",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

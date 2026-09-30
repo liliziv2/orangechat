@@ -44,6 +44,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -185,11 +186,10 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 items(mcpConfigs, key = { it.id }) { mcpConfig ->
-                    McpServerItem(
+                    McpServerRow(
                         item = mcpConfig,
                         onEdit = {
                             editState.open(mcpConfig)
@@ -237,7 +237,7 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
 }
 
 @Composable
-private fun McpServerItem(
+private fun McpServerRow(
     item: McpServerConfig,
     modifier: Modifier = Modifier,
     onDelete: () -> Unit,
@@ -246,16 +246,11 @@ private fun McpServerItem(
     val mcpManager = koinInject<McpManager>()
     val status by mcpManager.getStatus(item).collectAsStateWithLifecycle(McpStatus.Idle)
     var showDeleteDialog by remember { mutableStateOf(false) }
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -288,7 +283,7 @@ private fun McpServerItem(
                 ) {
                     Text(
                         text = item.commonOptions.name,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleSmall,
                     )
                     val dotColor =
                         if (item.commonOptions.enable) MaterialTheme.extendColors.green6 else MaterialTheme.extendColors.red6
@@ -357,6 +352,7 @@ private fun McpServerItem(
                 ),
             )
         }
+        SettingsRowDivider()
     }
 
     RikkaConfirmDialog(

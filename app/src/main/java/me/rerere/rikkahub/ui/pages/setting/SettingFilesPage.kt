@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.clickable
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Delete01
@@ -27,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -314,53 +316,47 @@ fun SettingFilesPage(
             }
 
             // 数据库清理入口
-            Card(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(containerColor = CustomColors.listItemColors.containerColor),
-                onClick = { showCleanupDialog = true }
+                    .clickable { showCleanupDialog = true }
+                    .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "数据库清理",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "清空本地 Embedding 向量并压缩数据库，回收磁盘空间",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = "数据库清理",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = "清空本地 Embedding 向量并压缩数据库，回收磁盘空间",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                SettingsRowDivider()
             }
 
             // 旧对话清理入口
-            Card(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = CustomColors.listItemColors.containerColor),
-                onClick = {
-                    daysToKeep = 90
-                    cleanableNodes = -1
-                    showOldConversationsDialog = true
-                }
+                    .clickable {
+                        daysToKeep = 90
+                        cleanableNodes = -1
+                        showOldConversationsDialog = true
+                    }
+                    .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "清理旧对话",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "删除 N 天前的本地对话记录（云端保留），显著减小应用体积",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = "清理旧对话",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = "删除 N 天前的本地对话记录（云端保留），显著减小应用体积",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                SettingsRowDivider()
             }
         }
     }
