@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.rikkahub.ui.components.ui.toHexString
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -140,169 +143,153 @@ fun SettingDisplayColorPage(vm: SettingVM = koinViewModel()) {
             contentPadding = contentPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 文字
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("颜色自定义") },
+                    title = { Text("文字") },
                 ) {
                     item(
+                        onClick = { showChatTextColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(displaySetting.chatTextColor?.toComposeColor() ?: Color.Gray)
+                        },
+                        trailingContent = { ColorValue(displaySetting.chatTextColor) },
                         headlineContent = { Text("聊天正文颜色") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.chatTextColor?.let { it.toComposeColor() } ?: Color.Gray,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showChatTextColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.chatTextColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(chatTextColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
                     )
                     item(
+                        onClick = { showGlobalTextColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(displaySetting.globalTextColor?.toComposeColor() ?: Color.Gray)
+                        },
+                        trailingContent = { ColorValue(displaySetting.globalTextColor) },
                         headlineContent = { Text("全局字体颜色") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.globalTextColor?.let { it.toComposeColor() } ?: Color.Gray,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showGlobalTextColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.globalTextColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(globalTextColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
                     )
+                }
+            }
+
+            // 气泡
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("气泡") },
+                ) {
                     item(
-                        headlineContent = { Text("用户气泡颜色") },
+                        onClick = { showUserBubbleColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(
+                                displaySetting.userBubbleColor?.toComposeColor()
+                                    ?: MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        },
                         supportingContent = { Text("自定义用户消息气泡背景色") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showUserBubbleColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.userBubbleColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(userBubbleColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
+                        trailingContent = { ColorValue(displaySetting.userBubbleColor) },
+                        headlineContent = { Text("用户气泡颜色") },
                     )
                     item(
-                        headlineContent = { Text("AI气泡颜色") },
+                        onClick = { showAssistantBubbleColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(
+                                displaySetting.assistantBubbleColor?.toComposeColor()
+                                    ?: MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
+                        },
                         supportingContent = { Text("自定义AI消息气泡背景色") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showAssistantBubbleColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.assistantBubbleColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(assistantBubbleColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
+                        trailingContent = { ColorValue(displaySetting.assistantBubbleColor) },
+                        headlineContent = { Text("AI气泡颜色") },
                     )
                     item(
+                        onClick = { showThinkingBubbleColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(displaySetting.thinkingBubbleColor?.toComposeColor() ?: Color.Gray)
+                        },
+                        trailingContent = { ColorValue(displaySetting.thinkingBubbleColor) },
                         headlineContent = { Text("思维链气泡颜色") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.thinkingBubbleColor?.let { it.toComposeColor() } ?: Color.Gray,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showThinkingBubbleColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.thinkingBubbleColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(thinkingBubbleColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
                     )
+                }
+            }
+
+            // 界面
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text("界面") },
+                ) {
                     item(
+                        onClick = { showChatBackgroundColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(displaySetting.chatBackgroundColor?.toComposeColor() ?: Color.Gray)
+                        },
+                        supportingContent = { Text("有背景图时图片优先") },
+                        trailingContent = { ColorValue(displaySetting.chatBackgroundColor) },
                         headlineContent = { Text("聊天背景色") },
-                        supportingContent = { Text("有背景图时图片优先") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.chatBackgroundColor?.let { it.toComposeColor() } ?: Color.Gray,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showChatBackgroundColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.chatBackgroundColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(chatBackgroundColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
                     )
                     item(
+                        onClick = { showPrimaryColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(
+                                displaySetting.primaryColor?.toComposeColor()
+                                    ?: MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        trailingContent = { ColorValue(displaySetting.primaryColor) },
                         headlineContent = { Text("主色调（按钮/链接）") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.primaryColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.primary,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showPrimaryColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.primaryColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(primaryColor = null)) }) { Text("重置") }
-                                }
-                            }
-                        },
                     )
                     item(
-                        headlineContent = { Text("输入框背景颜色") },
-                        supportingContent = { Text("有背景图时图片优先") },
-                        trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .background(
-                                            displaySetting.inputFieldColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerLowest,
-                                            CircleShape
-                                        )
-                                )
-                                TextButton(onClick = { showInputFieldColorPicker = true }) { Text("自定义") }
-                                if (displaySetting.inputFieldColor != null) {
-                                    TextButton(onClick = { updateDisplaySetting(displaySetting.copy(inputFieldColor = null)) }) { Text("重置") }
-                                }
-                            }
+                        onClick = { showInputFieldColorPicker = true },
+                        leadingContent = {
+                            ColorSwatch(
+                                displaySetting.inputFieldColor?.toComposeColor()
+                                    ?: MaterialTheme.colorScheme.surfaceContainerLowest
+                            )
                         },
+                        supportingContent = { Text("有背景图时图片优先") },
+                        trailingContent = { ColorValue(displaySetting.inputFieldColor) },
+                        headlineContent = { Text("输入框背景颜色") },
                     )
                 }
             }
         }
+    }
+}
+
+/**
+ * 颜色预览色块。
+ *
+ * 比旧版（16dp 圆形）大一圈、改成圆角方 —— 这一页本身是「看颜色」的页面，
+ * 色块应该是一行里的视觉重点，而不是缩在行末按钮旁边的小圆点。
+ */
+@Composable
+private fun ColorSwatch(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .background(color, RoundedCornerShape(8.dp)),
+    )
+}
+
+/**
+ * 行末的当前值：自定义过显示 hex，没自定义过显示「自定义」入口。
+ *
+ * hex 复用 [ColorPickerDialog] 里那套（`#RRGGBB`，带 alpha 时 `#AARRGGBB`），不另写一份。
+ * 箭头只是「点进去才打开选择器」的提示 —— 整行都可点，不需要单独一个按钮。
+ */
+@Composable
+private fun ColorValue(value: Long?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = value?.toHexString() ?: "自定义",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Icon(
+            imageVector = HugeIcons.ArrowRight01,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }

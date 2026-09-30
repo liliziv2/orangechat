@@ -382,7 +382,13 @@ public fun Long.toComposeColor(): Color {
     return Color(ri / 255f, gi / 255f, bi / 255f, ai / 255f)
 }
 
-private fun Long.toHexString(): String {
+/**
+ * `0xAARRGGBB` 的 Long 转 `#RRGGBB`（不透明时）或 `#AARRGGBB`（带 alpha 时）。
+ *
+ * public 是为了让颜色自定义页能复用同一套格式化（那里要在行末显示当前色值），
+ * 不另写第二份。
+ */
+public fun Long.toHexString(): String {
     val ai = ((this shr 24) and 0xFF).toInt()
     val ri = ((this shr 16) and 0xFF).toInt()
     val gi = ((this shr 8) and 0xFF).toInt()
