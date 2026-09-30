@@ -82,11 +82,13 @@ import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
+import me.rerere.rikkahub.data.ai.transformers.PillTransformer
 import me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer
 import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.SystemHintTransformer
+import me.rerere.rikkahub.data.ai.pills.PillStore
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.VoiceMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
@@ -148,6 +150,10 @@ private val inputTransformers by lazy {
         PromptInjectionTransformer,
         PlaceholderTransformer,
         DocumentAsPromptTransformer,
+        // 药丸：把挂在这条消息上的临时行为指令拼到它最前面，只作用这一轮。
+        // 放在 PromptInjectionTransformer 之后 —— 人设注入是长期语气，药丸是这一轮
+        // 的临时覆盖，临时的那份要读到最后、压在后面。
+        PillTransformer,
         OcrTransformer,
         VoiceMessageTransformer,
     )
@@ -1120,6 +1126,12 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                 }
             }
         }.onFailure {
+            // 失败也算这一轮已经过去了，同样焚掉，否则一颗没生效的药丸会一直挂在
+            // 那条消息上，等下一轮悄悄生效。
+            // 取消（CancellationException）走的是另一个分支，那里**不焚** ——
+            // 用户中断通常意味着他会重发，那颗药丸该留给重发的那一次。
+            burnPills(conversationId)
+
             // 取消 Live Update 通知
             cancelLiveUpdateNotification(conversationId)
 
@@ -1128,6 +1140,10 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
             Logging.log(TAG, "handleMessageComplete: $it")
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
+            // 药丸阅后即焚：这一轮已经读过它了（注入在 PillTransformer 里，只改发给
+            // 模型的那份副本、不落库），成功之后就不该再影响下一轮。
+            burnPills(conversationId)
+
             val finalConversation = session.saveMutex.withLock {
                 val latest = getConversationFlow(conversationId).value
                 saveConversation(conversationId, latest)
@@ -1272,6 +1288,17 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
             return emptyList()
         }
         return createWorkspaceTools(workspaceId, workspaceRepository, cwd)
+    }
+
+    /**
+     * 药丸阅后即焚。
+     *
+     * 按消息 id 清，不清整个 store：同一会话里可能有多条消息挂着药丸（用户挑了好几处），
+     * 只有真正参与这一轮的那些该被吃掉。这里取的是当前会话的全部消息 id ——
+     * 生成就是把当前消息列表发出去，所以它们就是「被读过」的那批。
+     */
+    private fun burnPills(conversationId: Uuid) {
+        PillStore.consume(getConversationFlow(conversationId).value.currentMessages.map { it.id })
     }
 
     // ---- 检查无效消息 ----

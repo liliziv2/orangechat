@@ -19,6 +19,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,11 +40,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -118,6 +121,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.ai.pills.PillRegistry
+import me.rerere.rikkahub.data.ai.pills.PillStore
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -342,6 +347,10 @@ fun ChatMessage(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
+    // 挂在这条消息上的药丸。PillStore 是进程内 StateFlow，界面直接读它画标记 ——
+    // 药丸只作用一轮，用户得看得见「这条挂了什么」，而不是靠记忆猜。
+    val pendingPills by PillStore.pending.collectAsState()
+    val attachedPills = pendingPills[message.id].orEmpty()
     val settings = LocalDisplaySettings.current
     // 侧边头像版式：头像贴气泡边，署名行让位。用户侧还要服从「显示用户头像」开关。
     val sideAvatar = settings.chatAvatarMode == ChatAvatarMode.SIDE
@@ -370,6 +379,7 @@ fun ChatMessage(
     )
     var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }
+    var showPillSheet by remember { mutableStateOf(false) }
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -424,6 +434,12 @@ fun ChatMessage(
                     onToolApproval = onToolApproval,
                     onToolAnswer = onToolAnswer,
                     onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                    // 长按自己的消息 = 药盒入口。助手气泡不给这个回调，长按保持无反应。
+                    onUserMessageLongClick = if (message.role == MessageRole.USER) {
+                        { showPillSheet = true }
+                    } else {
+                        null
+                    },
                 )
  
                 message.translation?.let { translation ->
@@ -435,6 +451,30 @@ fun ChatMessage(
             }
         }
  
+        // 已挂药丸标记。放在气泡下方、操作行上方，和 ChatMessageEditedFiles 的
+        // 文件 chip 用同一套视觉（Surface + RoundedCornerShape(50) + labelSmall），
+        // 不新造一种 chip。只在真的挂了药丸时出现，平时不占位。
+        if (message.role == MessageRole.USER && attachedPills.isNotEmpty()) {
+            Row(
+                modifier = Modifier.padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                attachedPills.forEach { code ->
+                    val pill = PillRegistry.byCode(code) ?: return@forEach
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                    ) {
+                        Text(
+                            text = pill.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            }
+        }
+
         val showActions = if (lastMessage) {
             !loading
         } else {
@@ -466,6 +506,12 @@ fun ChatMessage(
         ProvideTextStyle(textStyle) {
             ChatMessageNerdLine(message = message)
         }
+    }
+    if (showPillSheet) {
+        PillPickerSheet(
+            messageId = message.id,
+            onDismissRequest = { showPillSheet = false },
+        )
     }
     if (showActionsSheet) {
         ChatMessageActionsSheet(
@@ -524,6 +570,7 @@ private fun MessagePartsBlock(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     onUserMessageClick: (() -> Unit)? = null,
+    onUserMessageLongClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
@@ -666,6 +713,7 @@ private fun MessagePartsBlock(
                                                         messageTimeText = if (showMessageTime) messageTime else null,
                                                         isUser = true,
                                                         onClick = { onUserMessageClick?.invoke() },
+                                                        onLongClick = onUserMessageLongClick,
                                                         enableLiveBubbleBlur = true,
                                                     ) {
                                                         MarkdownBlock(
@@ -691,6 +739,7 @@ private fun MessagePartsBlock(
                                             messageTimeText = if (showMessageTime) messageTime else null,
                                             isUser = true,
                                             onClick = { onUserMessageClick?.invoke() },
+                                            onLongClick = onUserMessageLongClick,
                                             enableLiveBubbleBlur = true,
                                         ) {
                                             MarkdownBlock(
@@ -1017,10 +1066,32 @@ private fun BubbleSurface(
     isUser: Boolean = false,
     outlined: Boolean = false,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     // 本轮原型：用户与助手的普通文本气泡传 true（最终由 LiveBubbleBlurContext 与 final 条件决定）
     enableLiveBubbleBlur: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    // 药丸入口：用户气泡长按挑一颗临时行为药丸。长按必须跟点击挂在**同一条**
+    // modifier 链上 —— 外面再包一层 Box 用 combinedClickable 是不行的：内层 clickable
+    // 会在 Main pass 先消费掉 down，外层拿到的是 consumed 事件，onLongClick 永不触发。
+    //
+    // 两个 local 而不是一个，因为前三个材质分支与默认分支原本的语义不同：
+    // 前三个是「onClick 非空才有点击」，默认分支走 Surface 的 onClick 重载、那个重载
+    // **总是**挂一层 clickable（onClick 为 null 时是空 lambda）。共用一个 local 会让
+    // 助手气泡在默认材质下丢掉那层无操作 ripple，点击还会穿透出去。
+    val clickHandler = onClick
+    val bubbleClickModifier: Modifier = if (onLongClick != null) {
+        Modifier.combinedClickable(onClick = clickHandler ?: {}, onLongClick = onLongClick)
+    } else if (clickHandler != null) {
+        Modifier.clickable(onClick = clickHandler)
+    } else {
+        Modifier
+    }
+    val surfaceClickModifier: Modifier = if (onLongClick != null) {
+        Modifier.combinedClickable(onClick = clickHandler ?: {}, onLongClick = onLongClick)
+    } else {
+        Modifier.clickable(onClick = clickHandler ?: {})
+    }
     val materialMode = LocalMaterialMode.current
     val liveContext = LocalLiveBubbleBlur.current
     // FLAT + 液态玻璃开关 = iOS Liquid Glass 气泡
@@ -1364,7 +1435,7 @@ private fun BubbleSurface(
                 .then(glassShadowModifier(LIQUID_GLASS_SHADOW_ELEVATION))
                 .animateContentSize()
                 .clip(shape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .then(bubbleClickModifier)
                 .border(1.dp, frostedBorderColor, shape)
         ) {
             if (finalLiveBubbleBlurEnabled) {
@@ -1447,7 +1518,7 @@ private fun BubbleSurface(
                 .then(glassShadowModifier(GLASS_SHADOW_ELEVATION))
                 .animateContentSize()
                 .clip(shape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .then(bubbleClickModifier)
                 .border(1.dp, glassBorderColor, shape)
         ) {
             if (finalLiveBubbleBlurEnabled) {
@@ -1525,7 +1596,7 @@ private fun BubbleSurface(
             modifier = Modifier
                 .animateContentSize()
                 .clip(shape)
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .then(bubbleClickModifier)
                 .then(
                     if (materialMode == DisplayMaterialMode.TRANSLUCENT) {
                         Modifier.border(1.dp, translucentBorderColor, shape)
@@ -1559,7 +1630,12 @@ private fun BubbleSurface(
         }
     } else {
         Surface(
-            modifier = Modifier.animateContentSize(),
+            modifier = Modifier
+                .animateContentSize()
+                // 这个 minimumInteractiveComponentSize 原本由 Surface 的 onClick 重载
+                // 自带，换成非点击重载后必须自己补回来，否则短气泡（「嗯」这种）
+                // 的最小可点区域会从 48dp 缩到内容高度。
+                .minimumInteractiveComponentSize(),
             shape = shape,
             // 用户气泡与助手气泡在这里吃同一个 PLAIN_BUBBLE_ALPHA，
             // 两种气泡的"底"由此对齐到同一套材质语言。
@@ -1582,16 +1658,22 @@ private fun BubbleSurface(
             } else {
                 null
             },
-            onClick = onClick ?: {},
         ) {
-            // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
-            // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
-            // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
-            // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
-            // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                content()
-                MessageTimeLabel(messageTimeText)
+            // 点击 / 长按都挂在**这一层**，也就是 Surface 的 surface() 节点里面。
+            // Surface 的 onClick 重载正是这么放的：clickable 在 surface() 之内，
+            // 涟漪才画在气泡底色之上。换成把 clickable 放到 Surface 外面，涟漪会被
+            // 底色盖住、等于没有反馈 —— 所以这里保留 Surface 只做底与描边，
+            // 点击单独交给里面的 Box。
+            Box(modifier = surfaceClickModifier) {
+                // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
+                // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
+                // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
+                // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
+                // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    content()
+                    MessageTimeLabel(messageTimeText)
+                }
             }
         }
     }
