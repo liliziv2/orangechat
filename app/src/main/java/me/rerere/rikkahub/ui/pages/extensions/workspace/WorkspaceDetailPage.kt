@@ -143,7 +143,7 @@ fun WorkspaceDetailPage(id: String) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text(state.workspace?.name ?: stringResource(R.string.workspace_page_title)) },
+                title = { Text(state.workspace?.name ?: stringResource(R.string.workspace_page_title), style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 actions = {
                     IconButton(onClick = { vm.refreshFiles() }) {

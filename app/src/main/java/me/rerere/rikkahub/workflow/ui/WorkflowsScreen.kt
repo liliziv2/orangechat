@@ -75,7 +75,7 @@ fun WorkflowsScreen(vm: WorkflowsViewModel = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("工作流") },
+                title = { Text("工作流", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,

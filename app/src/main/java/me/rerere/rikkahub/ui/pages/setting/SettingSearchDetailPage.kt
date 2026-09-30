@@ -89,7 +89,7 @@ fun SettingSearchDetailPage(
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(options.displayName)
+                    Text(options.displayName, style = MaterialTheme.typography.headlineMedium)
                 },
                 navigationIcon = {
                     BackButton()

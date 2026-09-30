@@ -8,6 +8,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
@@ -46,7 +47,7 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(stringResource(R.string.backup_page_title))
+                    Text(stringResource(R.string.backup_page_title), style = MaterialTheme.typography.headlineMedium)
                 },
                 navigationIcon = {
                     BackButton()

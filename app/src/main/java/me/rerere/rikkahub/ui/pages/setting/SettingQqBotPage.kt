@@ -81,7 +81,7 @@ fun SettingQqBotPage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("QQ Bot [FIX1]") },
+                title = { Text("QQ Bot [FIX1]", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors

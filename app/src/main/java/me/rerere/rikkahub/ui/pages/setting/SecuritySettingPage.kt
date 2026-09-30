@@ -39,7 +39,7 @@ fun SecuritySettingPage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("安全设置") },
+                title = { Text("安全设置", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors

@@ -161,7 +161,7 @@ fun SettingWebPage() {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.setting_page_web_server)) },
+                title = { Text(stringResource(R.string.setting_page_web_server), style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,

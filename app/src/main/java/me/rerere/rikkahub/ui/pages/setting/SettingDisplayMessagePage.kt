@@ -103,7 +103,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("消息显示") },
+                title = { Text("消息显示", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors

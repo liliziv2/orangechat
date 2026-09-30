@@ -78,7 +78,7 @@ fun SecurityAuditPage(vm: SecurityAuditVM = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("安全审计日志") },
+                title = { Text("安全审计日志", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 actions = {

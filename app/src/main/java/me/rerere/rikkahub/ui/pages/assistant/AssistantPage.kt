@@ -114,7 +114,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(stringResource(R.string.assistant_page_title))
+                    Text(stringResource(R.string.assistant_page_title), style = MaterialTheme.typography.headlineMedium)
                 },
                 navigationIcon = {
                     BackButton()

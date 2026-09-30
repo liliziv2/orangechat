@@ -65,7 +65,7 @@ fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("进阶记忆") },
+                title = { Text("进阶记忆", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,

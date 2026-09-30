@@ -74,7 +74,7 @@ fun SkillsPage() {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.skills_page_title)) },
+                title = { Text(stringResource(R.string.skills_page_title), style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,

@@ -119,7 +119,7 @@ fun PromptPage(vm: PromptVM = koinViewModel()) {
         topBar = {
             LargeFlexibleTopAppBar(
                 navigationIcon = { BackButton() },
-                title = { Text(stringResource(R.string.prompt_page_title)) },
+                title = { Text(stringResource(R.string.prompt_page_title), style = MaterialTheme.typography.headlineMedium) },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
             )

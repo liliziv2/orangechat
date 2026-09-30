@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -87,7 +88,7 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
         containerColor = settingsScaffoldContainerColor(),
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("主动消息") },
+                title = { Text("主动消息", style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
             )

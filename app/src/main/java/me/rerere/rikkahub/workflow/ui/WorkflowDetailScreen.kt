@@ -70,7 +70,7 @@ fun WorkflowDetailScreen(
         Scaffold(
             topBar = {
                 LargeFlexibleTopAppBar(
-                    title = { Text("工作流") },
+                    title = { Text("工作流", style = MaterialTheme.typography.headlineMedium) },
                     navigationIcon = { BackButton() },
                     colors = CustomColors.topBarColors,
                 )
@@ -110,7 +110,7 @@ fun WorkflowDetailScreen(
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text(currentLoaded.entity.name) },
+                title = { Text(currentLoaded.entity.name, style = MaterialTheme.typography.headlineMedium) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,

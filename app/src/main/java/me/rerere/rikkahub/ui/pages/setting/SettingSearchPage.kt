@@ -80,7 +80,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(stringResource(R.string.setting_page_search_title))
+                    Text(stringResource(R.string.setting_page_search_title), style = MaterialTheme.typography.headlineMedium)
                 },
                 navigationIcon = {
                     BackButton()
