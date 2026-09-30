@@ -16,23 +16,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
@@ -41,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,7 +73,12 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(stringResource(R.string.setting_model_page_title))
+                    // 三级设置页的标题。同一档 headlineMedium —— 从「海报标题」降下来，
+                    // 保留左上大标题的位置感，但不再抢内容。
+                    Text(
+                        text = stringResource(R.string.setting_model_page_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
                 },
                 navigationIcon = {
                     BackButton()
@@ -90,11 +92,16 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 行自带左右内边距，容器只留一点上下呼吸位 —— 与提供商页一致。
+            // 行与行之间不再留 12dp 空档：分界交给那根发丝线，列表才是连续的。
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             item {
                 DefaultChatModelSetting(settings = settings, vm = vm)
+            }
+
+            item {
+                ModelRowDivider()
             }
 
             item {
@@ -102,7 +109,15 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             }
 
             item {
+                ModelRowDivider()
+            }
+
+            item {
                 DefaultSuggestionModelSetting(settings = settings, vm = vm)
+            }
+
+            item {
+                ModelRowDivider()
             }
 
             item {
@@ -110,7 +125,15 @@ fun SettingModelPage(vm: SettingVM = koinViewModel()) {
             }
 
             item {
+                ModelRowDivider()
+            }
+
+            item {
                 DefaultOcrModelSetting(settings = settings, vm = vm)
+            }
+
+            item {
+                ModelRowDivider()
             }
 
             item {
@@ -126,7 +149,7 @@ private fun DefaultTranslationModelSetting(
     vm: SettingVM
 ) {
     var showModal by remember { mutableStateOf(false) }
-    ModelFeatureCard(
+    ModelFeatureRow(
         title = {
             Text(
                 stringResource(R.string.setting_model_page_translate_model),
@@ -152,16 +175,17 @@ private fun DefaultTranslationModelSetting(
                         )
                     },
                     providers = settings.providers,
+                    // 图标收到 20dp、名字抬到 titleSmall：这一行的主体是「当前值」，
+                    // 不再是那枚兔子/橘子图标。
+                    iconSize = ModelValueIconSize,
+                    nameStyle = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.wrapContentWidth()
                 )
             }
-            IconButton(
-                onClick = {
-                    showModal = true
-                },
-                colors = IconButtonDefaults.filledTonalIconButtonColors()
-            ) {
-                Icon(HugeIcons.Tools, null)
+            // 原来是一枚 filledTonal 的圆形按钮 —— 和模型名、✕ 排在一起时，
+            // 三块形状各说各话。改成裸图标：能直接点的就直接点，不再占一块底色。
+            IconButton(onClick = { showModal = true }) {
+                Icon(HugeIcons.Tools, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -235,7 +259,7 @@ private fun DefaultSuggestionModelSetting(
     vm: SettingVM
 ) {
     var showModal by remember { mutableStateOf(false) }
-    ModelFeatureCard(
+    ModelFeatureRow(
         title = {
             Text(
                 text = stringResource(R.string.setting_model_page_suggestion_model),
@@ -262,16 +286,17 @@ private fun DefaultSuggestionModelSetting(
                     },
                     providers = settings.providers,
                     allowClear = true,
+                    // 图标收到 20dp、名字抬到 titleSmall：这一行的主体是「当前值」，
+                    // 不再是那枚兔子/橘子图标。
+                    iconSize = ModelValueIconSize,
+                    nameStyle = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.wrapContentWidth()
                 )
             }
-            IconButton(
-                onClick = {
-                    showModal = true
-                },
-                colors = IconButtonDefaults.filledTonalIconButtonColors()
-            ) {
-                Icon(HugeIcons.Tools, null)
+            // 原来是一枚 filledTonal 的圆形按钮 —— 和模型名、✕ 排在一起时，
+            // 三块形状各说各话。改成裸图标：能直接点的就直接点，不再占一块底色。
+            IconButton(onClick = { showModal = true }) {
+                Icon(HugeIcons.Tools, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -332,7 +357,7 @@ private fun DefaultTitleModelSetting(
     vm: SettingVM
 ) {
     var showModal by remember { mutableStateOf(false) }
-    ModelFeatureCard(
+    ModelFeatureRow(
         title = {
             Text(stringResource(R.string.setting_model_page_title_model), maxLines = 1)
         },
@@ -356,16 +381,17 @@ private fun DefaultTitleModelSetting(
                     },
                     providers = settings.providers,
                     allowClear = true,
+                    // 图标收到 20dp、名字抬到 titleSmall：这一行的主体是「当前值」，
+                    // 不再是那枚兔子/橘子图标。
+                    iconSize = ModelValueIconSize,
+                    nameStyle = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.wrapContentWidth()
                 )
             }
-            IconButton(
-                onClick = {
-                    showModal = true
-                },
-                colors = IconButtonDefaults.filledTonalIconButtonColors()
-            ) {
-                Icon(HugeIcons.Tools, null)
+            // 原来是一枚 filledTonal 的圆形按钮 —— 和模型名、✕ 排在一起时，
+            // 三块形状各说各话。改成裸图标：能直接点的就直接点，不再占一块底色。
+            IconButton(onClick = { showModal = true }) {
+                Icon(HugeIcons.Tools, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -425,7 +451,7 @@ private fun DefaultChatModelSetting(
     settings: Settings,
     vm: SettingVM
 ) {
-    ModelFeatureCard(
+    ModelFeatureRow(
         icon = {
             Icon(HugeIcons.Message01, null)
         },
@@ -448,6 +474,10 @@ private fun DefaultChatModelSetting(
                         )
                     },
                     providers = settings.providers,
+                    // 图标收到 20dp、名字抬到 titleSmall：这一行的主体是「当前值」，
+                    // 不再是那枚兔子/橘子图标。
+                    iconSize = ModelValueIconSize,
+                    nameStyle = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.wrapContentWidth()
                 )
             }
@@ -461,7 +491,7 @@ private fun DefaultOcrModelSetting(
     vm: SettingVM
 ) {
     var showModal by remember { mutableStateOf(false) }
-    ModelFeatureCard(
+    ModelFeatureRow(
         title = {
             Text(
                 stringResource(R.string.setting_model_page_ocr_model),
@@ -487,16 +517,17 @@ private fun DefaultOcrModelSetting(
                         )
                     },
                     providers = settings.providers,
+                    // 图标收到 20dp、名字抬到 titleSmall：这一行的主体是「当前值」，
+                    // 不再是那枚兔子/橘子图标。
+                    iconSize = ModelValueIconSize,
+                    nameStyle = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.wrapContentWidth()
                 )
             }
-            IconButton(
-                onClick = {
-                    showModal = true
-                },
-                colors = IconButtonDefaults.filledTonalIconButtonColors()
-            ) {
-                Icon(HugeIcons.Tools, null)
+            // 原来是一枚 filledTonal 的圆形按钮 —— 和模型名、✕ 排在一起时，
+            // 三块形状各说各话。改成裸图标：能直接点的就直接点，不再占一块底色。
+            IconButton(onClick = { showModal = true }) {
+                Icon(HugeIcons.Tools, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -557,7 +588,7 @@ private fun DefaultCompressModelSetting(
     vm: SettingVM
 ) {
     var showModal by remember { mutableStateOf(false) }
-    ModelFeatureCard(
+    ModelFeatureRow(
         title = {
             Text(
                 stringResource(R.string.setting_model_page_compress_model),
@@ -583,16 +614,17 @@ private fun DefaultCompressModelSetting(
                         )
                     },
                     providers = settings.providers,
+                    // 图标收到 20dp、名字抬到 titleSmall：这一行的主体是「当前值」，
+                    // 不再是那枚兔子/橘子图标。
+                    iconSize = ModelValueIconSize,
+                    nameStyle = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.wrapContentWidth()
                 )
             }
-            IconButton(
-                onClick = {
-                    showModal = true
-                },
-                colors = IconButtonDefaults.filledTonalIconButtonColors()
-            ) {
-                Icon(HugeIcons.Tools, null)
+            // 原来是一枚 filledTonal 的圆形按钮 —— 和模型名、✕ 排在一起时，
+            // 三块形状各说各话。改成裸图标：能直接点的就直接点，不再占一块底色。
+            IconButton(onClick = { showModal = true }) {
+                Icon(HugeIcons.Tools, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     )
@@ -648,59 +680,79 @@ private fun DefaultCompressModelSetting(
 }
 
 @Composable
-private fun ModelFeatureCard(
+private fun ModelFeatureRow(
     modifier: Modifier = Modifier,
     description: @Composable () -> Unit = {},
     icon: @Composable () -> Unit,
     title: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit
 ) {
-    OutlinedCard(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = CustomColors.listItemColors.containerColor
-        )
+    // 一行，不是一张卡。
+    //
+    // 原来是每个角色一张 OutlinedCard：描边 + 16dp 内边距 + 两块之间再插 12dp 空档，
+    // 六个角色就是六张厚卡叠下来，整页读起来像「设置后台」。现在卡片整个撤掉，
+    // 一行一个角色，靠行距和一根发丝线分界 —— 与模型页、提供商页同一套语言。
+    //
+    // 层级也换了主次：角色名（聊天模型 / 标题总结模型 …）退成安静的标签，
+    // 「现在用的是哪个模型」成为这一行的主体 —— 那才是来这一页要找的答案。
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, top = 14.dp, end = 4.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        // 功能图标收到 20dp：它是这一行的分类记号，不该和模型名抢注意力。
+        Box(
+            modifier = Modifier.size(ModelFeatureIconSize),
+            contentAlignment = Alignment.Center,
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    ProvideTextStyle(MaterialTheme.typography.titleMedium) {
-                        title()
-                    }
-                    ProvideTextStyle(
-                        MaterialTheme.typography.bodySmall.copy(
-                            color = LocalContentColor.current.copy(alpha = 0.6f)
-                        )
-                    ) {
-                        description()
-                    }
-                }
-                Box(
-                    modifier = Modifier
-                        .size(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    icon()
-                }
-            }
+            icon()
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+        CompositionLocalProvider(
+            LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                actions()
+                ProvideTextStyle(MaterialTheme.typography.titleSmall) {
+                    title()
+                }
+                ProvideTextStyle(
+                    MaterialTheme.typography.labelSmall.copy(
+                        color = LocalContentColor.current.copy(alpha = 0.62f)
+                    )
+                ) {
+                    description()
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    actions()
+                }
             }
         }
     }
 }
+
+/** 角色行之间的分割线。发丝级 —— 只把行读成一个列表，不构成分界。 */
+@Composable
+private fun ModelRowDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = ModelRowDividerAlpha),
+    )
+}
+
+/** 角色行之间分割线的透明度。与提供商页同一档。 */
+private const val ModelRowDividerAlpha = 0.5f
+
+/** 功能图标尺寸。它是这一行的分类记号，不是主体。 */
+private val ModelFeatureIconSize = 20.dp
+
+/** 当前值里那枚模型图标的尺寸。收到 20dp，让模型名读起来是主体。 */
+private val ModelValueIconSize = 20.dp

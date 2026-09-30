@@ -55,7 +55,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastFilter
@@ -128,6 +130,13 @@ fun ModelSelector(
     // 默认 false，其余 13 个调用点（设置页 / 助手详情 / 插件页 / 翻译页 / 生图页 …）
     // 保持原尺寸不变。
     compact: Boolean = false,
+    // 模型图标尺寸。默认 36dp 是给「页面里的一等控件」用的；二级/三级设置页把它
+    // 收到 20dp 左右 —— 那里要读的是模型名，不是图标。默认值保证其余调用点
+    // （聊天输入框上方的 pill / 助手详情 / 插件页 / 翻译页 …）尺寸一个像素都不动。
+    iconSize: Dp = 36.dp,
+    // 模型名文字样式。默认 bodySmall（12sp）保持不变；二级设置页把它抬到 titleSmall，
+    // 让「当前用的是哪个模型」成为那一行的视觉主体。
+    nameStyle: TextStyle = MaterialTheme.typography.bodySmall,
     onSelect: (Model) -> Unit
 ) {
     var popup by remember { mutableStateOf(false) }
@@ -171,7 +180,7 @@ fun ModelSelector(
                         AutoAIIcon(
                             it, Modifier
                                 .padding(end = 4.dp)
-                                .size(36.dp),
+                                .size(iconSize),
                             color = Color.Transparent
                         )
                     }
@@ -180,7 +189,7 @@ fun ModelSelector(
                     text = model?.displayName ?: stringResource(R.string.model_list_select_model),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = nameStyle,
                     // 紧凑档补一次光学修正：行盒居中 ≠ 墨迹居中，理由见 ModelNameOpticalOffset。
                     modifier = if (compact) Modifier.offset(y = ModelNameOpticalOffset) else Modifier
                 )

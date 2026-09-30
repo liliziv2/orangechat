@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -39,6 +39,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -117,7 +118,13 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
-                    Text(text = stringResource(R.string.setting_provider_page_title))
+                    // 二级设置页的标题从「海报标题」降到克制的页面标题。
+                    // 只在这一页显式给 style —— LargeFlexibleTopAppBar 有 30+ 个调用点，
+                    // 改它的默认值会连带改掉所有一级页面，而 P1 的框架明确不动。
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
                 },
                 navigationIcon = {
                     BackButton()
@@ -185,7 +192,23 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                     }
                 },
                 singleLine = true,
-                shape = CircleShape,
+                shape = RoundedCornerShape(SearchFieldCorner),
+                // 低存在感：浅底 + 弱化边框。
+                //
+                // 搜索框是这一页的次要控件 —— 它帮你在列表里找人，不该比列表本身更响。
+                // 原来是无底色 + 全强度描边的整颗胶囊，那圈描边把视线全吃走了；
+                // 现在给一点底色划出范围，边框退到发丝级，只在聚焦时稍微抬头。
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                        .copy(alpha = SearchFieldFillAlpha),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                        .copy(alpha = SearchFieldFillAlpha),
+                    focusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        .copy(alpha = SearchFieldBorderAlphaFocused),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        .copy(alpha = SearchFieldBorderAlpha),
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                ),
             )
 
             LazyColumn(
@@ -602,3 +625,15 @@ private fun ProviderItem(
 
 /** 提供商行之间的分割线透明度。发丝级 —— 只是把行读成「一个列表」，不构成分界。 */
 private const val ProviderRowDividerAlpha = 0.5f
+
+/** 搜索框圆角。不做整颗胶囊 —— 胶囊是这一页里最响的形状，圆角矩形安静得多。 */
+private val SearchFieldCorner = 14.dp
+
+/** 搜索框底色透明度。浅到只是一层「这里有块输入区」的提示，不构成第二个容器。 */
+private const val SearchFieldFillAlpha = 0.55f
+
+/** 搜索框默认边框透明度。弱化到发丝级 —— 靠底色划出边界，不靠描边。 */
+private const val SearchFieldBorderAlpha = 0.35f
+
+/** 搜索框聚焦时的边框透明度。只比默认稍强一点，够交代焦点即可。 */
+private const val SearchFieldBorderAlphaFocused = 0.7f
