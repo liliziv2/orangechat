@@ -728,14 +728,27 @@ fun ChatInput(
                             alpha = 1f,
                         )
                     }
-                    // 两态：**少文字是细长胶囊，多文字才展开成大卡片**。
+                    // 两态：**一行是细长胶囊，换行之后才展开成大卡片**。
                     //
-                    // 判据只能是「有换行符 或 长度 > SingleLineMaxChars」——
-                    // TextFieldState 不暴露实际行数，所以不能用行数当判据。
-                    // 胶囊态下 TextField 走 SingleLine，文字在框内横向滚动，
-                    // 高度恒为 M3 的 56dp —— 写几个字不会把容器撑高。
-                    val isMultiLine = state.textContent.text.contains('\n') ||
-                        state.textContent.text.length > SingleLineMaxChars
+                    // 判据三条取或：
+                    // 1. `wrappedToSecondLine` —— 实测已经换过行，由正文 TextField 的
+                    //    onTextLayout 把真实行数喂回来。这是唯一跟设备宽度、系统字体缩放
+                    //    都无关的判据（字数只是估算，宽屏/小字下会误判）；
+                    // 2. 正文里有换行符（用户主动按回车）；
+                    // 3. 字数超过 SingleLineMaxChars —— 兜底，让「字数已经很多但刚好还没
+                    //    触发换行」的那一帧立刻切过去，不用等一次布局。
+                    //
+                    // 第 1 条必须**锁存**：切到卡片态后正文区会变宽，同一段文字可能又只占
+                    // 一行，行数判据就会把状态弹回胶囊态、再换行、再弹回去 —— 死循环。
+                    // 所以只在「第一次换行」时置位，输入清空时才复位。
+                    var wrappedToSecondLine by remember { mutableStateOf(false) }
+                    val inputText = state.textContent.text
+                    val isMultiLine = wrappedToSecondLine ||
+                        inputText.contains('\n') ||
+                        inputText.length > SingleLineMaxChars
+                    LaunchedEffect(inputText.isEmpty()) {
+                        if (inputText.isEmpty()) wrappedToSecondLine = false
+                    }
 
                     // 「+」附件/扩展入口。两态共用同一份定义：位置不同（单行在正文左侧、
                     // 多行在操作行最左），但尺寸、图标、行为必须完全一致，不能各写一遍。
@@ -949,6 +962,9 @@ fun ChatInput(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = containerShape,
                                 singleLine = !isMultiLine,
+                                onMeasureLines = { lines ->
+                                    if (lines > 1) wrappedToSecondLine = true
+                                },
                             )
 
                             // 多行态：操作行落在正文**下方**（P1 结构）。
@@ -1067,9 +1083,11 @@ private fun TextInputRow(
     // 所以同一个常量在单行时是胶囊、多行时是圆角卡片）。
     // 这里不能直接用 ChatInput 的局部 containerShape —— 那是另一个函数的作用域。
     shape: Shape,
-    // 单行（胶囊）态走 TextFieldLineLimits.SingleLine：文字在框内横向滚动，
-    // 高度恒为 M3 的 56dp。多行（大卡片）态走 MultiLine(4)。
+    // 单行（胶囊）态下按回车要主动补换行（SingleLine 会把换行吃掉），所以两态仍然要区分。
+    // **但它只影响按键行为，不再影响 TextField 自己的换行 / 增高**（见下面 lineLimits）。
     singleLine: Boolean,
+    // 实测行数回传。两态判据拿它当「已经换过行」的依据，不再只靠字数猜。
+    onMeasureLines: (Int) -> Unit = {},
 ) {
     val displaySettings = LocalDisplaySettings.current
     val filesManager: FilesManager = koinInject()
@@ -1139,13 +1157,16 @@ private fun TextInputRow(
             },
             // 上限从 5 行收到 4 行：5 行时外壳约 136–166dp（随字体缩放），已经超出
             // 「最大 120–140dp」；4 行固定 116dp。超出的文字在编辑区内部滚动。
-            // 单行态走 SingleLine：文字横向滚动，高度锁在 M3 的 56dp，不会被字数撑高。
-            // 多行态才允许长到 4 行。切换只改这一个参数 —— TextFieldState 是外置的，
-            // 文字与光标都不受影响。
-            lineLimits = if (singleLine) {
-                TextFieldLineLimits.SingleLine
-            } else {
-                TextFieldLineLimits.MultiLine(maxHeightInLines = InputMaxLines)
+            //
+            // **正文恒为 MultiLine，不再按两态在 SingleLine / MultiLine 之间切。**
+            // 原来单行态走 SingleLine，代价是长句在框内**横向滚动**：光标移到句尾时
+            // 前半句会被滚出可视区，容器也不会随内容真正增高 —— 那不是多行自适应，
+            // 只是把一行塞进了一个看起来更高的壳里。现在换行与增高完全交给
+            // MultiLine + maxHeightInLines，两态只决定按钮排在哪一行（见 ChatInput）。
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = InputMaxLines),
+            // 把实测行数喂回两态判据。字数只是估算，设备宽度和系统字体缩放一变就不准。
+            onTextLayout = { getResult ->
+                onMeasureLines(getResult()?.lineCount ?: 1)
             },
             keyboardOptions = KeyboardOptions(
                 imeAction = if (displaySettings.sendOnEnter) ImeAction.Send else ImeAction.Default

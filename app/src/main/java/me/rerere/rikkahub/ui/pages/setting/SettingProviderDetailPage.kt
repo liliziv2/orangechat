@@ -39,13 +39,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -146,8 +143,14 @@ import kotlin.uuid.Uuid
 /** 模型卡图标底座：比原来的 36dp 收一圈，底座不再抢图标本身的注意力。 */
 private val ProviderModelIconSize = 32.dp
 
-/** 图标底座 = onSurface 的低透明度叠加 ⇒ 中性浅灰/半透明，不跟着主题强调色跑。 */
-private const val ProviderModelIconBaseAlpha = 0.06f
+/**
+ * 图标底座 = onSurface 的低透明度叠加 ⇒ 中性浅灰/半透明，不跟着主题强调色跑。
+ *
+ * 0.06 → 0.04：0.06 在浅色主题下已经能读成「图标后面垫了一块灰方块」，
+ * 而模型自身的 Logo 才是主体。再淡一档，底座只负责把 Logo 从卡片底色上「抬」起来，
+ * 不参与构图。
+ */
+private const val ProviderModelIconBaseAlpha = 0.04f
 
 /** 底部导航两项等宽，不收窄的话 M3 的 weight(1f) 会把它们推到屏幕 25% / 75%。 */
 private val ProviderNavBarMaxWidth = 240.dp
@@ -540,10 +543,14 @@ private fun ModelList(
                 }
             }
         }
-        // 页面底部单独的一个操作按钮：只保留 M3 自带的一点点悬浮感，
-        // 不再给它套边框 / 卡面 / 卡片圆角 —— 上面的模型卡已经是卡片语言了。
-        HorizontalFloatingToolbar(
-            expanded = expanded,
+        // 页面底部只剩**定位用的包裹层**，本身不带任何容器样式。
+        //
+        // 原来「箱子图标」（模型库入口）和「添加新模型」装在同一个 M3 浮动工具条里 ——
+        // 那是一颗米色大胶囊同时装着一个图标按钮和一个主操作按钮：底部于是又出现了一层
+        // 容器，而上面的模型卡已经是卡片语言了。现在只留 AddModelButton 自己那一行
+        // （箱子图标 + 橙色主按钮，两者并排但外面没有共同底色/描边/阴影），
+        // 底部不再新增卡面 / 描边 / 阴影 / 胶囊。
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .offset(y = -ScreenOffset),
@@ -1066,22 +1073,15 @@ private fun ModelPicker(
             }
         }
     }
-    BadgedBox(
-        badge = {
-            if (models.isNotEmpty()) {
-                Badge {
-                    Text(models.size.toString())
-                }
-            }
+    // 这里原来套了一层 M3 的 BadgedBox：图标右上角挂一个红色小角标显示「可用模型数」。
+    // 它读的是 M3 默认的 error 色，在一排中性色里非常跳；而那个数字在打开的列表里一眼
+    // 就能数出来，没有任何逻辑依赖它。去掉，只留图标按钮本身。
+    IconButton(
+        onClick = {
+            showModal = true
         }
     ) {
-        IconButton(
-            onClick = {
-                showModal = true
-            }
-        ) {
-            Icon(HugeIcons.Package01, null)
-        }
+        Icon(HugeIcons.Package01, null)
     }
 }
 

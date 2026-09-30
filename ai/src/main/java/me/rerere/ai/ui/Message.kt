@@ -179,6 +179,40 @@ fun String.hasVisibleReasoning(): Boolean = any { char ->
 /** 这段思考是否有可见内容，见 [String.hasVisibleReasoning]。 */
 fun UIMessagePart.Reasoning.hasVisibleReasoning(): Boolean = reasoning.hasVisibleReasoning()
 
+/**
+ * 这条助手消息是不是「只思考了、什么都没说」。
+ *
+ * 它是消息流里那行**孤立**的「思考了 X 秒」的来源：一轮生成被中断（用户中途发了下一条，
+ * 或按了停止）时，助手消息可能只产出了思考就没了，而 `ChatService` 只给它补一个
+ * `finishedAt` 就留在时间线里 —— 它既不属于上一条回复、也不属于下一条，于是渲染成
+ * 「思考了 X 秒 → 用户消息 → 思考了 X 秒 → AI 回复」中间那个多余的节点。
+ *
+ * 判据刻意把 Reasoning 排除在「内容」之外：思考是回复前面的状态行，不是回复本身。
+ * Tool 算内容 —— 带工具调用的那一轮正在做实事，不能当成空消息丢掉。
+ *
+ * 调用点：
+ * - `ChatService.sendMessage`：用户翻篇之前先把尾部这种半成品摘掉（不再进上下文）；
+ * - `ChatList` 的 `displayNodes`：非生成中直接不显示（历史数据不用迁移）。
+ * 生成中不能丢 —— 那一刻「正在思考…」正是这条消息要表达的状态。
+ */
+fun UIMessage.hasNoVisibleReply(): Boolean {
+    if (role != MessageRole.ASSISTANT) return false
+    return parts.none { part ->
+        when (part) {
+            is UIMessagePart.Text -> part.text.hasVisibleReasoning()
+            is UIMessagePart.Reasoning -> false
+            is UIMessagePart.Image -> part.url.isNotBlank()
+            is UIMessagePart.Video -> part.url.isNotBlank()
+            is UIMessagePart.Audio -> part.url.isNotBlank()
+            is UIMessagePart.Document -> part.url.isNotBlank()
+            is UIMessagePart.VoiceMessage -> part.url.isNotBlank()
+            // Tool（以及将来新增的 part 类型）一律算「有内容」：宁可多留一条，
+            // 也不要把正在调工具的那一轮当成空消息删掉。
+            else -> true
+        }
+    }
+}
+
 fun List<UIMessage>.limitContext(size: Int): List<UIMessage> {
     if (size <= 0 || this.size <= size) return this
 

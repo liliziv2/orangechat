@@ -58,6 +58,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.canResumeToolExecution
 import me.rerere.ai.ui.finishPendingTools
 import me.rerere.ai.ui.finishReasoning
+import me.rerere.ai.ui.hasNoVisibleReply
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
@@ -449,8 +450,17 @@ class ChatService(
                         ?: settings.getCurrentAssistant()
                     val processedContent = preprocessUserInputParts(content, assistant)
 
+                    // 用户已经翻篇了：先把尾部「只思考、什么都没说」的助手半成品摘掉。
+                    // 上面 `session.getJob()?.cancel()` 只取消任务，不会回收那条消息 ——
+                    // 它会作为一个孤立节点卡在两条消息之间（见 UIMessage.hasNoVisibleReply），
+                    // 而且还会被当成上下文发给模型。带工具调用的那一轮不算（Tool 算内容），
+                    // 所以真正待审批 / 正在干活的轮次不会被误删。
+                    val trimmedNodes = latestConversation.messageNodes.dropLastWhile { node ->
+                        node.messages.getOrNull(node.selectIndex)?.hasNoVisibleReply() == true
+                    }
+
                     val newConversation = latestConversation.copy(
-                        messageNodes = latestConversation.messageNodes + UIMessage(
+                        messageNodes = trimmedNodes + UIMessage(
                             role = MessageRole.USER,
                             parts = processedContent,
                         ).toMessageNode(),

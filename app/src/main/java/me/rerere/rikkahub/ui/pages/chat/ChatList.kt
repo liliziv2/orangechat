@@ -102,6 +102,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.hasNoVisibleReply
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.transformers.SystemHintTransformer
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
@@ -321,12 +322,19 @@ private fun ChatListNormal(
 
         // 过滤 [SKIP] 占位回复, 以及程序替用户发出的系统提示(主动消息上下文 / 通话心跳 /
         // 时间提醒, 以及历史上误落库的提示词注入条款)。这些都不是用户真的说过的话。
-        val displayNodes = remember(conversation.messageNodes) {
+        //
+        // 再加一条：**只思考了、什么都没说的助手消息不占节点**（见
+        // `UIMessage.hasNoVisibleReply`）。被中断的那一轮会留下这种半成品，它在流里渲染
+        // 出来就是一行孤立的「思考了 X 秒」，既不属于上一条回复也不属于下一条。
+        // 生成中的最后一条要留着 —— 那一刻「正在思考…」正是它要表达的状态。
+        val displayNodes = remember(conversation.messageNodes, loading) {
             conversation.messageNodes.filter { node ->
                 val msg = node.currentMessage
                 val text = msg.toText().trim()
-                !(msg.role == MessageRole.ASSISTANT && text == "[SKIP]") &&
-                    !SystemHintTransformer.isSystemHint(msg)
+                val isSkipPlaceholder = msg.role == MessageRole.ASSISTANT && text == "[SKIP]"
+                val isSystemHint = SystemHintTransformer.isSystemHint(msg)
+                val isLiveTail = loading && node === conversation.messageNodes.lastOrNull()
+                !isSkipPlaceholder && !isSystemHint && (isLiveTail || !msg.hasNoVisibleReply())
             }
         }
 
