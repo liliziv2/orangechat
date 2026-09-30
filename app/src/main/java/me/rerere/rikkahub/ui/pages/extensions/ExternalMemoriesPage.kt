@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
@@ -81,8 +81,9 @@ fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 行自带左右内边距，容器只留一点上下呼吸位 —— 与模型页/语音页一致。
+            // 行与行之间不再留 12dp 空档：分界交给那根发丝线，列表才是连续的。
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
         ) {
             if (settings.externalMemories.isEmpty()) {
                 item {
@@ -174,10 +175,7 @@ private fun ExternalMemoryItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -191,7 +189,7 @@ private fun ExternalMemoryItem(
             ) {
                 Text(
                     text = memory.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -238,6 +236,8 @@ private fun ExternalMemoryItem(
                 ),
             )
         }
+    
+        SettingsRowDivider()
     }
 }
 

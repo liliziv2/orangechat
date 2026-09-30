@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,9 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
@@ -86,8 +87,9 @@ fun WorkspacePage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 行自带左右内边距，容器只留一点上下呼吸位 —— 与模型页/语音页一致。
+            // 行与行之间不再留 12dp 空档：分界交给那根发丝线，列表才是连续的。
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
         ) {
             if (workspaces.isEmpty()) {
                 item {
@@ -119,7 +121,7 @@ fun WorkspacePage() {
             }
 
             items(workspaces, key = { it.id }) { workspace ->
-                WorkspaceCard(
+                WorkspaceRow(
                     workspace = workspace,
                     onClick = { navController.navigate(Screen.WorkspaceDetail(workspace.id)) },
                     onDelete = { deleteTarget = workspace },
@@ -158,7 +160,7 @@ fun WorkspacePage() {
 }
 
 @Composable
-private fun WorkspaceCard(
+private fun WorkspaceRow(
     workspace: WorkspaceEntity,
     onClick: () -> Unit,
     onDelete: () -> Unit,
@@ -166,14 +168,11 @@ private fun WorkspaceCard(
     val status = runCatching { WorkspaceShellStatus.valueOf(workspace.shellStatus) }
         .getOrDefault(WorkspaceShellStatus.DISABLED)
 
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClick)
                 .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -191,7 +190,7 @@ private fun WorkspaceCard(
             ) {
                 Text(
                     text = workspace.name,
-                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
                     text = stringResource(workspaceStatusLabel(status)),
@@ -210,6 +209,8 @@ private fun WorkspaceCard(
                 ),
             )
         }
+    
+        SettingsRowDivider()
     }
 }
 

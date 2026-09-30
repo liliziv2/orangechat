@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
@@ -77,8 +77,9 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // 行自带左右内边距，容器只留一点上下呼吸位 —— 与模型页/语音页一致。
+            // 行与行之间不再留 12dp 空档：分界交给那根发丝线，列表才是连续的。
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
         ) {
             if (settings.quickMessages.isEmpty()) {
                 item {
@@ -110,7 +111,7 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
             }
 
             items(settings.quickMessages, key = { it.id }) { quickMessage ->
-                QuickMessageCard(
+                QuickMessageRow(
                     quickMessage = quickMessage,
                     onEdit = { editTarget = quickMessage },
                     onDelete = { deleteTarget = quickMessage },
@@ -163,16 +164,20 @@ fun QuickMessagesPage(vm: QuickMessagesVM = koinViewModel()) {
     }
 }
 
+/**
+ * 一条快捷消息 = 一行，不是一张卡。
+ *
+ * 原来是每项一张 Card：N 项就是 N 个圆角盒子平级排开，一屏下来全是壳，
+ * 内容反而不显眼。现在外壳整个撤掉，行直接落在页面背景上，
+ * 行与行之间靠一根发丝线区分 —— 与模型页、语音页、搜索页同一套语言。
+ */
 @Composable
-private fun QuickMessageCard(
+private fun QuickMessageRow(
     quickMessage: QuickMessage,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -193,7 +198,7 @@ private fun QuickMessageCard(
             ) {
                 Text(
                     text = quickMessage.title.ifBlank { stringResource(R.string.quick_messages_page_untitled) },
-                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -221,6 +226,7 @@ private fun QuickMessageCard(
                 ),
             )
         }
+        SettingsRowDivider()
     }
 }
 

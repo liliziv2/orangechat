@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
@@ -225,6 +226,31 @@ private fun CardGroupDivider() {
             .padding(horizontal = 16.dp)
             .height(1.dp)
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = CardGroupDividerAlpha))
+    )
+}
+
+/**
+ * 二级/三级设置页**裸列表**的行分隔线。
+ *
+ * 层级规则（见 `SETTINGS-TREE.md`）：
+ *   P1 设置首页   —— 大标题 + [CardGroup] 分组容器
+ *   P2/P3 具体设置 —— 标题收一级，正文是「分组名 + 行项目 + 细线」，**不再套卡片外壳**
+ *   视觉编辑器页   —— 颜色/气泡/透明度/插图这类要展示预览的，保留预览容器
+ *
+ * 所以 P2/P3 的列表没有容器，行直接落在页面背景上，靠这根线区分。
+ * 几何沿用批 45 在模型页/语音页立的那一档（[SettingsRowDividerAlpha] × outlineVariant）——
+ * 它比 [CardGroupDivider] 明显一点，因为容器内的线有底色衬着，页面背景上的线没有。
+ *
+ * 玻璃模式下仍然画：裸行本来就是透明的，这根线是行与行之间唯一的区分依据，
+ * 不像 [CardGroupDivider] 那样可以靠容器边界代替。
+ */
+private const val SettingsRowDividerAlpha = 0.5f
+
+@Composable
+fun SettingsRowDivider(modifier: Modifier = Modifier) {
+    HorizontalDivider(
+        modifier = modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = SettingsRowDividerAlpha),
     )
 }
 
