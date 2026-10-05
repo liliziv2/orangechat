@@ -519,6 +519,45 @@ class RouteActivity : ComponentActivity() {
                                         .background(Brush.verticalGradient(creamRoseScrim))
                                 }
 
+                                "nightsky" -> {
+                                    // 夜游与港口 / 奶油玫瑰共用同一张底图，只换上层 scrim。
+                                    // 底图是极亮的暖白纸纹（863x1822，平均 L* 93.6），夜间必须过压。
+                                    //
+                                    // scrim 色号**两个分支都取「页面软化色」本身**、只靠 alpha 做斜坡，
+                                    // 不靠换色号（奶油玫瑰踩过的「整屏棕滤镜」）。日间特意不用纸白锚点
+                                    // #F1E7B0 —— 它是 C*=28.5 的暖黄，任何够用的 alpha 都会把整屏染黄
+                                    // （实测 C*=7.3，是奶油玫瑰 2.8 的 2.6 倍）。
+                                    //
+                                    // 像素级实测（st/bg_measure.py，逐行按 alpha 合成）：
+                                    //   日间 #E8E6DC @ 0.20/0.12/0.34   -> L* 93.2  C* 2.9
+                                    //   夜间 #1E1F24 @ 0.975/0.982/0.990 -> L* 13.6  C* 3.5
+                                    //   对照 奶油玫瑰 日 L* 93.6 C* 2.8 / 夜 L* 20.4 C* 0.9
+                                    val nightStrollPainter = painterResource(
+                                        id = R.drawable.harbor_chat_bg
+                                    )
+                                    val nightStrollScrim = if (LocalDarkMode.current) {
+                                        listOf(
+                                            // 页面软化色 #1E1F24（夜街角压彩度到 C*≈3.5，L* 提到 12）
+                                            Color(0xFF1E1F24).copy(alpha = 0.975f),
+                                            Color(0xFF1E1F24).copy(alpha = 0.982f),
+                                            Color(0xFF1E1F24).copy(alpha = 0.990f),
+                                        )
+                                    } else {
+                                        listOf(
+                                            // 页面软化色 #E8E6DC（纸白压彩度到 C*≈5.2，L* 91 不动）
+                                            Color(0xFFE8E6DC).copy(alpha = 0.20f),
+                                            Color(0xFFE8E6DC).copy(alpha = 0.12f),
+                                            Color(0xFFE8E6DC).copy(alpha = 0.34f),
+                                        )
+                                    }
+                                    base
+                                        .paint(
+                                            painter = nightStrollPainter,
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        .background(Brush.verticalGradient(nightStrollScrim))
+                                }
+
                                 else -> base
                             }
                         }
