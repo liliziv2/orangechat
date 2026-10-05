@@ -163,13 +163,12 @@ fun SettingDisplayIllustrationPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             // Settings Background
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("设置页背景") },
                 ) {
                     item(
@@ -204,7 +203,7 @@ fun SettingDisplayIllustrationPage(vm: SettingVM = koinViewModel()) {
             // Input Background
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("输入框背景") },
                 ) {
                     item(
@@ -236,7 +235,7 @@ fun SettingDisplayIllustrationPage(vm: SettingVM = koinViewModel()) {
             // Drawer Background
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("侧边栏背景") },
                 ) {
                     item(
@@ -268,7 +267,7 @@ fun SettingDisplayIllustrationPage(vm: SettingVM = koinViewModel()) {
             // 气泡背景图 & 圆角
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("气泡背景") },
                 ) {
                     item(
@@ -355,7 +354,7 @@ fun SettingDisplayIllustrationPage(vm: SettingVM = koinViewModel()) {
             // Avatar Frame (QQ-style decoration)
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("头像挂件") },
                 ) {
                     // ===== 用户头像挂件 =====
