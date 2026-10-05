@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.lazy.itemsIndexed
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.Connect
@@ -12,7 +13,6 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Cancel01
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +64,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -151,17 +152,6 @@ private val ProviderModelIconSize = 32.dp
  * 不参与构图。
  */
 private const val ProviderModelIconBaseAlpha = 0.04f
-
-/**
- * 模型卡的描边透明度。
- *
- * 描边是这张卡**唯一**的分界线 —— 卡片底色是 `surface`，和页面底色同色，
- * 去掉描边卡片就散了。但 M3 的 `outlinedCardBorder()` 用的是满不透明的
- * `outlineVariant`，是全 App 最实的一根线：别处的描边都带 alpha
- * （助手气泡 0.18、材质边框 0.07）。压到 0.55 之后它从「一圈壳」退回成一根
- * 发丝，卡片靠留白与内容立住，而不是靠边。
- */
-private const val ProviderModelCardBorderAlpha = 0.55f
 
 /** 底部导航两项等宽，不收窄的话 M3 的 weight(1f) 会把它们推到屏幕 25% / 75%。 */
 private val ProviderNavBarMaxWidth = 240.dp
@@ -502,9 +492,8 @@ private fun ModelList(
                     onExpand = { expanded = true },
                     onCollapse = { expanded = false },
                 ),
-            contentPadding = PaddingValues(16.dp) + PaddingValues(bottom = 128.dp),
+            contentPadding = PaddingValues(vertical = 8.dp) + PaddingValues(bottom = 128.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState
         ) {
             // 模型列表
@@ -530,13 +519,14 @@ private fun ModelList(
                     }
                 }
             } else {
-                items(providerSetting.models, key = { it.id }) { item ->
+                itemsIndexed(providerSetting.models, key = { _, it -> it.id }) { index, item ->
                     ReorderableItem(
                         state = reorderableLazyListState,
                         key = item.id
                     ) { isDragging ->
                         ModelCard(
                             model = item,
+                            showDivider = index > 0,
                             onDelete = {
                                 onUpdateProvider(providerSetting.delModel(item))
                             },
@@ -1250,6 +1240,7 @@ fun ModalAbilitySelector(
 private fun ModelCard(
     model: Model,
     modifier: Modifier = Modifier,
+    showDivider: Boolean = false,
     onDelete: () -> Unit,
     onEdit: (Model) -> Unit,
     parentProvider: ProviderSetting
@@ -1340,17 +1331,23 @@ private fun ModelCard(
         }
     }
 
-    OutlinedCard(
-        modifier = modifier,
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = ProviderModelCardBorderAlpha),
-        ),
-    ) {
+    // 一行，不是一张卡。
+    //
+    // 原来每个模型是一张 `OutlinedCard`（描边 α0.55 + 16/8 内边距 + 8dp 行距），
+    // 而同一层级的「提供商」页（`SettingProviderPage.ProviderItem`，批 43）早就是
+    // 裸行 + 一根发丝线 —— 两个列表读起来不是同一种语言。现在对齐过去。
+    //
+    // 描边原来承担的那条理由（"卡片底色是 `surface`，和页面底色同色，去掉描边卡片就散了"）
+    // 由 `SettingsRowDivider` 接手：行与行之间本来就需要一根线，有了它就不再需要
+    // 每行围一圈壳。拖拽把手、`graphicsLayer` 缩放、⋮ 菜单全部原样。
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (showDivider) {
+            SettingsRowDivider()
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
