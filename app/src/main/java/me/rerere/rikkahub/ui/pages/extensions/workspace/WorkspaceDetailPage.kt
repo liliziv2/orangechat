@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,15 +20,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import me.rerere.rikkahub.ui.components.ui.ItemAction
 import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
+import me.rerere.rikkahub.ui.components.ui.SettingsSectionTitle
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -71,7 +72,6 @@ import me.rerere.hugeicons.stroke.Share03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -269,11 +269,11 @@ private fun WorkspaceBasicPage(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 8.dp),
     ) {
+        item { SettingsSectionTitle(stringResource(R.string.workspace_detail_rootfs_title)) }
         item {
-            RootfsCard(
+            RootfsSection(
                 status = state.shellStatus,
                 installing = state.installing,
                 progressStageText = installProgressText(state),
@@ -282,9 +282,11 @@ private fun WorkspaceBasicPage(
             )
         }
 
-        item {
-            ToolApprovalCard(
-                approvals = approvals,
+        item { SettingsSectionTitle(stringResource(R.string.workspace_detail_tool_approval_title)) }
+        items(approvals.entries.toList(), key = { it.key }) { (name, needsApproval) ->
+            ToolApprovalRow(
+                name = name,
+                needsApproval = needsApproval,
                 onChange = onToolApprovalChange,
             )
         }
@@ -306,13 +308,13 @@ private fun WorkspaceFilesPage(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(vertical = 8.dp),
     ) {
         item {
             AreaSelector(
                 area = state.area,
                 onSwitch = onSwitchArea,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
 
@@ -321,6 +323,7 @@ private fun WorkspaceFilesPage(
                 path = state.currentPath,
                 canGoUp = state.currentPath.isNotBlank(),
                 onGoUp = onNavigateUp,
+                modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
 
@@ -413,76 +416,76 @@ private fun RootfsInstallUrlDialog(
 }
 
 @Composable
-private fun RootfsCard(
+private fun RootfsSection(
     status: WorkspaceShellStatus,
     installing: Boolean,
     progressStageText: String?,
     onInstall: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    Card(colors = CustomColors.cardColorsOnSurfaceContainer) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.workspace_detail_rootfs_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(workspaceStatusLabel(status)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (installing) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                if (progressStageText != null) {
-                    Text(
-                        text = progressStageText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                OutlinedButton(onClick = onCancel) {
-                    Text(stringResource(R.string.cancel))
-                }
-            } else if (status != WorkspaceShellStatus.READY) {
-                Button(onClick = onInstall) {
-                    Text(stringResource(R.string.workspace_detail_install_rootfs))
-                }
+    // 段标题由页面的 SettingsSectionTitle 提供，这里只剩内容本身。
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(workspaceStatusLabel(status)),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (installing) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            if (progressStageText != null) {
+                Text(
+                    text = progressStageText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(onClick = onCancel) {
+                Text(stringResource(R.string.cancel))
+            }
+        } else if (status != WorkspaceShellStatus.READY) {
+            Button(onClick = onInstall) {
+                Text(stringResource(R.string.workspace_detail_install_rootfs))
             }
         }
     }
 }
 
 @Composable
-private fun ToolApprovalCard(
-    approvals: Map<String, Boolean>,
+private fun ToolApprovalRow(
+    name: String,
+    needsApproval: Boolean,
     onChange: (String, Boolean) -> Unit,
 ) {
-    Card(colors = CustomColors.cardColorsOnSurfaceContainer) {
-        Column(modifier = Modifier.padding(8.dp)) {
+    // 与 SettingDisplayNotificationPage.SettingsSwitchRow（批 49）同构：
+    // 裸行 + 行尾一根 SettingsRowDivider。行标题用 titleSmall，和
+    // SettingProviderPage.ProviderItem 是同一档。
+    //
+    // 这里**不用** FormItem：Form.kt 把同一个 modifier 同时套在 Row 和内部
+    // Column(weight(1f)) 上，传进去的 padding 会生效两遍，没法精确控 start/end。
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 14.dp, end = 4.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Text(
-                text = stringResource(R.string.workspace_detail_tool_approval_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(8.dp),
+                text = workspaceToolLabel(name),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f),
             )
-            approvals.entries.forEachIndexed { index, (name, needsApproval) ->
-                if (index > 0) HorizontalDivider()
-                FormItem(
-                    modifier = Modifier.padding(8.dp),
-                    label = { Text(workspaceToolLabel(name)) },
-                    tail = {
-                        Switch(
-                            checked = needsApproval,
-                            onCheckedChange = { onChange(name, it) },
-                        )
-                    },
-                )
-            }
+            Switch(
+                checked = needsApproval,
+                onCheckedChange = { onChange(name, it) },
+            )
         }
+        SettingsRowDivider()
     }
 }
 
@@ -490,8 +493,9 @@ private fun ToolApprovalCard(
 private fun AreaSelector(
     area: WorkspaceStorageArea,
     onSwitch: (WorkspaceStorageArea) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = area == WorkspaceStorageArea.FILES,
             onClick = { onSwitch(WorkspaceStorageArea.FILES) },
@@ -510,9 +514,10 @@ private fun PathBar(
     path: String,
     canGoUp: Boolean,
     onGoUp: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -538,14 +543,12 @@ private fun FileRow(
     onShare: () -> Unit = {},
     showDelete: Boolean = true,
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
-    ) {
+    // 一行，不是一张卡：整行可点，行尾一根发丝线。
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClick)
                 .padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -602,6 +605,7 @@ private fun FileRow(
                 ItemActionMenu(actions = rowActions)
             }
         }
+        SettingsRowDivider()
     }
 }
 
