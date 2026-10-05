@@ -49,6 +49,17 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
     var amoledDarkMode by rememberAmoledDarkMode()
     val navController = LocalNavController.current
 
+    // 材质模式收敛到三种：FOLLOW_THEME 已从下拉里隐藏（枚举与旧数据都保留不动）。
+    // 旧数据里存着 FOLLOW_THEME 的用户（这也是 DisplaySetting 的默认值）在渲染上
+    // 本来就等同于 FLAT（见 Theme.kt：FOLLOW_THEME -> FLAT），所以这里把它归一化
+    // 成 FLAT 显示 —— 否则会出现「当前值不在下拉列表里」的空档。
+    val visibleMaterialMode =
+        if (displaySetting.materialMode == DisplayMaterialMode.FOLLOW_THEME) {
+            DisplayMaterialMode.FLAT
+        } else {
+            displaySetting.materialMode
+        }
+
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
         vm.updateSettings(settings.copy(displaySetting = setting))
@@ -95,7 +106,7 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text("材质模式") },
                         supportingContent = {
                             Text(
-                                when (displaySetting.materialMode) {
+                                when (visibleMaterialMode) {
                                     DisplayMaterialMode.FOLLOW_THEME -> "跟随主题"
                                     DisplayMaterialMode.FLAT -> "平面"
                                     DisplayMaterialMode.TRANSLUCENT -> "轻透"
@@ -105,8 +116,8 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                         },
                         trailingContent = {
                             Select(
-                                options = DisplayMaterialMode.entries,
-                                selectedOption = displaySetting.materialMode,
+                                options = MATERIAL_MODE_OPTIONS,
+                                selectedOption = visibleMaterialMode,
                                 onOptionSelected = {
                                     updateDisplaySetting(displaySetting.copy(materialMode = it))
                                 },
@@ -146,20 +157,6 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                     onCheckedChange = {
                                         updateDisplaySetting(
                                             displaySetting.copy(chatBubbleRealtimeBlur = it)
-                                        )
-                                    },
-                                )
-                            },
-                        )
-                        item(
-                            headlineContent = { Text("液态玻璃气泡") },
-                            supportingContent = { Text("iOS Liquid Glass 风格：实时模糊 + 边缘高光 + 顶部折射反光") },
-                            trailingContent = {
-                                Switch(
-                                    checked = displaySetting.liquidGlassBubbles,
-                                    onCheckedChange = {
-                                        updateDisplaySetting(
-                                            displaySetting.copy(liquidGlassBubbles = it)
                                         )
                                     },
                                 )
@@ -236,3 +233,13 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
         }
     }
 }
+
+/**
+ * 「材质模式」下拉实际暴露给用户的选项。
+ *
+ * FOLLOW_THEME 已从下拉里隐藏 —— 它在渲染上等同于 FLAT，暴露出来只是让同一个
+ * 视觉结果出现两个名字。DisplayMaterialMode 枚举本身仍保留 4 个值：旧数据里
+ * 存着 follow_theme 的用户靠 ignoreUnknownKeys 与上面的归一化继续正常工作。
+ */
+private val MATERIAL_MODE_OPTIONS: List<DisplayMaterialMode> =
+    DisplayMaterialMode.entries.filter { it != DisplayMaterialMode.FOLLOW_THEME }

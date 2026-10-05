@@ -709,7 +709,6 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
-                                                        liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                                         messageTimeText = if (showMessageTime) messageTime else null,
                                                         isUser = true,
                                                         onClick = { onUserMessageClick?.invoke() },
@@ -735,7 +734,6 @@ private fun MessagePartsBlock(
                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
-                                            liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                             messageTimeText = if (showMessageTime) messageTime else null,
                                             isUser = true,
                                             onClick = { onUserMessageClick?.invoke() },
@@ -770,7 +768,6 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
-                                                        liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                                         messageTimeText = if (showMessageTime) messageTime else null,
                                                         enableLiveBubbleBlur = true,
                                                         isUser = false,
@@ -808,7 +805,6 @@ private fun MessagePartsBlock(
                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
-                                            liquidGlassBubbles = displaySettings.liquidGlassBubbles,
                                             messageTimeText = if (showMessageTime) messageTime else null,
                                             enableLiveBubbleBlur = true,
                                             isUser = false,
@@ -1060,7 +1056,6 @@ private fun BubbleSurface(
     color: Color,
     overlayEnabled: Boolean,
     bubbleAlpha: Float,
-    liquidGlassBubbles: Boolean = false,
     /** 非空时在气泡右下角显示该时间；由「消息内显示日期时间」开关控制。 */
     messageTimeText: String? = null,
     isUser: Boolean = false,
@@ -1094,11 +1089,8 @@ private fun BubbleSurface(
     }
     val materialMode = LocalMaterialMode.current
     val liveContext = LocalLiveBubbleBlur.current
-    // FLAT + 液态玻璃开关 = iOS Liquid Glass 气泡
-    // GLASS = 透明玻璃气泡；两者都需要实时背景模糊
-    val wantsLiveBlurMode =
-        materialMode == DisplayMaterialMode.GLASS ||
-            (materialMode == DisplayMaterialMode.FLAT && liquidGlassBubbles)
+    // GLASS = 透明玻璃气泡；需要实时背景模糊
+    val wantsLiveBlurMode = materialMode == DisplayMaterialMode.GLASS
     val liveEnabled =
         enableLiveBubbleBlur &&
             liveContext.enabled &&
@@ -1181,11 +1173,6 @@ private fun BubbleSurface(
         onDrawBehind {
             drawRect(glassFillBrush)
         }
-    }
-    // 液态玻璃（FLAT + 开关）填充：均匀半透明底色，靠实时模糊 + 边缘高光出质感
-    val liquidGlassFillModifier = Modifier.drawWithCache {
-        val base = color.copy(alpha = LIQUID_GLASS_FILL_ALPHA * bubbleAlpha)
-        onDrawBehind { drawRect(color = base) }
     }
     // 静态玻璃高光：顶部泛白 / 底部反光 / 顶沿镜面线三处一起压下去。
     // 它们是"塑料包边"的直接来源 —— 叠在同一圈边缘上时，眼睛读到的是"包边"
@@ -1424,93 +1411,7 @@ private fun BubbleSurface(
         }
     }
     val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
-    val frostedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = LIQUID_GLASS_BORDER_ALPHA)
-    if (materialMode == DisplayMaterialMode.FLAT && liquidGlassBubbles) {
-        // ── 液态玻璃模式（iOS Liquid Glass）──
-        // 实时背景模糊 + 均匀半透明填充 + 顶部折射反光 + 边缘高光描边
-        Box(
-            modifier = Modifier
-                // 投影必须排在 animateContentSize 之前：它内部的 clipToBounds 会把
-                // 外扩的圆角投影裁成矩形，只在四角留下方形残块。
-                .then(glassShadowModifier(LIQUID_GLASS_SHADOW_ELEVATION))
-                .animateContentSize()
-                .clip(shape)
-                .then(bubbleClickModifier)
-                .border(1.dp, frostedBorderColor, shape)
-        ) {
-            if (finalLiveBubbleBlurEnabled) {
-                // 背景模糊片段：仅模糊背景层，文字保持清晰
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveFragmentModifier)
-                )
-            }
-            // 自定义气泡背景图。以前这个模式遇到背景图就整段退化成普通气泡，
-            // 玻璃质感全丢；现在图铺在玻璃填充之下，高光和描边照常叠加。
-            if (hasImage) {
-                AsyncImage(
-                    model = imagePath,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            }
-            if (isDarkTheme && finalLiveBubbleBlurEnabled) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleNightReadabilityModifier)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .then(liquidGlassFillModifier)
-            )
-            if (finalLiveBubbleBlurEnabled) {
-                // 径向光泽：左上亮，模拟玻璃对光的折射
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleRadialHighlightModifier)
-                )
-                // 顶部折射反光带
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleEdgeHighlightModifier)
-                )
-            } else {
-                // 无实时模糊时的降级：静态高光 + 顶部反光，保证液态玻璃观感
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(glassHighlightModifier)
-                )
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleEdgeHighlightModifier)
-                )
-            }
-            // 顶沿内高光压在所有层之上：它代表玻璃板的上切面，被任何东西盖住就没意义了
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .then(glassInsetTopHighlightModifier)
-            )
-            // 上下 8dp -> 6dp。单行气泡高度约 36dp，其中 16dp 是纵向留白，
-            // 读起来就是"一块厚片"；收到 12dp 后短消息明显紧凑。
-            // 左右保持 8dp 不动 —— 长消息的阅读宽度由它决定，收左右等于直接变窄。
-            // 横向 8 -> 10：文字不再贴到气泡边缘，短句不再显得「被框住」。
-            // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
-            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
-                content()
-                MessageTimeLabel(messageTimeText)
-            }
-        }
-    } else if (materialMode == DisplayMaterialMode.GLASS) {
+    if (materialMode == DisplayMaterialMode.GLASS) {
         Box(
             modifier = Modifier
                 // 同液态玻璃：手绘圆角投影，且必须排在 animateContentSize 之前，
@@ -1679,12 +1580,10 @@ private fun BubbleSurface(
     }
 }
 
-private const val LIQUID_GLASS_FILL_ALPHA = 0.54f
-// 三种材质的描边统一到 0.07。描边在这里只有一个职责：把气泡从同色背景上
-// 轻轻托起来。0.12~0.24 那一档已经能被看成"一圈边"，而三种材质各自不同的
-// 数值正是"用户/助手材质不统一"的来源之一。
-private const val LIQUID_GLASS_BORDER_ALPHA = 0.07f
 private const val TRANSLUCENT_BUBBLE_BASE_ALPHA = 0.72f
+// 两种材质的描边统一到 0.07。描边在这里只有一个职责：把气泡从同色背景上
+// 轻轻托起来。0.12~0.24 那一档已经能被看成"一圈边"，而两种材质各自不同的
+// 数值正是"用户/助手材质不统一"的来源之一。
 private const val TRANSLUCENT_BUBBLE_BORDER_ALPHA = 0.07f
 private const val GLASS_BUBBLE_BORDER_ALPHA = 0.07f
 
@@ -1708,15 +1607,6 @@ private const val PLAIN_BUBBLE_ALPHA = 0.92f
  * 下的气泡出现偏色。
  */
 private const val LIQUID_GLASS_SATURATION = 1.35f
-
-/**
- * 液态玻璃气泡的投影高度。
- *
- * 6dp -> 3dp -> 2dp。投影的「宽度」直接决定它读起来是柔光还是一圈壳：
- * 只要外圈能被眼睛单独拎出来，再加上底部那点方向偏移，就成了「压影」。
- * 2dp 只在贴边一两像素内交代层次，边界读不出来，质感交回给玻璃面自己。
- */
-private val LIQUID_GLASS_SHADOW_ELEVATION = 2.dp
 
 /**
  * GLASS 材质气泡的投影高度。
