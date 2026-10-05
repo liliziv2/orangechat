@@ -59,13 +59,12 @@ fun SettingDisplayCodeInteractionPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             // 代码显示设置
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text(stringResource(R.string.setting_page_code_display_settings)) },
                 ) {
                     item(
@@ -110,7 +109,7 @@ fun SettingDisplayCodeInteractionPage(vm: SettingVM = koinViewModel()) {
             // 交互与通知设置
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text(stringResource(R.string.setting_page_interaction_notification_settings)) },
                 ) {
                     item(

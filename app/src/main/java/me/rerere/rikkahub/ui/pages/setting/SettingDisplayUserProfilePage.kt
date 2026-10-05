@@ -61,7 +61,6 @@ fun SettingDisplayUserProfilePage(vm: SettingVM = koinViewModel()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Column(
@@ -111,7 +110,7 @@ fun SettingDisplayUserProfilePage(vm: SettingVM = koinViewModel()) {
             }
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    flat = true,
                     title = { Text("注入设置") },
                 ) {
                     item(

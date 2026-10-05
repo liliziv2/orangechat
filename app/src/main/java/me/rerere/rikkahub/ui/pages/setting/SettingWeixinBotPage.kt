@@ -115,14 +115,13 @@ fun SettingWeixinBotPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             // 说明
             item {
                 CardGroup(
                     title = { Text("说明") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true,
                 ) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.MessageMultiple01, contentDescription = null) },
@@ -136,7 +135,7 @@ fun SettingWeixinBotPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup(
                     title = { Text("登录") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true,
                 ) {
                     item(
                         headlineContent = { Text("登录状态") },
@@ -302,7 +301,7 @@ fun SettingWeixinBotPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup(
                     title = { Text("运行") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true,
                 ) {
                     item(
                         headlineContent = { Text("启用微信 Bot") },

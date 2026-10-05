@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -84,12 +83,11 @@ fun SettingDisplayGeneralPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text(stringResource(R.string.setting_page_general_settings)) },
                 ) {
                     item(

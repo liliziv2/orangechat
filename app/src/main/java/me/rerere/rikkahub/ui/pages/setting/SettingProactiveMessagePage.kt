@@ -6,6 +6,8 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,6 +38,7 @@ import me.rerere.rikkahub.ui.components.ui.RiskConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.data.service.ProactiveMessageService
 import me.rerere.rikkahub.data.service.ProactiveMessageWorker
+import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,12 +98,12 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = padding + PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                CardGroup {
+                CardGroup(flat = true) {
                     item(
                         headlineContent = { Text("启用主动消息") },
                         supportingContent = { Text("开启后AI立即主动发一条消息，之后按设定间隔循环") },
@@ -216,7 +219,7 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
                 }
             }
             item {
-                CardGroup {
+                CardGroup(flat = true) {
                     item(
                         headlineContent = { Text("最小间隔 (分钟)") },
                         supportingContent = {
@@ -267,7 +270,7 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
             }
             // 激进模式开关（与主动消息互斥）
             item {
-                CardGroup {
+                CardGroup(flat = true) {
                     item(
                         headlineContent = { Text("激进模式") },
                         supportingContent = {
@@ -345,7 +348,7 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 item {
                     val hasExactAlarm = ProactiveMessageWorker.canScheduleExactAlarms(context)
-                    CardGroup {
+                    CardGroup(flat = true) {
                         item(
                             headlineContent = { Text("精确闹钟权限") },
                             supportingContent = {
@@ -374,7 +377,7 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
             }
             item {
                 val isIgnoring = ProactiveMessageWorker.isIgnoringBatteryOptimizations(context)
-                CardGroup {
+                CardGroup(flat = true) {
                     item(
                         headlineContent = { Text("电池优化") },
                         supportingContent = {
@@ -401,7 +404,7 @@ fun SettingProactiveMessagePage(vm: SettingVM = koinInject()) {
                 }
             }
             item {
-                CardGroup {
+                CardGroup(flat = true) {
                     item(
                         headlineContent = { Text("说明") },
                         supportingContent = {

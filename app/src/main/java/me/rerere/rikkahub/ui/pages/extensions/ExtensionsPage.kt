@@ -49,8 +49,7 @@ fun ExtensionsPage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
         ) {
             // 这一页只承担「技能与扩展」这一组子设置。
             //
@@ -61,7 +60,7 @@ fun ExtensionsPage() {
             // 视觉规则与设置页一致:分组标题带图标,组内条目是无图标的文字列表。
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

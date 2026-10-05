@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -92,14 +91,13 @@ fun SettingQqBotPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             // 说明
             item {
                 CardGroup(
                     title = { Text("说明") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true,
                 ) {
                     item(
                         leadingContent = { Icon(imageVector = HugeIcons.Message01, contentDescription = null) },
@@ -121,7 +119,7 @@ fun SettingQqBotPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup(
                     title = { Text("机器人凭证") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true,
                 ) {
                     item(
                         headlineContent = { Text("AppID") },
@@ -165,7 +163,7 @@ fun SettingQqBotPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup(
                     title = { Text("运行") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true,
                 ) {
                     item(
                         headlineContent = { Text("启用 QQ Bot") },

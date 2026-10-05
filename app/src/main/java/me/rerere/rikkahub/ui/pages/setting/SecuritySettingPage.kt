@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,10 +51,9 @@ fun SecuritySettingPage(vm: SettingVM = koinViewModel()) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(innerPadding + PaddingValues(16.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(innerPadding + PaddingValues(vertical = 8.dp)),
         ) {
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     leadingContent = { Icon(HugeIcons.Alert01, null) },
                     headlineContent = { Text("强制确认工具调用") },

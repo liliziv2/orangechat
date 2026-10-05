@@ -8,7 +8,6 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.StopCircle
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -222,15 +221,10 @@ fun SettingWebPage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
         ) {
             item {
-                CardGroup(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                ) {
+                CardGroup(flat = true) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server_port)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_port_desc)) },
