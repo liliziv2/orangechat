@@ -36,6 +36,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Database02
+import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.MessageMultiple01
 import me.rerere.hugeicons.stroke.Package
@@ -398,6 +399,27 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         onClick = { navController.navigate(Screen.Workflows) },
                         supportingContent = { Text("Tasker 风格自动化:触发器 + 条件 -> 执行动作,由 AI 编写") },
                         headlineContent = { Text("工作流") },
+                    )
+                }
+            }
+
+            item("about") {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(HugeIcons.Idea01, null, modifier = Modifier.size(18.dp))
+                            Text("关于")
+                        }
+                    },
+                ) {
+                    item(
+                        onClick = { navController.navigate(Screen.SettingAbout) },
+                        supportingContent = { Text("版本信息、开源许可、捐赠方式") },
+                        headlineContent = { Text("关于橘瓣") },
                     )
                 }
             }

@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.Favourite
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Github
 import me.rerere.hugeicons.stroke.SecurityCheck
@@ -93,7 +94,7 @@ fun SettingAboutPage() {
         ) { onBurst ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding + PaddingValues(8.dp),
+                contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
@@ -132,7 +133,7 @@ fun SettingAboutPage() {
 
                 item {
                     CardGroup(
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                        flat = true,
                     ) {
                         item(
                             modifier = Modifier.combinedClickable(
@@ -159,7 +160,7 @@ fun SettingAboutPage() {
 
                 item {
                     CardGroup(
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                        flat = true,
                     ) {
                         item(
                             onClick = { context.openUrl("https://github.com/sue1231513/orangechat") },
@@ -190,7 +191,7 @@ fun SettingAboutPage() {
 
                 item {
                     CardGroup(
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                        flat = true,
                     ) {
                         item(
                             onClick = { context.openUrl("https://github.com/rikkahub/rikkahub") },
@@ -205,7 +206,7 @@ fun SettingAboutPage() {
 
                 item {
                     CardGroup(
-                        modifier = Modifier.padding(horizontal = 8.dp),
+                        flat = true,
                     ) {
                         item(
                             onClick = {
@@ -258,6 +259,19 @@ fun SettingAboutPage() {
                             leadingContent = { Icon(HugeIcons.SecurityCheck, null) },
                             supportingContent = { Text(stringResource(R.string.legal_plugin_security_desc)) },
                             headlineContent = { Text(stringResource(R.string.legal_plugin_security_title)) },
+                        )
+                    }
+                }
+
+                item {
+                    CardGroup(
+                        flat = true,
+                    ) {
+                        item(
+                            onClick = { navController.navigate(Screen.SettingDonate) },
+                            leadingContent = { Icon(HugeIcons.Favourite, null) },
+                            supportingContent = { Text(stringResource(R.string.donate_page_donation_methods)) },
+                            headlineContent = { Text(stringResource(R.string.donate_page_title)) },
                         )
                     }
                 }
