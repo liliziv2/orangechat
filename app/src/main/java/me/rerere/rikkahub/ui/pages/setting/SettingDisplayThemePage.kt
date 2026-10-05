@@ -1,8 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -73,31 +70,18 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             item {
-                Column(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                // 这里原来是「手写组标题 + 8 个各自裁圆角的 ListItem + 2dp 行距」——
+                // 全树唯一一处没用共享容器、而是把分组视觉手搓了一遍的页面。
+                // 现在改走共享的 CardGroup（扁平密度）：组标题用分组标题几何、
+                // 行间用行分隔线、行自己不再裁圆角。
+                CardGroup(
+                    flat = true,
+                    title = { Text(stringResource(R.string.setting_page_theme_setting)) },
                 ) {
-                    Text(
-                        text = stringResource(R.string.setting_page_theme_setting),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)
-                    )
-                    ListItem(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(
-                                RoundedCornerShape(
-                                    topStart = 20.dp,
-                                    topEnd = 20.dp,
-                                    bottomStart = 4.dp,
-                                    bottomEnd = 4.dp
-                                )
-                            ),
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_page_dynamic_color)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_dynamic_color_desc)) },
                         trailingContent = {
@@ -106,12 +90,8 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                 onCheckedChange = { vm.updateSettings(settings.copy(dynamicColor = it)) },
                             )
                         },
-                        colors = CustomColors.listItemColors,
                     )
-                    ListItem(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp)),
+                    item(
                         headlineContent = { Text("材质模式") },
                         supportingContent = {
                             Text(
@@ -141,12 +121,8 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                 modifier = Modifier.width(150.dp),
                             )
                         },
-                        colors = CustomColors.listItemColors,
                     )
-                    ListItem(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp)),
+                    item(
                         headlineContent = { Text("界面实时渲染") },
                         supportingContent = { Text("在支持的设备上为玻璃界面启用实时背景渲染") },
                         trailingContent = {
@@ -159,13 +135,9 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                 },
                             )
                         },
-                        colors = CustomColors.listItemColors,
                     )
                     if (displaySetting.interfaceRealtimeRendering) {
-                        ListItem(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp)),
+                        item(
                             headlineContent = { Text("聊天气泡实时模糊") },
                             supportingContent = { Text("为普通聊天气泡实时渲染背景模糊") },
                             trailingContent = {
@@ -178,12 +150,8 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                     },
                                 )
                             },
-                            colors = CustomColors.listItemColors,
                         )
-                        ListItem(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp)),
+                        item(
                             headlineContent = { Text("液态玻璃气泡") },
                             supportingContent = { Text("iOS Liquid Glass 风格：实时模糊 + 边缘高光 + 顶部折射反光") },
                             trailingContent = {
@@ -196,12 +164,8 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                     },
                                 )
                             },
-                            colors = CustomColors.listItemColors,
                         )
-                        ListItem(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp)),
+                        item(
                             headlineContent = { Text("模糊强度") },
                             supportingContent = {
                                 Column {
@@ -220,44 +184,44 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                     )
                                 }
                             },
-                            colors = CustomColors.listItemColors,
                         )
                     }
                     // Custom theme management entry
-                    ListItem(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { navController.navigate(Screen.SettingTheme) },
+                    item(
+                        onClick = { navController.navigate(Screen.SettingTheme) },
                         headlineContent = { Text("自定义主题管理") },
                         supportingContent = { Text("HCT 色彩算法自定义主题") },
-                        colors = CustomColors.listItemColors,
                     )
-                    if (!settings.dynamicColor) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.surfaceBright)
-                        ) {
-                            PresetThemeButtonGroup(
-                                themeId = settings.themeId,
-                                modifier = Modifier.fillMaxWidth(),
-                                onChangeTheme = { vm.updateSettings(settings.copy(themeId = it)) }
-                            )
-                        }
-                    }
-                    ListItem(
+                }
+            }
+
+            // 预设主题选择器是这一页唯一的专用 preview surface，按 carve-out 保留：
+            // surfaceBright 底色 / 4dp 圆角 / PresetThemeButtonGroup 本体一律不动，
+            // 只是从「容器内」挪到页面背景上，横向加 16dp 与行对齐。
+            if (!settings.dynamicColor) {
+                item {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(
-                                RoundedCornerShape(
-                                    topStart = 4.dp,
-                                    topEnd = 4.dp,
-                                    bottomStart = 20.dp,
-                                    bottomEnd = 20.dp
-                                )
-                            ),
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceBright)
+                    ) {
+                        PresetThemeButtonGroup(
+                            themeId = settings.themeId,
+                            modifier = Modifier.fillMaxWidth(),
+                            onChangeTheme = { vm.updateSettings(settings.copy(themeId = it)) }
+                        )
+                    }
+                }
+            }
+
+            // AMOLED 原来夹在预览面下面、同属上面那一组。拆成第二个（无标题的）
+            // CardGroup 是为了让预览面能留在原位 —— CardGroup 的行是先收进 scope
+            // 再统一渲染的，没法在行中间插任意 composable。
+            item {
+                CardGroup(flat = true) {
+                    item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_amoled_dark_mode_desc)) },
                         trailingContent = {
@@ -266,7 +230,6 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                                 onCheckedChange = { amoledDarkMode = it }
                             )
                         },
-                        colors = CustomColors.listItemColors,
                     )
                 }
             }
