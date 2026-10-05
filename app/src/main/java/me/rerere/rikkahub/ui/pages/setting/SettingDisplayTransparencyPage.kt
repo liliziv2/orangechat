@@ -114,7 +114,7 @@ fun SettingDisplayTransparencyPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     item(
-                        headlineContent = { Text("侧边栏整体不透明度") },
+                        headlineContent = { Text("侧边栏不透明度（相对界面材质）") },
                         supportingContent = {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

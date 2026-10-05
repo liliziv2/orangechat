@@ -219,7 +219,21 @@ fun ChatDrawerContent(
         drawerContainerColor = if (useLiveDrawerGlass) {
             Color.Transparent  // 毛玻璃轻量版：纱层和高光在 Box 里画
         } else {
-            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceAlpha)
+            // 侧栏与其余表面统一：把用户那个滑块当**倍率**乘在主题已合成的
+            // surfaceContainer alpha 上，不再用 1.0 把它覆盖掉。
+            //
+            // 原来这里是 `.copy(alpha = drawerSurfaceAlpha)`，而 drawerSurfaceOpacity
+            // 默认 100f ⇒ alpha 恒为 1.0，把 Theme.kt 合成的 82% 顶掉 ⇒ 侧栏成了全 App
+            // 唯一一个不透明的表面（其余容器都读同一份 82% 的 surfaceContainer），
+            // 观感上比别的面板重一档。倍率化之后 100% = 与其余表面同色同透明，往下调更透。
+            //
+            // ⚠️ 不改 PreferencesStore 的默认值 100f → 82f：Json.kt 的 JsonInstant 是
+            // `encodeDefaults = true`，已装机用户的 preferences[DISPLAY_SETTING] 里一定存着
+            // `"drawerSurfaceOpacity":100.0`，改默认值对他们完全无效。只有在合成层动手才
+            // 真的改变行为。
+            MaterialTheme.colorScheme.surfaceContainer.copy(
+                alpha = MaterialTheme.colorScheme.surfaceContainer.alpha * drawerSurfaceAlpha
+            )
         },
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
