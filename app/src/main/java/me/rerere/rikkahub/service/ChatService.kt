@@ -984,6 +984,10 @@ class ChatService(
 
         // session 需要在 runCatching 外声明，以便 .onSuccess 中也能访问 saveMutex
         val session = getOrCreateSession(conversationId)
+        // 这一轮**真正发出去**的消息 id：messageRange 非空时（重新生成 / 编辑重发）
+        // 发出去的只是会话里的一截，药丸只该消费这一截上的（见 burnPills）。
+        // 同样在 runCatching 外声明，以便 .onFailure / .onSuccess 中也能访问。
+        var generationMessageIds: List<Uuid> = emptyList()
 
         runCatching {
 
@@ -1013,22 +1017,25 @@ class ChatService(
                 .orEmpty()
 
             // start generating
+            val messagesToSend = conversation.currentMessages.let {
+                if (messageRange != null) {
+                    it.subList(messageRange.start, messageRange.endInclusive + 1)
+                } else {
+                    it
+                }
+            }.let { history ->
+                // 剔除已经沉进历史的系统提示(通话心跳等): 用户没说过这些话, 留着会被模型
+                // 当成说话风格模仿, 还白占 contextMessageSize 的条数额度。末尾那条保留 ——
+                // 通话心跳正是靠它触发本轮回复。
+                SystemHintTransformer.dropStaleHints(history)
+            }
+            generationMessageIds = messagesToSend.map { it.id }
+
             generationHandler.generateText(
                 settings = settings,
                 model = model,
                 processingStatus = session.processingStatus,
-                messages = conversation.currentMessages.let {
-                    if (messageRange != null) {
-                        it.subList(messageRange.start, messageRange.endInclusive + 1)
-                    } else {
-                        it
-                    }
-                }.let { history ->
-                    // 剔除已经沉进历史的系统提示(通话心跳等): 用户没说过这些话, 留着会被模型
-                    // 当成说话风格模仿, 还白占 contextMessageSize 的条数额度。末尾那条保留 ——
-                    // 通话心跳正是靠它触发本轮回复。
-                    SystemHintTransformer.dropStaleHints(history)
-                },
+                messages = messagesToSend,
                 assistant = assistant,
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 workspaceCwd = conversation.workspaceCwd,
@@ -1125,24 +1132,27 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                     }
                 }
             }
-        }.onFailure {
+        }.onFailure { e ->
             // 失败也算这一轮已经过去了，同样焚掉，否则一颗没生效的药丸会一直挂在
             // 那条消息上，等下一轮悄悄生效。
-            // 取消（CancellationException）走的是另一个分支，那里**不焚** ——
-            // 用户中断通常意味着他会重发，那颗药丸该留给重发的那一次。
-            burnPills(conversationId)
+            // 取消是唯一的例外：runCatching 捕获的是 Throwable，CancellationException
+            // 也会落到这里 —— 用户点「停止生成」通常意味着他会重发，那颗药丸该留给
+            // 重发的那一次，所以显式挡掉。
+            if (e !is CancellationException) {
+                burnPills(generationMessageIds)
+            }
 
             // 取消 Live Update 通知
             cancelLiveUpdateNotification(conversationId)
 
-            it.printStackTrace()
-            addError(it, conversationId, title = context.getString(R.string.error_title_generation))
-            Logging.log(TAG, "handleMessageComplete: $it")
-            Logging.log(TAG, it.stackTraceToString())
+            e.printStackTrace()
+            addError(e, conversationId, title = context.getString(R.string.error_title_generation))
+            Logging.log(TAG, "handleMessageComplete: $e")
+            Logging.log(TAG, e.stackTraceToString())
         }.onSuccess {
             // 药丸阅后即焚：这一轮已经读过它了（注入在 PillTransformer 里，只改发给
             // 模型的那份副本、不落库），成功之后就不该再影响下一轮。
-            burnPills(conversationId)
+            burnPills(generationMessageIds)
 
             val finalConversation = session.saveMutex.withLock {
                 val latest = getConversationFlow(conversationId).value
@@ -1291,14 +1301,16 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
     }
 
     /**
-     * 药丸阅后即焚。
+     * 药丸阅后即焚：只清**这一轮真正参与生成**的那些消息上的药丸。
      *
      * 按消息 id 清，不清整个 store：同一会话里可能有多条消息挂着药丸（用户挑了好几处），
-     * 只有真正参与这一轮的那些该被吃掉。这里取的是当前会话的全部消息 id ——
-     * 生成就是把当前消息列表发出去，所以它们就是「被读过」的那批。
+     * 只有真正参与这一轮的那些该被吃掉。**不能图省事去读 `currentMessages` 的全部 id** ——
+     * `messageRange` 非空时（重新生成 / 编辑重发）发出去的只是会话里的一截，其余消息上的
+     * 药丸这一轮**没被读过**，一起清掉就等于静默吞掉用户挑的药丸。
+     * 调用方把真正发出去的那份 `messages` 的 id 传进来。
      */
-    private fun burnPills(conversationId: Uuid) {
-        PillStore.consume(getConversationFlow(conversationId).value.currentMessages.map { it.id })
+    private fun burnPills(messageIds: Collection<Uuid>) {
+        PillStore.consume(messageIds)
     }
 
     // ---- 检查无效消息 ----
