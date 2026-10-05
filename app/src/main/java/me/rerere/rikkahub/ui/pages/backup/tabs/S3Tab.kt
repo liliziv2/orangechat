@@ -111,7 +111,7 @@ fun S3Tab(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             BackupStatusCard(
@@ -120,7 +120,7 @@ fun S3Tab(
                 fileSummaryText = backupFileSummary
             )
 
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_s3_endpoint)) },
                     supportingContent = {
@@ -213,7 +213,7 @@ fun S3Tab(
                 )
             }
 
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
@@ -440,7 +440,7 @@ private fun BackupStatusCard(
     lastBackupText: String,
     fileSummaryText: String,
 ) {
-    CardGroup {
+    CardGroup(flat = true) {
         item(
             headlineContent = {
                 Text(

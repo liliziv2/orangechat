@@ -110,7 +110,7 @@ fun WebDavTab(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             BackupStatusCard(
@@ -119,7 +119,7 @@ fun WebDavTab(
                 fileSummaryText = backupFileSummary
             )
 
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_webdav_server_address)) },
                     supportingContent = {
@@ -185,7 +185,7 @@ fun WebDavTab(
                 )
             }
 
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
@@ -411,7 +411,7 @@ private fun BackupStatusCard(
     lastBackupText: String,
     fileSummaryText: String,
 ) {
-    CardGroup {
+    CardGroup(flat = true) {
         item(
             headlineContent = {
                 Text(

@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -171,16 +172,16 @@ fun ImportExportTab(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         stickyHeader {
-            StickyHeader {
+            StickyHeader(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Text(stringResource(R.string.backup_page_local_backup_export))
             }
         }
 
         item {
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     onClick = if (!isExporting) {
                         {
@@ -237,13 +238,13 @@ fun ImportExportTab(
         }
 
         stickyHeader {
-            StickyHeader {
+            StickyHeader(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Text(stringResource(R.string.backup_page_import_from_other_app))
             }
         }
 
         item {
-            CardGroup {
+            CardGroup(flat = true) {
                 item(
                     onClick = if (!isRestoring) {
                         {

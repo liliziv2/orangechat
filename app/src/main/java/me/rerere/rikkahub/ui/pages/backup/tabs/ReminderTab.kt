@@ -39,12 +39,13 @@ fun ReminderTab(vm: BackupVM) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(vertical = 16.dp)
             .imePadding(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         CardGroup(
             modifier = Modifier.fillMaxWidth(),
+            flat = true,
         ) {
             item(
                 trailingContent = {
