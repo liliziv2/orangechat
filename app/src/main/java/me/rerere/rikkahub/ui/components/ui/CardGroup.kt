@@ -350,6 +350,9 @@ fun CardGroup(
  * 折叠状态下只显示标题与 [summary]（例如「2 项 · 1.24 GB」），
  * 收起时也能看到关键信息，不必展开。
  *
+ * @param flat **扁平密度**：语义同 [CardGroup] 的 `flat` —— 标题行改用
+ *   [SettingsSectionTitle] 的几何（16/16/20/4 + titleSmall + onSurfaceVariant），
+ *   行间改用 [SettingsRowDivider]（α0.5）。P2/P3 设置页用 `flat = true`。
  * @param initiallyExpanded 首次组合时是否展开，默认收起。
  * @param summary 收起时显示在标题右侧的摘要，展开时隐藏。
  */
@@ -357,6 +360,7 @@ fun CardGroup(
 fun CollapsibleCardGroup(
     title: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    flat: Boolean = false,
     initiallyExpanded: Boolean = false,
     summary: (@Composable () -> Unit)? = null,
     content: @Composable CardGroupScope.() -> Unit,
@@ -381,11 +385,25 @@ fun CollapsibleCardGroup(
                     onClickLabel = expandLabel,
                     role = Role.Button,
                 ) { expanded = !expanded }
-                .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                .padding(
+                    start = if (flat) 16.dp else 4.dp,
+                    end = if (flat) 16.dp else 8.dp,
+                    top = if (flat) 20.dp else 8.dp,
+                    bottom = if (flat) 4.dp else 8.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
-                ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
+            CompositionLocalProvider(
+                LocalContentColor provides if (flat) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
+            ) {
+                ProvideTextStyle(
+                    if (flat) MaterialTheme.typography.titleSmall
+                    else MaterialTheme.typography.titleSmallEmphasized
+                ) {
                     title()
                 }
             }
@@ -414,9 +432,9 @@ fun CollapsibleCardGroup(
             Column {
                 val count = scope.items.size
                 scope.items.fastForEachIndexed { index, item ->
-                    CardGroupListItem(item = item, count = count, index = index, flat = false)
+                    CardGroupListItem(item = item, count = count, index = index, flat = flat)
                     if (index != count - 1) {
-                        CardGroupDivider()
+                        if (flat) SettingsRowDivider() else CardGroupDivider()
                     }
                 }
             }

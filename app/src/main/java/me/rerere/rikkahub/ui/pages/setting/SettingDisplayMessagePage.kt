@@ -114,12 +114,11 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("版式与头像") },
                 ) {
                     // 消息模式：署名行版式 / 气泡侧边头像版式
@@ -223,7 +222,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
 
             item {
                 CollapsibleCardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("名称与时间") },
                     summary = { Text("$nameTimeOn / 4 项已开") },
                 ) {
@@ -280,7 +279,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
 
             item {
                 CollapsibleCardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("思维链与公式") },
                     summary = { Text("$thinkingOn / 3 项已开") },
                 ) {
@@ -346,7 +345,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
 
             item {
                 CollapsibleCardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    flat = true,
                     title = { Text("字体") },
                     summary = { Text("$fontFamilyLabel · ${(displaySetting.fontSizeRatio * 100).toInt()}%") },
                 ) {
