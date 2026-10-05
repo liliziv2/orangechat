@@ -46,6 +46,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.hugeicons.stroke.FavouriteCircle
 import me.rerere.hugeicons.stroke.GitFork
+import me.rerere.hugeicons.stroke.GivePill
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.Share04
@@ -233,6 +234,8 @@ fun ChatMessageActionsSheet(
     onSelectAndCopy: () -> Unit,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
+    /** 非空时在单子里多一项「临时药丸」，只有自己的消息传（助手消息传 null）。 */
+    onPill: (() -> Unit)? = null,
     onWebViewPreview: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
@@ -330,6 +333,37 @@ fun ChatMessageActionsSheet(
                         text = stringResource(R.string.edit),
                         style = MaterialTheme.typography.titleMedium,
                     )
+                }
+            }
+
+            // Temporary pill —— 只有自己的消息会传 onPill（助手消息为 null，整块不出现）。
+            // 沿用本单既有的 Card + Icon + titleMedium 版式，不新造一种行。
+            val onPillClick = onPill
+            if (onPillClick != null) {
+                Card(
+                    onClick = {
+                        onDismissRequest()
+                        onPillClick()
+                    },
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.GivePill,
+                            contentDescription = null,
+                            modifier = Modifier.padding(4.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.pill_box_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
                 }
             }
 

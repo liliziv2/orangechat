@@ -434,9 +434,10 @@ fun ChatMessage(
                     onToolApproval = onToolApproval,
                     onToolAnswer = onToolAnswer,
                     onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-                    // 长按自己的消息 = 药盒入口。助手气泡不给这个回调，长按保持无反应。
+                    // 长按自己的消息 = 打开「更多」操作单；药丸入口在单子里（见下方 onPill）。
+                    // 助手气泡不给这个回调，长按保持无反应。
                     onUserMessageLongClick = if (message.role == MessageRole.USER) {
-                        { showPillSheet = true }
+                        { showActionsSheet = true }
                     } else {
                         null
                     },
@@ -523,6 +524,12 @@ fun ChatMessage(
             model = model,
             onSelectAndCopy = {
                 showSelectCopySheet = true
+            },
+            // 药丸入口：只有自己的消息能挂药丸；助手消息传 null ⇒ 单子里不出现这一项。
+            onPill = if (message.role == MessageRole.USER) {
+                { showPillSheet = true }
+            } else {
+                null
             },
             isFavorite = isFavorite,
             onToggleFavorite = onToggleFavorite,
@@ -1066,7 +1073,7 @@ private fun BubbleSurface(
     enableLiveBubbleBlur: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    // 药丸入口：用户气泡长按挑一颗临时行为药丸。长按必须跟点击挂在**同一条**
+    // 长按入口（批 63 起：打开「更多」操作单，药丸在单子里）。长按必须跟点击挂在**同一条**
     // modifier 链上 —— 外面再包一层 Box 用 combinedClickable 是不行的：内层 clickable
     // 会在 Main pass 先消费掉 down，外层拿到的是 consumed 事件，onLongClick 永不触发。
     //
