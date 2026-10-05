@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -144,8 +143,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
 
 
@@ -153,7 +151,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup(
                     title = { Text(stringResource(R.string.system_tools_security_warning_title)) },
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    flat = true
                 ) {
                     item(
                         headlineContent = {
@@ -184,7 +182,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("后台保活") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Pulse01, contentDescription = null) },
@@ -233,7 +231,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("位置服务") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = {
@@ -286,7 +284,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("通知服务") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Notification02, contentDescription = null) },
@@ -330,7 +328,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("应用使用统计") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -366,7 +364,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("探索周边") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Location01, contentDescription = null) },
@@ -407,7 +405,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("Supabase 数据同步") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -547,7 +545,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("相机/拍照服务") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Camera01, contentDescription = null) },
@@ -580,7 +578,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("Gadgetbridge 健康数据") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Watch01, contentDescription = null) },
@@ -653,7 +651,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("设置闹钟") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Watch01, contentDescription = null) },
@@ -679,7 +677,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("设定定时器") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Watch01, contentDescription = null) },
@@ -706,7 +704,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("电量信息") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.BatteryFull, contentDescription = null) },
@@ -733,7 +731,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("音乐控制") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.MusicNote03, contentDescription = null) },
@@ -787,7 +785,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
             item {
             CardGroup(
                 title = { Text("短信读取") },
-                modifier = Modifier.padding(horizontal = 8.dp)
+                flat = true
             ) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
@@ -826,7 +824,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 手电筒
             item {
-            CardGroup(title = { Text("手电筒") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("手电筒") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Flashlight, contentDescription = null) },
                     headlineContent = { Text("启用手电筒工具") },
@@ -844,7 +842,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // Toast提示
             item {
-            CardGroup(title = { Text("Toast提示") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("Toast提示") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Megaphone01, contentDescription = null) },
                     headlineContent = { Text("启用Toast工具") },
@@ -862,7 +860,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 震动
             item {
-            CardGroup(title = { Text("震动") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("震动") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
                     headlineContent = { Text("启用震动工具") },
@@ -880,7 +878,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 屏幕亮度
             item {
-            CardGroup(title = { Text("屏幕亮度") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("屏幕亮度") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Sun02, contentDescription = null) },
                     headlineContent = { Text("启用亮度工具") },
@@ -918,7 +916,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 音量控制
             item {
-            CardGroup(title = { Text("音量控制") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("音量控制") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Speaker01, contentDescription = null) },
                     headlineContent = { Text("启用音量工具") },
@@ -955,7 +953,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // WiFi信息
             item {
-            CardGroup(title = { Text("WiFi信息") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("WiFi信息") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartphoneWifi, contentDescription = null) },
                     headlineContent = { Text("启用WiFi信息工具") },
@@ -985,7 +983,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 电话信息
             item {
-            CardGroup(title = { Text("电话信息") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("电话信息") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
                     headlineContent = { Text("启用电话信息工具") },
@@ -1015,7 +1013,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 分享
             item {
-            CardGroup(title = { Text("分享") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("分享") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Share05, contentDescription = null) },
                     headlineContent = { Text("启用分享工具") },
@@ -1033,7 +1031,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 设置壁纸
             item {
-            CardGroup(title = { Text("设置壁纸") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("设置壁纸") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Image02, contentDescription = null) },
                     headlineContent = { Text("启用壁纸工具") },
@@ -1051,7 +1049,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 唤醒屏幕
             item {
-            CardGroup(title = { Text("唤醒屏幕") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("唤醒屏幕") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.FullScreen, contentDescription = null) },
                     headlineContent = { Text("启用唤醒屏幕工具") },
@@ -1069,7 +1067,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 媒体扫描
             item {
-            CardGroup(title = { Text("媒体扫描") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("媒体扫描") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Scan, contentDescription = null) },
                     headlineContent = { Text("启用媒体扫描工具") },
@@ -1087,7 +1085,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 发送通知
             item {
-            CardGroup(title = { Text("发送通知") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("发送通知") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.Notification02, contentDescription = null) },
                     headlineContent = { Text("启用发送通知工具") },
@@ -1117,7 +1115,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 存储信息
             item {
-            CardGroup(title = { Text("存储信息") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("存储信息") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.HardDrive, contentDescription = null) },
                     headlineContent = { Text("启用存储信息工具") },
@@ -1135,7 +1133,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 应用切换
             item {
-            CardGroup(title = { Text("应用切换") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("应用切换") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
                     headlineContent = { Text("启用应用切换工具") },
@@ -1153,7 +1151,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // App 锁定
             item {
-            CardGroup(title = { Text("App 锁定") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("App 锁定") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.SmartPhone01, contentDescription = null) },
                     headlineContent = { Text("启用 App 锁定工具") },
@@ -1184,7 +1182,7 @@ fun SettingSystemToolsPage(vm: SettingVM = koinViewModel()) {
 
             // 指纹验证
             item {
-            CardGroup(title = { Text("指纹验证") }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            CardGroup(title = { Text("指纹验证") }, flat = true) {
                 item(
                     leadingContent = { Icon(imageVector = HugeIcons.FingerPrint, contentDescription = null) },
                     headlineContent = { Text("启用指纹验证工具") },

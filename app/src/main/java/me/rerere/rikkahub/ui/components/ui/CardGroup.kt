@@ -115,6 +115,7 @@ private fun CardGroupListItem(
     item: CardGroupItem,
     count: Int,
     index: Int,
+    flat: Boolean,
 ) {
     val isFirst = index == 0
     val isLast = index == count - 1
@@ -158,9 +159,22 @@ private fun CardGroupListItem(
         1f to Color.White.copy(alpha = 0.09f),
     )
 
-    ListItem(
-        headlineContent = item.headlineContent,
-        modifier = item.modifier
+    val clickModifier = if (item.onClick != null) {
+        Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = LocalIndication.current,
+            onClick = item.onClick,
+        )
+    } else {
+        Modifier
+    }
+    // 非 flat 的这条分支与批 53 之前**逐字节相同**，只是从内联挪进了 else。
+    val rowModifier = if (flat) {
+        item.modifier
+            .fillMaxWidth()
+            .then(clickModifier)
+    } else {
+        item.modifier
             .fillMaxWidth()
             .clip(dynamicShape)
             .then(
@@ -193,20 +207,17 @@ private fun CardGroupListItem(
                     Modifier
                 }
             )
-            .then(
-                if (item.onClick != null) {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = LocalIndication.current,
-                        onClick = item.onClick,
-                    )
-                } else Modifier
-            ),
+            .then(clickModifier)
+    }
+
+    ListItem(
+        headlineContent = item.headlineContent,
+        modifier = rowModifier,
         overlineContent = item.overlineContent,
         supportingContent = item.supportingContent,
         leadingContent = item.leadingContent,
         trailingContent = item.trailingContent,
-        colors = colors,
+        colors = if (flat) baseColors.copy(containerColor = Color.Transparent) else colors,
     )
 }
 
@@ -267,37 +278,67 @@ fun SettingsRowDivider(modifier: Modifier = Modifier) {
  */
 @Composable
 fun SettingsSectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp),
-    )
+    SettingsSectionTitleContainer(modifier = modifier) {
+        Text(text = text)
+    }
 }
 
+/**
+ * [SettingsSectionTitle] 的几何本体。
+ *
+ * 单独抽出来，是因为**扁平密度的 [CardGroup]** 也要用同一套组标题几何，
+ * 而它的 title 是 `@Composable () -> Unit`，没法直接调 `SettingsSectionTitle(String)`。
+ * 抽出来之后 16/16/20/4 只有这一处定义。
+ */
+@Composable
+private fun SettingsSectionTitleContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant) {
+        ProvideTextStyle(MaterialTheme.typography.titleSmall) {
+            Box(modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 4.dp)) {
+                content()
+            }
+        }
+    }
+}
+
+/**
+ * 设置页的分组容器。
+ *
+ * @param flat **扁平密度**：不铺容器底色、不裁圆角、不描边，行直接落在页面背景上；
+ *   行间改用 [SettingsRowDivider]（α0.5），组标题改用 [SettingsSectionTitle] 的几何。
+ *   P2/P3 设置页用 `flat = true`；P1 设置首页保持默认（保留容器）。
+ */
 @Composable
 fun CardGroup(
     modifier: Modifier = Modifier,
     title: (@Composable () -> Unit)? = null,
+    flat: Boolean = false,
     content: @Composable CardGroupScope.() -> Unit,
 ) {
     val scope = CardGroupScope()
     scope.content()
     Column(modifier = modifier) {
         if (title != null) {
-            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
-                ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
-                    Box(modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)) {
-                        title()
+            if (flat) {
+                SettingsSectionTitleContainer { title() }
+            } else {
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
+                    ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
+                        Box(modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)) {
+                            title()
+                        }
                     }
                 }
             }
         }
         val count = scope.items.size
         scope.items.fastForEachIndexed { index, item ->
-            CardGroupListItem(item = item, count = count, index = index)
+            CardGroupListItem(item = item, count = count, index = index, flat = flat)
             if (index != count - 1) {
-                CardGroupDivider()
+                if (flat) SettingsRowDivider() else CardGroupDivider()
             }
         }
     }
@@ -373,7 +414,7 @@ fun CollapsibleCardGroup(
             Column {
                 val count = scope.items.size
                 scope.items.fastForEachIndexed { index, item ->
-                    CardGroupListItem(item = item, count = count, index = index)
+                    CardGroupListItem(item = item, count = count, index = index, flat = false)
                     if (index != count - 1) {
                         CardGroupDivider()
                     }
