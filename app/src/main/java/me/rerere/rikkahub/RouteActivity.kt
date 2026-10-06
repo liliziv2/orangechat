@@ -448,16 +448,21 @@ class RouteActivity : ComponentActivity() {
                                             contentScale = ContentScale.Crop,
                                         )
                                     if (LocalDarkMode.current) {
-                                        painted
-                                            .background(Color(0xFF141A22).copy(alpha = 0.66f))
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        Color(0xFF1E2A36).copy(alpha = 0.38f),
-                                                        Color(0xFF111820).copy(alpha = 0.72f),
-                                                    )
+                                        // 夜间：**单层、两点、连续**（批 70 统一，三个主题同一套结构）。
+                                        //
+                                        // 原来是「一层平铺 0.66 + 一层 0.38→0.72 渐变」两层叠着压：
+                                        // 顶部实际压到 ≈0.79、底部 ≈0.90，底图整个被吃掉；而且两层
+                                        // 在渐变转折处会露出一道横向色带。现在只留一层，
+                                        // alpha 收到 0.62→0.72 —— 底图透出约三成，页面按
+                                        // 「底图可见优先」整体偏亮（接近黄昏而非深夜）。
+                                        painted.background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color(0xFF141A22).copy(alpha = 0.62f),
+                                                    Color(0xFF141A22).copy(alpha = 0.72f),
                                                 )
                                             )
+                                        )
                                     } else {
                                         painted.background(
                                             Brush.verticalGradient(
@@ -476,31 +481,28 @@ class RouteActivity : ComponentActivity() {
                                     // 奶油玫瑰与 Harbor 共用同一张底图和铺图逻辑，
                                     // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。
                                     //
-                                    // 三段竖向渐变的结构不动，但**夜间的不透明度必须改**：
-                                    // 底图实测平均 L*=92.9（极亮的暖白纸纹），旧值 0.32/0.40/0.74
-                                    // 合成后页面顶部 L*=70 —— 一块中性灰，既不是深色也不是暖色，
-                                    // 这正是「脏灰黑」的来源。日间仍只换色号、不透明度沿用原值。
+                                    // 底图实测平均 L*=93.6（极亮的暖白纸纹），所以夜间必须压暗；
+                                    // 但压到 0.9 以上就是一块深灰，底图完全看不见（用户点名的
+                                    // 「叠层过厚」）。批 70 统一收到 0.62→0.72，见下面那段注释。
+                                    // 日间仍只换色号、不透明度沿用原值。
                                     val creamRosePainter = painterResource(
                                         id = R.drawable.harbor_chat_bg
                                     )
                                     val creamRoseScrim = if (LocalDarkMode.current) {
                                         listOf(
-                                            // 三段同色，只差 alpha —— 柔和 scrim 靠 alpha 斜坡做，
-                                            // 不靠换色号。实测合成（底图 L*=92.9）：
-                                            //   0.839 -> #3A3938  L*=24.0
-                                            //   0.875 -> #323130  L*=20.5   <- 页面锚点
-                                            //   0.920 -> #282827  L*=16.0
+                                            // 夜间：**单层、两点、连续**（批 70 统一）。
                                             //
-                                            // 色号从暖棕 #1D1411 换成中性 #171716。底图是暖白纸纹，
-                                            // 压在它上面的 scrim 一旦带暖调，合成后的页面就成了一条
-                                            // 覆盖整屏的棕色带（页面 C*=4.6）—— 这就是「整屏棕滤镜」。
-                                            // 中性 scrim 合成后页面 C*=1.0，页面**亮度三段不动**。
+                                            // 原来是三点同色不同 alpha（0.839/0.875/0.920）。三点均分
+                                            // stops 的线性插值在中间那点有一个折点，屏幕上就是一道
+                                            // 横向色带 —— 这正是「渐变分段」的来源。两点纯线性没有折点。
                                             //
-                                            // 页面比主题 background #323130 略深：scrim 必须过压
-                                            // 才抵得住这么亮的底图，两者不是同一个量。
-                                            Color(0xFF171716).copy(alpha = 0.839f),
-                                            Color(0xFF171716).copy(alpha = 0.875f),
-                                            Color(0xFF171716).copy(alpha = 0.920f),
+                                            // 色号仍是中性 #171716：底图是暖白纸纹，scrim 一带暖调就会
+                                            // 成一条覆盖整屏的棕色带（「整屏棕滤镜」，C*=4.6）。中性色
+                                            // 合成后页面 C*=1.0，只靠 alpha 压暗。
+                                            // alpha 收到 0.62→0.72（原来 0.839→0.920），底图透出约
+                                            // 三成，页面按「底图可见优先」整体偏亮。
+                                            Color(0xFF171716).copy(alpha = 0.62f),
+                                            Color(0xFF171716).copy(alpha = 0.72f),
                                         )
                                     } else {
                                         listOf(
@@ -521,26 +523,30 @@ class RouteActivity : ComponentActivity() {
 
                                 "nightsky" -> {
                                     // 夜游与港口 / 奶油玫瑰共用同一张底图，只换上层 scrim。
-                                    // 底图是极亮的暖白纸纹（863x1822，平均 L* 93.6），夜间必须过压。
+                                    // 底图是极亮的暖白纸纹（863x1822，平均 L* 93.6），所以夜间必须压暗。
                                     //
                                     // scrim 色号**两个分支都取「页面软化色」本身**、只靠 alpha 做斜坡，
                                     // 不靠换色号（奶油玫瑰踩过的「整屏棕滤镜」）。日间特意不用纸白锚点
                                     // #F1E7B0 —— 它是 C*=28.5 的暖黄，任何够用的 alpha 都会把整屏染黄
                                     // （实测 C*=7.3，是奶油玫瑰 2.8 的 2.6 倍）。
                                     //
+                                    // 夜间：**单层、两点、连续**（批 70 统一）。原来 0.975/0.982/0.990
+                                    // 把底图压到只剩 1~2.5%，屏幕上就是一块深灰 —— 用户点名的
+                                    // 「叠层过厚」。现在收到 0.62→0.72：底图透出约三成，页面按
+                                    // 「底图可见优先」整体偏亮。
+                                    //
                                     // 像素级实测（st/bg_measure.py，逐行按 alpha 合成）：
-                                    //   日间 #E8E6DC @ 0.20/0.12/0.34   -> L* 93.2  C* 2.9
-                                    //   夜间 #1E1F24 @ 0.975/0.982/0.990 -> L* 13.6  C* 3.5
-                                    //   对照 奶油玫瑰 日 L* 93.6 C* 2.8 / 夜 L* 20.4 C* 0.9
+                                    //   日间 #E8E6DC @ 0.20/0.12/0.34 -> L* 93.2  C* 2.9
+                                    //   对照 奶油玫瑰 日 L* 93.6 C* 2.8
                                     val nightStrollPainter = painterResource(
                                         id = R.drawable.harbor_chat_bg
                                     )
                                     val nightStrollScrim = if (LocalDarkMode.current) {
                                         listOf(
-                                            // 页面软化色 #1E1F24（夜街角压彩度到 C*≈3.5，L* 提到 12）
-                                            Color(0xFF1E1F24).copy(alpha = 0.975f),
-                                            Color(0xFF1E1F24).copy(alpha = 0.982f),
-                                            Color(0xFF1E1F24).copy(alpha = 0.990f),
+                                            // 页面软化色 #1E1F24（夜街角压彩度到 C*≈3.5，L* 提到 12）。
+                                            // 两点纯线性，没有折点 ⇒ 没有分段色带。
+                                            Color(0xFF1E1F24).copy(alpha = 0.62f),
+                                            Color(0xFF1E1F24).copy(alpha = 0.72f),
                                         )
                                     } else {
                                         listOf(
