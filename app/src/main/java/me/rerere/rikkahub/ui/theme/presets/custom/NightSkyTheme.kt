@@ -199,7 +199,7 @@ private val lightScheme = lightColorScheme(
  * secondaryContainer #B74A33（暗砖红）· tertiary #F1D37A（月光黄）· 夜纸白 #E7EDF5 ·
  * onSurfaceVariant #A9B8CC（本来就是蓝灰）· error 家族（M3 标准）。
  *
- * 生成器 st/theme_b71.py（含 L*/C* 实测与越界自检）；牙齿 st/teeth_b71.py。
+ * 生成器 st/theme_b71.py（含 L* / C* 实测与越界自检）；牙齿 st/teeth_b71.py。
  * ⚠️ 9 个 surface* 槽位仍被 Theme.kt 乘 interfaceSurfaceOpacity(0.82)，名义色 ≠ 屏幕色。
  */
 
