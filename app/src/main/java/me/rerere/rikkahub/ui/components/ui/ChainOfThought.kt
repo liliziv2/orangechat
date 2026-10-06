@@ -118,11 +118,12 @@ fun <T> ChainOfThought(
         // 保留全部行为（展开/收起、实时内容、计时、自动关闭）和缩进对齐。
         // 用户自定义的 thinkingBubbleColor 仍然生效——只是不再默认画一张卡。
         //
-        // 另外，列进 THEME_THINKING_SURFACE_THEMES 的主题（目前只有星夜）会把
-        // tertiaryContainer 当思考卡底色画出来。原因：那些主题单独定义了思考气泡色
-        // （进 THEME_THINKING_CONTAINER_THEMES），但本组件默认不画背景 —— 色值配了
+        // 另外，列进 THEME_THINKING_SURFACE_THEMES 的主题会把 tertiaryContainer 当
+        // 思考卡底色画出来。原因：那些主题单独定义了思考气泡色（进
+        // THEME_THINKING_CONTAINER_THEMES），但本组件默认不画背景 —— 色值配了
         // 却没有载体，屏幕上什么都不显示。开关放在 Theme.kt 的主题常量里，
         // 这里不硬编码主题 id。
+        // ⚠️ 那个集合**现在是空的**（夜游已移出，理由见 Theme.kt 里那段注释）。
         val hasCustomSurface = thinkingBubbleColor != null ||
             settings.themeId in THEME_THINKING_SURFACE_THEMES
         Column(

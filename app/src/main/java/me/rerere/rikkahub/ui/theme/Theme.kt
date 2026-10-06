@@ -68,8 +68,15 @@ internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose", "nightsky")
  *
  * 列在这里的主题才会把 `tertiaryContainer` 当气泡底色画出来。
  * ⚠️ 这是「思考卡要不要长成一张卡」的开关，不是配色开关 —— 只放真的需要的主题。
+ *
+ * ⚠️ 现在这个集合是**空的**：夜游（nightsky）曾经在这里。它一进来，思考卡就在助手气泡
+ * 里又画了一层 12dp 圆角 + tertiaryContainer 的底；加上内层的工具调用卡，屏幕上读成
+ * 「气泡里套一个深色壳、壳里再套一张卡」。用户点名这是夜游独有的第二层壳，要拿掉。
+ * 移出之后夜游的思考卡与其余主题一致（融入消息流、不画背景）；ToolCallCard 本身、
+ * tertiaryContainer 的其余用途（工具卡预览、搜索结果条目…）一行未动。
+ * 变量保留：这是通用开关，将来真有主题需要再往里加 id。
  */
-internal val THEME_THINKING_SURFACE_THEMES = setOf("nightsky")
+internal val THEME_THINKING_SURFACE_THEMES = emptySet<String>()
 
 data class ScrimColors(
     val top: UInt,        // 顶部主题色覆盖

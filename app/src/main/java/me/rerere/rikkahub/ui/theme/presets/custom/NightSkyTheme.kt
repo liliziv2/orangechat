@@ -108,7 +108,8 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
  * 合成值 = 名义色@0.82 over 页面。
  * ⚠️ 本主题**在** GLASS_BACKGROUND_THEMES 里（harbor / creamrose / nightsky 三个共用
  * 同一张 harbor_chat_bg.webp），background 的 alpha 被置 0，页面由底图 + scrim 决定。
- * 思考卡仍在 THEME_THINKING_CONTAINER_THEMES + THEME_THINKING_SURFACE_THEMES 里，真画背景。
+ * 思考卡仍在 THEME_THINKING_CONTAINER_THEMES 里（tertiaryContainer 有配色），
+ * 但**已移出 THEME_THINKING_SURFACE_THEMES** —— 不再额外画一层底色。
  *
  * 主题 id 仍是 `nightsky`（PreferencesStore 存的是 id，改了老用户会静默回落到 Minimal）；
  * 显示名走 R.string.theme_name_nightsky = 夜游 / Night Stroll。
