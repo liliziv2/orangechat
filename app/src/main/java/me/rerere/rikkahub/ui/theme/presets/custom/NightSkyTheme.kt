@@ -203,11 +203,45 @@ private val lightScheme = lightColorScheme(
  * ⚠️ 9 个 surface* 槽位仍被 Theme.kt 乘 interfaceSurfaceOpacity(0.82)，名义色 ≠ 屏幕色。
  */
 
+/*
+ * ── 批 73：把「深靛蓝」落到页面层 + 拉开 Background / Surface / Bubble ─────────
+ * 用户 2026-10-06：夜游配色重做（参考 Tidal Echo 的主题逻辑 —— 主题色负责 UI 关系、
+ * 底图只负责氛围、不把所有组件染成同一个强调色）。固定锚点：
+ *   月光黄 #F1D37A · 夜玻璃绿 #82D0B4 · 夜街角 #10192D · 夜纸白 #E7EDF5 ·
+ *   暗砖红 #B74A33 · 夜蓝黑 #1B2A42
+ *
+ * 批 71 只改了 surface 槽位的名义色，页面层的「深靛蓝」根本没落地 —— 因为本主题在
+ * GLASS_BACKGROUND_THEMES 里，background 的 alpha 被置 0，页面 = 底图 + RouteActivity
+ * 的 scrim；而那个 scrim 用的是**中性灰** #1E1F24，合成后整屏 C* 只有 1.3（读作中灰）。
+ *
+ * 批 73 三件事：
+ *   1) 页面 scrim 色号 #1E1F24 -> #10192D（夜街角锚点），alpha 0.62/0.72 一字未动
+ *      （用户拍板「只换色号」）。合成整屏 C* 1.3 -> 7.6，色相从灰落到靛蓝。
+ *   2) background 与 surface 拉开：background #121F35（L* 11.7）/ surface #1C2A42
+ *      （L* 16.9 = 夜蓝黑锚点），ΔL* 5.2。批 71 时两者同为 #151F33，层级为零。
+ *   3) AI 气泡（surfaceContainerHigh）彩度 8.15 -> 12.33（+51%），从「灰黑」读作「蓝灰」。
+ *      色相统一 278.5°（两个深色锚点实测 276.7~282.6），全族落在靛蓝/蓝灰段，
+ *      远离紫色（300°+）。
+ *
+ * 明确**没做**的：
+ *   · tertiary #F1D37A（月光黄）一字未动 —— 用户第 5 条「Thinking 用夜玻璃绿或月光黄」
+ *     是允许而非强制；且 tertiaryContainer 是思考卡载体，改成大面积黄会违反
+ *     「不大面积使用」的分寸。当前思考卡读 primary（玻璃绿），已满足「不再用粉色」。
+ *   · 未新增任何气泡材质 / 未动 GLASS_BACKGROUND_THEMES / THEME_THINKING_CONTAINER_THEMES /
+ *     THEME_THINKING_SURFACE_THEMES 三个集合（用户第 8、9 条）。Bubble Style 仍是
+ *     普通平面填色 / 玻璃气泡 / 轻透描边。
+ *   · 页面**深度**没变（L* 42.0 -> 40.2）—— 用户选了「alpha 不动」，所以底图仍透约三成、
+ *     页面仍是「黄昏」而非「深夜」。本轮变的是**色相**（灰 -> 靛蓝），不是明度。
+ *
+ * 生成器 st/theme_b73.py（含阶梯单调性 / 彩度 / 色相自检）；牙齿 st/teeth_b73.py；
+ * scrim 合成实测 st/bg_measure.py（从 RouteActivity.kt 解析真实 scrim，不手抄）。
+ */
+
 private val darkScheme = darkColorScheme(
     // 夜玻璃绿
     primary = Color(0xFF82D0B4),
     onPrimary = Color(0xFF0B2A22),
-    primaryContainer = Color(0xFF4B4F5A),
+    primaryContainer = Color(0xFF4A4F5B),
     onPrimaryContainer = Color(0xFFCFE9DC),
     // 暗砖红·提亮
     secondary = Color(0xFFF47E62),
@@ -218,7 +252,7 @@ private val darkScheme = darkColorScheme(
     // 月光黄
     tertiary = Color(0xFFF1D37A),
     onTertiary = Color(0xFF2A2210),
-    tertiaryContainer = Color(0xFF363A46),
+    tertiaryContainer = Color(0xFF343A4A),
     // 夜纸白
     onTertiaryContainer = Color(0xFFE7EDF5),
     // M3 语义红
@@ -226,18 +260,18 @@ private val darkScheme = darkColorScheme(
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    // 深靛蓝（夜街角同族，批 71 提彩度）
-    background = Color(0xFF151F33),
+    // 页面底：深靛蓝（比 surface 暗一档，批 73 把 background/surface 拉开）
+    background = Color(0xFF121F35),
     // 夜纸白
     onBackground = Color(0xFFE7EDF5),
-    // 深靛蓝（夜街角同族，批 71 提彩度）
-    surface = Color(0xFF151F33),
+    // 夜蓝黑锚点 #1B2A42 的软化版（批 73）
+    surface = Color(0xFF1C2A42),
     // 夜纸白
     onSurface = Color(0xFFE7EDF5),
-    surfaceVariant = Color(0xFF363A46),
+    surfaceVariant = Color(0xFF343A4A),
     onSurfaceVariant = Color(0xFFA9B8CC),
     outline = Color(0xFF808490),
-    outlineVariant = Color(0xFF333743),
+    outlineVariant = Color(0xFF303748),
     // M3 标准
     scrim = Color(0xFF000000),
     // 夜纸白
@@ -246,12 +280,13 @@ private val darkScheme = darkColorScheme(
     inverseOnSurface = Color(0xFF10192D),
     // 玻璃绿
     inversePrimary = Color(0xFF1E4F49),
-    surfaceDim = Color(0xFF0E192D),
-    surfaceBright = Color(0xFF393D48),
-    surfaceContainerLowest = Color(0xFF0E192D),
-    surfaceContainerLow = Color(0xFF202739),
-    // 蓝灰（夜蓝黑同族，批 71 提彩度）
-    surfaceContainer = Color(0xFF2A303F),
-    surfaceContainerHigh = Color(0xFF323642),
-    surfaceContainerHighest = Color(0xFF393D48),
+    surfaceDim = Color(0xFF0D192D),
+    surfaceBright = Color(0xFF373D4B),
+    surfaceContainerLowest = Color(0xFF0D192D),
+    surfaceContainerLow = Color(0xFF1C2A42),
+    // 卡片 / 顶栏 / FLAT 输入框（批 73 输入框由 High 降到这一档）
+    surfaceContainer = Color(0xFF263046),
+    // AI 气泡（批 73 提彩度到 C* 12.3，从「灰黑」变「蓝灰」）
+    surfaceContainerHigh = Color(0xFF2E3648),
+    surfaceContainerHighest = Color(0xFF373D4B),
 )

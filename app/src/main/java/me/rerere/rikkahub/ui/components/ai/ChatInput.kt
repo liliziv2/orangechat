@@ -525,10 +525,15 @@ fun ChatInput(
                     // 实心模式：输入框该是"安静的浅底"，但不能安静到跟页面背景分不开。
                     // surfaceContainerLow 与页面 surface 只差约 7 个 RGB 单位，
                     // 加上这里本来就没有描边（useMaterialBorder 只在玻璃模式为真），
-                    // 结果就是输入框读不出边界。上调一档到 surfaceContainerHigh：
+                    // 结果就是输入框读不出边界。上调到 surfaceContainer：
                     // 边界出现，仍然是一块浅底，不是卡片。
+                    //
+                    // 批 73：由 surfaceContainerHigh 再降一档到 surfaceContainer ——
+                    // surfaceContainerHigh 是 AI 气泡的槽位（ChatMessage 读它），两者同色
+                    // ⇒「Surface」与「Bubble」层级重合、输入框读起来像一条贴底的气泡。
+                    // 降一档后输入框与气泡拉开一档，同时仍高于页面 surface。
                     DisplayMaterialMode.FOLLOW_THEME,
-                    DisplayMaterialMode.FLAT -> MaterialTheme.colorScheme.surfaceContainerHigh
+                    DisplayMaterialMode.FLAT -> MaterialTheme.colorScheme.surfaceContainer
                 }
             // 输入框不该是"玻璃板"。它是常驻控件，底下透出的页面纹理会跟文字抢读，
             // 参考正常聊天 App：输入区是一块安静的浅底，不参与材质表演。
