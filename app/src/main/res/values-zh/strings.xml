@@ -1,11 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">License</string>
-  <string name="about_page_system">系统</string>
-  <string name="about_page_title">关于</string>
-  <string name="about_page_version">版本</string>
-  <string name="about_page_website">官网</string>
   <string name="add">添加</string>
   <string name="app_name">橘瓣</string>
   <string name="asr_button_content_description">语音识别</string>
@@ -353,11 +347,6 @@
   <string name="reasoning_entry_label">思考 · %1$s</string>
   <string name="reasoning_panel_title">思考过程</string>
   <string name="delete">删除</string>
-  <string name="donate_page_afdian_desc">适用于🇨🇳用户</string>
-  <string name="donate_page_donation_methods">赞助方式</string>
-  <string name="donate_page_kofi_desc">面向全球用户</string>
-  <string name="donate_page_sponsor_list">赞助用户列表</string>
-  <string name="donate_page_title">赞助</string>
   <string name="edit">编辑</string>
   <string name="editing">编辑中</string>
   <string name="emoji_picker_search_placeholder">搜索表情符号...</string>
@@ -1068,7 +1057,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="theme_name_harbor">港口</string>
   <string name="theme_name_creamrose">奶油玫瑰</string>
   <string name="theme_name_claude">克洛德</string>
-  <string name="theme_name_nightsky">夜游</string>
   <string name="title_activity_safe_mode">安全模式</string>
   <string name="tools_warning">当前模型未开启工具调用，请在设置内启用模型的工具能力，再使用搜索/MCP等功能</string>
   <string name="translate">翻译</string>

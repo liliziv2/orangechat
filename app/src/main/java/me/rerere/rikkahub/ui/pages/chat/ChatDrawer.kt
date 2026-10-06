@@ -2,7 +2,6 @@
 
 import androidx.activity.ComponentActivity
 import android.graphics.BitmapFactory
-import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,8 +54,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -105,7 +102,6 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.rememberIsPlayStoreVersion
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
-import me.rerere.rikkahub.ui.theme.LocalMaterialMode
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
 // 背单词（独立 vocabulary.db）。拆掉这个模块时，把这一行 import + 下面两处
@@ -186,11 +182,6 @@ fun ChatDrawerContent(
 
     val drawerSurfaceAlpha =
         (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0.6f, 1f)
-    // GLASS + 界面实时渲染 + API 31+：Drawer 容器透明，透出 ChatPage 同宿主原生模糊层；否则静态回退
-    val useLiveDrawerGlass =
-        settings.displaySetting.interfaceRealtimeRendering &&
-            LocalMaterialMode.current == DisplayMaterialMode.GLASS &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = when (settings.displaySetting.materialMode) {
         DisplayMaterialMode.TRANSLUCENT,
@@ -216,9 +207,7 @@ fun ChatDrawerContent(
     ModalDrawerSheet(
         modifier = drawerModifier,
         drawerShape = drawerShape,
-        drawerContainerColor = if (useLiveDrawerGlass) {
-            Color.Transparent  // 毛玻璃轻量版：纱层和高光在 Box 里画
-        } else {
+        drawerContainerColor =
             // 侧栏与其余表面统一：把用户那个滑块当**倍率**乘在主题已合成的
             // surfaceContainer alpha 上，不再用 1.0 把它覆盖掉。
             //
@@ -233,39 +222,13 @@ fun ChatDrawerContent(
             // 真的改变行为。
             MaterialTheme.colorScheme.surfaceContainer.copy(
                 alpha = MaterialTheme.colorScheme.surfaceContainer.alpha * drawerSurfaceAlpha
-            )
-        },
+            ),
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // 毛玻璃轻量版：渐变纱 + 顶部高光（轻量，不截图不模糊）
-            if (useLiveDrawerGlass) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.12f),
-                                    Color.White.copy(alpha = 0.08f)
-                                )
-                            )
-                        )
-                        .drawWithContent {
-                            drawContent()
-                            // 顶部高光
-                            drawLine(
-                                color = Color.White.copy(alpha = 0.5f),
-                                start = Offset(0f, 0f),
-                                end = Offset(size.width, 0f),
-                                strokeWidth = 1f
-                            )
-                        }
-                )
-            }
-            // 侧边栏背景图（最底层；实时模糊时跳过，避免遮挡 ChatPage 模糊层）
+            // 侧边栏背景图（最底层）
             val drawerBgPath = settings.displaySetting.drawerBackgroundPath
-            if (drawerBgPath.isNotEmpty() && !useLiveDrawerGlass) {
+            if (drawerBgPath.isNotEmpty()) {
                 val bgFile = java.io.File(drawerBgPath)
                 if (bgFile.exists()) {
                     val bgBitmap = remember(drawerBgPath) {
@@ -878,8 +841,8 @@ private fun BoxScope.DrawerItemGlassLayers(
     // 叠在每一个抽屉条目和底栏按钮上，是「一排玻璃球」观感的直接来源。
     //
     // 全部约 ×0.3：保留一点材质暗示，不再让普通导航元件跟气泡抢材质表现。
-    // 气泡自己的 glassShadowModifier / liveBubbleEdgeHighlightModifier /
-    // glassInsetTopHighlightModifier 与 liquid glass 均不受影响。
+    // 气泡自己的 glassShadowModifier / glassInsetTopHighlightModifier
+    // 与 liquid glass 均不受影响。
     Box(
         modifier = Modifier
             .matchParentSize()

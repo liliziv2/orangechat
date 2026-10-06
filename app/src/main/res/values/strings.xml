@@ -1,14 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">Github</string>
-  <string name="about_page_license">License</string>
-  <string name="about_page_system">System</string>
-  <string name="about_page_title">About</string>
-  <string name="about_page_version">Version</string>
-  <string name="about_page_website">Website</string>
-  <string name="about_page_upstream_name">RikkaHub</string>
-  <string name="about_page_upstream_desc">https://github.com/rikkahub/rikkahub</string>
-  <string name="about_page_derivation_notice">本项目【橘瓣】基于 RikkaHub 二次开发而成。橘瓣是独立项目，其功能与问题由本项目自行维护。请不要因为本项目去打扰 RikkaHub 原作者以及各位开源贡献者。感谢他们的付出与开源精神。</string>
   <string name="add">Add</string>
   <string name="app_name">橘瓣</string>
   <string name="asr_button_content_description">Speech Recognition</string>
@@ -356,11 +347,6 @@
   <string name="reasoning_entry_label">Thinking · %1$s</string>
   <string name="reasoning_panel_title">Thinking process</string>
   <string name="delete">Delete</string>
-  <string name="donate_page_afdian_desc">For 🇨🇳 users</string>
-  <string name="donate_page_donation_methods">Donation Methods</string>
-  <string name="donate_page_kofi_desc">For Global Users</string>
-  <string name="donate_page_sponsor_list">Sponsor List</string>
-  <string name="donate_page_title">Donate</string>
   <string name="edit">Edit</string>
   <string name="editing">Editing</string>
   <string name="emoji_picker_search_placeholder">Search emojis...</string>
@@ -1115,7 +1101,6 @@
   <string name="theme_name_harbor">Harbor</string>
   <string name="theme_name_creamrose">Cream Rose</string>
   <string name="theme_name_claude">Claude</string>
-  <string name="theme_name_nightsky">Night Stroll</string>
   <string name="title_activity_safe_mode">Safe Mode</string>
   <string name="tools_warning">The current model does not have tool calling enabled. Please enable the model\'s tool capabilities in the settings to use features like search/MCP.</string>
   <string name="translate">Translate</string>

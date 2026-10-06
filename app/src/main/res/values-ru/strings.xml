@@ -1,11 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="about_page_github">GitHub</string>
-  <string name="about_page_license">Лицензия</string>
-  <string name="about_page_system">Система</string>
-  <string name="about_page_title">О приложении</string>
-  <string name="about_page_version">Версия</string>
-  <string name="about_page_website">Веб-сайт</string>
   <string name="add">Добавить</string>
   <string name="app_name">橘瓣</string>
   <string name="asr_button_content_description">Распознавание речи</string>
@@ -348,11 +342,6 @@
   <string name="deep_thinking">Глубокое мышление</string>
   <string name="deep_thinking_seconds">Думал %1$.1f секунд</string>
   <string name="delete">Удалить</string>
-  <string name="donate_page_afdian_desc">Для пользователей 🇨🇳</string>
-  <string name="donate_page_donation_methods">Способы пожертвований</string>
-  <string name="donate_page_kofi_desc">Для пользователей по всему миру</string>
-  <string name="donate_page_sponsor_list">Список спонсоров</string>
-  <string name="donate_page_title">Поддержать</string>
   <string name="edit">Редактировать</string>
   <string name="editing">Редактирование</string>
   <string name="emoji_picker_search_placeholder">Поиск эмодзи...</string>

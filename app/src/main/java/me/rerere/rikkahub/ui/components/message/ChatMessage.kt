@@ -1,11 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.message
  
 import android.content.Intent
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.RenderEffect as AndroidRenderEffect
-import android.graphics.Shader
 import android.media.MediaPlayer
-import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -23,10 +19,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -57,12 +51,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -70,9 +62,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,8 +79,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAll
@@ -100,7 +88,6 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import kotlinx.coroutines.FlowPreview
-import kotlinx.datetime.toJavaLocalDateTime
 import kotlinx.coroutines.flow.debounce
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -149,11 +136,8 @@ import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.foundation.Image
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.toMessageTimeString
 import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.openUrl
 import coil3.compose.AsyncImage
@@ -161,99 +145,6 @@ import me.rerere.rikkahub.utils.splitIntoBubbleSegments
 import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-
-// ===== 普通气泡真实背景模糊（原型）=====
-// 由 ChatPage 通过 CompositionLocal 下发的共享上下文：
-// - 共享聊天背景 Painter（仅图片背景时非空）
-// - 背景容器窗口原点与像素尺寸
-// - 是否允许实时气泡模糊 + 模糊半径 px
-internal data class LiveBubbleBlurContext(
-    val imageBitmap: ImageBitmap? = null,
-    val backgroundOriginInWindow: Offset = Offset.Unspecified,
-    val backgroundSizePx: Size = Size.Unspecified,
-    // 复现页面最终背景所需的视觉参数（与 AssistantBackground 共享同一套数值）
-    val baseColor: Color = Color.Unspecified,
-    val imageAlpha: Float = 1f,
-    val gradientTopAlpha: Float = 0f,
-    val gradientBottomAlpha: Float = 0f,
-    val enabled: Boolean = false,
-    val radiusPx: Float = 0f,
-)
-
-internal val LocalLiveBubbleBlur = staticCompositionLocalOf { LiveBubbleBlurContext() }
-
-/**
- * 在气泡背景片段子层 DrawScope 中，按与 AssistantBackground 完全一致的合成顺序重绘背景片段：
- * 1. 页面基础底色；
- * 2. 按背景纸不透明度（imageAlpha）绘制的 Crop + Center 图片；
- * 3. 页面垂直渐变遮罩（以完整背景容器坐标为基准，气泡只裁取对应部分）。
- * 以上全部位于同一 graphicsLayer 内，统一接受 RenderEffect 模糊。
- */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawLiveBackgroundFragment(
-    imageBitmap: ImageBitmap?,
-    backgroundOriginInWindow: Offset,
-    backgroundSizePx: Size,
-    layerOriginInWindow: Offset,
-    baseColor: Color,
-    imageAlpha: Float,
-    gradientTopAlpha: Float,
-    gradientBottomAlpha: Float,
-) {
-    if (layerOriginInWindow == Offset.Unspecified) return
-    if (backgroundSizePx.width <= 0f || backgroundSizePx.height <= 0f) return
-
-    val hasBaseColor = baseColor != Color.Unspecified
-
-    // 1. 页面基础底色（页面最终背景的最底层；气泡在背景容器内，直接填满本层即可）
-    if (hasBaseColor) {
-        drawRect(color = baseColor)
-    }
-
-    // 2. 与页面一致的半透明背景图片（使用与 AssistantBackground 相同的 imageAlpha）
-    if (imageBitmap != null && imageBitmap.width > 0 && imageBitmap.height > 0) {
-        val safeAlpha = imageAlpha.coerceIn(0f, 1f)
-        // Crop：源图覆盖完整背景容器所需的统一缩放
-        val scale = max(
-            backgroundSizePx.width / imageBitmap.width,
-            backgroundSizePx.height / imageBitmap.height,
-        )
-        val drawW = imageBitmap.width * scale
-        val drawH = imageBitmap.height * scale
-        // Center 对齐后，源图左上角在背景容器中的偏移
-        val imgOffInBgX = (backgroundSizePx.width - drawW) / 2f
-        val imgOffInBgY = (backgroundSizePx.height - drawH) / 2f
-        // 转换为气泡片段层局部坐标 = 背景容器坐标 - 本层窗口原点
-        val offX = imgOffInBgX + backgroundOriginInWindow.x - layerOriginInWindow.x
-        val offY = imgOffInBgY + backgroundOriginInWindow.y - layerOriginInWindow.y
-        // drawImage 是 DrawScope 公开 API：src 取源图全图，dst 为 Crop 缩放后的
-        // 目标矩形（尺寸=drawW×drawH，起点=背景容器坐标减去本层窗口原点），
-        // 精确复现 ContentScale.Crop + Alignment.Center；alpha 与页面背景纸一致。
-        drawImage(
-            image = imageBitmap,
-            srcOffset = IntOffset.Zero,
-            srcSize = IntSize(imageBitmap.width, imageBitmap.height),
-            dstOffset = IntOffset(offX.toInt(), offY.toInt()),
-            dstSize = IntSize(drawW.toInt(), drawH.toInt()),
-            alpha = safeAlpha,
-        )
-    }
-
-    // 3. 页面垂直渐变遮罩：startY/endY 以完整背景容器为基准换算到气泡局部坐标，
-    // 气泡只裁取完整页面渐变在当前位置对应的部分，不把渐变重新缩放进每个气泡。
-    if (hasBaseColor && (gradientTopAlpha > 0f || gradientBottomAlpha > 0f)) {
-        val gradTopY = backgroundOriginInWindow.y - layerOriginInWindow.y
-        val gradBottomY = gradTopY + backgroundSizePx.height
-        val gradientBrush = Brush.verticalGradient(
-            colors = listOf(
-                baseColor.copy(alpha = gradientTopAlpha.coerceIn(0f, 1f)),
-                baseColor.copy(alpha = gradientBottomAlpha.coerceIn(0f, 1f)),
-            ),
-            startY = gradTopY,
-            endY = gradBottomY,
-        )
-        drawRect(brush = gradientBrush)
-    }
-}
 
 /**
  * 气泡侧边头像的容器。
@@ -425,8 +316,6 @@ fun ChatMessage(
                 MessagePartsBlock(
                     assistant = assistant,
                     role = message.role,
-                    showMessageTime = settings.showDateTimeInMessage,
-                    messageTime = message.createdAt.toJavaLocalDateTime().toMessageTimeString(),
                     parts = message.parts,
                     annotations = message.annotations,
                     loading = loading,
@@ -568,8 +457,6 @@ fun ChatMessage(
 private fun MessagePartsBlock(
     assistant: Assistant?,
     role: MessageRole,
-    showMessageTime: Boolean,
-    messageTime: String,
     model: Model?,
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
@@ -716,11 +603,9 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
-                                                        messageTimeText = if (showMessageTime) messageTime else null,
                                                         isUser = true,
                                                         onClick = { onUserMessageClick?.invoke() },
                                                         onLongClick = onUserMessageLongClick,
-                                                        enableLiveBubbleBlur = true,
                                                     ) {
                                                         MarkdownBlock(
                                                             content = segment.replaceRegexes(
@@ -741,11 +626,9 @@ private fun MessagePartsBlock(
                                             color = displaySettings.userBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.secondaryContainer,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
-                                            messageTimeText = if (showMessageTime) messageTime else null,
                                             isUser = true,
                                             onClick = { onUserMessageClick?.invoke() },
                                             onLongClick = onUserMessageLongClick,
-                                            enableLiveBubbleBlur = true,
                                         ) {
                                             MarkdownBlock(
                                                 content = displayText.replaceRegexes(
@@ -775,8 +658,6 @@ private fun MessagePartsBlock(
                                                         color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                                         overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                                         bubbleAlpha = bubbleAlpha,
-                                                        messageTimeText = if (showMessageTime) messageTime else null,
-                                                        enableLiveBubbleBlur = true,
                                                         isUser = false,
                                                         outlined = assistantBubbleOutlined,
                                                     ) {
@@ -812,8 +693,6 @@ private fun MessagePartsBlock(
                                             color = displaySettings.assistantBubbleColor?.let { it.toComposeColor() } ?: MaterialTheme.colorScheme.surfaceContainerHigh,
                                             overlayEnabled = displaySettings.bubbleImageOverlayEnabled,
                                             bubbleAlpha = bubbleAlpha,
-                                            messageTimeText = if (showMessageTime) messageTime else null,
-                                            enableLiveBubbleBlur = true,
                                             isUser = false,
                                             outlined = assistantBubbleOutlined,
                                         ) {
@@ -1063,14 +942,10 @@ private fun BubbleSurface(
     color: Color,
     overlayEnabled: Boolean,
     bubbleAlpha: Float,
-    /** 非空时在气泡右下角显示该时间；由「消息内显示日期时间」开关控制。 */
-    messageTimeText: String? = null,
     isUser: Boolean = false,
     outlined: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
-    // 本轮原型：用户与助手的普通文本气泡传 true（最终由 LiveBubbleBlurContext 与 final 条件决定）
-    enableLiveBubbleBlur: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     // 长按入口（批 63 起：打开「更多」操作单，药丸在单子里）。长按必须跟点击挂在**同一条**
@@ -1095,65 +970,6 @@ private fun BubbleSurface(
         Modifier.clickable(onClick = clickHandler ?: {})
     }
     val materialMode = LocalMaterialMode.current
-    val liveContext = LocalLiveBubbleBlur.current
-    // GLASS = 透明玻璃气泡；需要实时背景模糊
-    val wantsLiveBlurMode = materialMode == DisplayMaterialMode.GLASS
-    val liveEnabled =
-        enableLiveBubbleBlur &&
-            liveContext.enabled &&
-            liveContext.imageBitmap != null &&
-            wantsLiveBlurMode &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            liveContext.radiusPx > 0f
-    val cachedBlurEffect = remember(liveEnabled, liveContext.radiusPx) {
-        if (liveEnabled) {
-            // 模糊之后再提一点饱和度。纯高斯模糊会把背景的颜色摊平成一片灰，
-            // 真实玻璃透过来的颜色反而更浓；加一级颜色矩阵能把气泡从"磨砂塑料"
-            // 拉回"玻璃"。这是 CSS 里 backdrop-filter: blur() saturate() 的常见搭配，
-            // Android 侧用 RenderEffect 链式组合实现。
-            val blur = AndroidRenderEffect.createBlurEffect(
-                liveContext.radiusPx,
-                liveContext.radiusPx,
-                Shader.TileMode.CLAMP,
-            )
-            AndroidRenderEffect.createColorFilterEffect(
-                ColorMatrixColorFilter(saturationColorMatrix(LIQUID_GLASS_SATURATION)),
-                blur,
-            ).asComposeRenderEffect()
-        } else {
-            null
-        }
-    }
-    var liveLayerOriginInWindow by remember { mutableStateOf(Offset.Unspecified) }
-    // 最终条件：仅此条件为 true 时才追加背景片段层（当前已验证 FINAL=1）
-    val finalLiveBubbleBlurEnabled = liveEnabled && cachedBlurEffect != null
-    // 注意：本体不包含 fillMaxSize/fillMaxWidth 等参与父级测量的尺寸 modifier，
-    // 尺寸由调用点的 matchParentSize() 决定（只覆盖父 Box 已有尺寸，不参与父级测量）。
-    val liveFragmentModifier = if (finalLiveBubbleBlurEnabled) {
-        Modifier
-            .onGloballyPositioned { coordinates ->
-                liveLayerOriginInWindow = coordinates.positionInWindow()
-            }
-            .graphicsLayer {
-                renderEffect = cachedBlurEffect
-            }
-            .drawBehind {
-                // 页面背景完整合成作为该 graphicsLayer 节点的直接内容：
-                // 底色 → 半透明图片 → 页面渐变遮罩，统一接受 RenderEffect 模糊
-                drawLiveBackgroundFragment(
-                    imageBitmap = liveContext.imageBitmap,
-                    backgroundOriginInWindow = liveContext.backgroundOriginInWindow,
-                    backgroundSizePx = liveContext.backgroundSizePx,
-                    layerOriginInWindow = liveLayerOriginInWindow,
-                    baseColor = liveContext.baseColor,
-                    imageAlpha = liveContext.imageAlpha,
-                    gradientTopAlpha = liveContext.gradientTopAlpha,
-                    gradientBottomAlpha = liveContext.gradientBottomAlpha,
-                )
-            }
-    } else {
-        Modifier
-    }
     val effectiveAlpha = when (materialMode) {
         DisplayMaterialMode.TRANSLUCENT -> TRANSLUCENT_BUBBLE_BASE_ALPHA * bubbleAlpha
         DisplayMaterialMode.GLASS -> bubbleAlpha
@@ -1240,50 +1056,6 @@ private fun BubbleSurface(
     }
     // 昼夜状态：与应用实际 colorScheme 一致（SYSTEM→系统；LIGHT/DARK 手动覆盖）
     val isDarkTheme = LocalDarkMode.current
-    // 实时模糊气泡专用：白色径向渐变高光遮罩（左上亮、向右下衰减；昼夜参数不同）
-    val liveBubbleRadialHighlightModifier = Modifier.drawWithCache {
-        val highlightCenter = if (isDarkTheme) {
-            Offset(size.width * 0.20f, size.height * 0.15f)
-        } else {
-            Offset(size.width * 0.18f, size.height * 0.12f)
-        }
-        val highlightRadius = maxOf(size.width, size.height) * 0.95f
-        val highlightBrush = Brush.radialGradient(
-            colorStops = if (isDarkTheme) {
-                arrayOf(
-                    0f to Color.White.copy(alpha = 0.035f),
-                    0.45f to Color.White.copy(alpha = 0.012f),
-                    1f to Color.Transparent,
-                )
-            } else {
-                arrayOf(
-                    0f to Color.White.copy(alpha = 0.10f),
-                    0.42f to Color.White.copy(alpha = 0.04f),
-                    1f to Color.Transparent,
-                )
-            },
-            center = highlightCenter,
-            radius = highlightRadius,
-        )
-        onDrawBehind {
-            drawRect(brush = highlightBrush)
-        }
-    }
-    // 实时模糊气泡专用（仅夜间）：深色方向性识读遮罩，防止亮色背景导致气泡泛白、白字不可读
-    val liveBubbleNightReadabilityModifier = Modifier.drawWithCache {
-        val readabilityBrush = Brush.linearGradient(
-            colorStops = arrayOf(
-                0f to Color.Black.copy(alpha = 0.06f),
-                0.55f to Color.Black.copy(alpha = 0.09f),
-                1f to Color.Black.copy(alpha = 0.12f),
-            ),
-            start = Offset.Zero,
-            end = Offset(size.width, size.height),
-        )
-        onDrawBehind {
-            drawRect(brush = readabilityBrush)
-        }
-    }
     // 顶沿内高光：紧贴上边缘的 1px 亮线，模拟玻璃板的厚度切面。
     // CSS 里就是 box-shadow 的 inset 0 1px 0 —— 它跟 border 的区别在于只有顶边一条，
     // 眼睛会把它读成"这块板有厚度"，而四边均匀的描边只会读成"一个框"。
@@ -1372,51 +1144,6 @@ private fun BubbleSurface(
             }
         }
     }
-    // 实时模糊气泡专用：沿真实轮廓贴边的方向性硬高光（左上亮、向右下透明；昼夜强弱不同）
-    val liveBubbleEdgeHighlightModifier = Modifier.drawWithCache {
-        val strokeWidthPx = 1.dp.toPx()
-        val halfStroke = strokeWidthPx / 2f
-        val edgeStartAlpha = if (isDarkTheme) 0.18f else 0.36f
-        val edgeMidAlpha = if (isDarkTheme) 0.06f else 0.13f
-        val edgeBrush = Brush.linearGradient(
-            colorStops = arrayOf(
-                0f to Color.White.copy(alpha = edgeStartAlpha),
-                0.45f to Color.White.copy(alpha = edgeMidAlpha),
-                0.75f to Color.Transparent,
-                1f to Color.Transparent,
-            ),
-            start = Offset.Zero,
-            end = Offset(size.width, size.height),
-        )
-        // 描边居中落在轮廓上：按内缩一个描边宽的尺寸取轮廓，再整体平移半个描边宽
-        val insetSize = Size(
-            width = maxOf(0f, size.width - strokeWidthPx),
-            height = maxOf(0f, size.height - strokeWidthPx),
-        )
-        val edgePath = if (insetSize.width > 0f && insetSize.height > 0f) {
-            Path().apply {
-                addOutline(
-                    shape.createOutline(
-                        size = insetSize,
-                        layoutDirection = bubbleLayoutDirection,
-                        density = this@drawWithCache,
-                    )
-                )
-                translate(Offset(halfStroke, halfStroke))
-            }
-        } else {
-            null
-        }
-        onDrawBehind {
-            if (edgePath != null) {
-                drawPath(
-                    path = edgePath,
-                    brush = edgeBrush,
-                    style = Stroke(width = strokeWidthPx),
-                )
-            }
-        }
-    }
     val hasImage = imagePath.isNotBlank() && java.io.File(imagePath).exists()
     if (materialMode == DisplayMaterialMode.GLASS) {
         Box(
@@ -1429,30 +1156,12 @@ private fun BubbleSurface(
                 .then(bubbleClickModifier)
                 .border(1.dp, glassBorderColor, shape)
         ) {
-            if (finalLiveBubbleBlurEnabled) {
-                // 背景图片片段层：仅模糊此子层，文字等前景内容保持清晰。
-                // matchParentSize 只覆盖父 Box 已确定尺寸，不参与父 Box 测量，
-                // 因此气泡宽度仍由文字内容 + padding + 宽度上限决定。
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveFragmentModifier)
-                )
-            }
             if (hasImage) {
                 AsyncImage(
                     model = imagePath,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()
-                )
-            }
-            if (finalLiveBubbleBlurEnabled && isDarkTheme) {
-                // 夜间深色识读遮罩：位于模糊背景之上、glass fill 之下，压暗亮背景保证白字可读
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleNightReadabilityModifier)
                 )
             }
             if (!hasImage || overlayEnabled) {
@@ -1462,27 +1171,11 @@ private fun BubbleSurface(
                         .then(glassFillModifier)
                 )
             }
-            if (finalLiveBubbleBlurEnabled) {
-                // 白色径向渐变高光遮罩：位于 glass fill 上方、玻璃高光下方，受气泡圆角裁剪
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleRadialHighlightModifier)
-                )
-            }
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .then(glassHighlightModifier)
             )
-            if (finalLiveBubbleBlurEnabled) {
-                // 沿真实圆角贴边的方向性硬高光：位于渲染层外、content 之下；仅左上/顶部可见，向右下透明
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(liveBubbleEdgeHighlightModifier)
-                )
-            }
             // 顶沿内高光：同液态玻璃，压在所有层之上代表玻璃上切面
             Box(
                 modifier = Modifier
@@ -1496,7 +1189,6 @@ private fun BubbleSurface(
             // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
             Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
-                MessageTimeLabel(messageTimeText)
             }
         }
     } else if (hasImage) {
@@ -1533,7 +1225,6 @@ private fun BubbleSurface(
             // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
             Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                 content()
-                MessageTimeLabel(messageTimeText)
             }
         }
     } else {
@@ -1580,7 +1271,6 @@ private fun BubbleSurface(
                 // 纵向 6 -> 6 保持不变：高度不动，避免影响既有版式。
                 Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     content()
-                    MessageTimeLabel(messageTimeText)
                 }
             }
         }
@@ -1607,43 +1297,12 @@ private const val GLASS_BUBBLE_BORDER_ALPHA = 0.07f
 private const val PLAIN_BUBBLE_ALPHA = 0.92f
 
 /**
- * 液态玻璃背景的饱和度倍数。
- *
- * 1.0 是原色。高斯模糊本身会让背景颜色互相平均、显得发灰，稍微提一点饱和度
- * 才像"透过玻璃看到的颜色"而不是"磨砂塑料"。取值偏保守：太高会让深色背景
- * 下的气泡出现偏色。
- */
-private const val LIQUID_GLASS_SATURATION = 1.35f
-
-/**
  * GLASS 材质气泡的投影高度。
  *
  * 4dp -> 2dp，与液态玻璃取同一个值：用户气泡和助手气泡必须落在同一条
  * "离背景的距离"上，否则两种气泡的材质语言立刻又分家了。
  */
 private val GLASS_SHADOW_ELEVATION = 2.dp
-
-/**
- * 构造一个只改饱和度的颜色矩阵。
- *
- * 用 Rec. 709 亮度权重把每个通道往灰度拉或往外推：saturation=0 得到灰度图，
- * 1 得到原图，大于 1 增强。手写而不是用 ColorMatrix.setSaturation() 是为了
- * 不依赖可变对象，可以直接放进 remember 里。
- */
-private fun saturationColorMatrix(saturation: Float): android.graphics.ColorMatrix {
-    val inv = 1f - saturation
-    val r = 0.213f * inv
-    val g = 0.715f * inv
-    val b = 0.072f * inv
-    return android.graphics.ColorMatrix(
-        floatArrayOf(
-            r + saturation, g, b, 0f, 0f,
-            r, g + saturation, b, 0f, 0f,
-            r, g, b + saturation, 0f, 0f,
-            0f, 0f, 0f, 1f, 0f,
-        )
-    )
-}
  
 @Composable
 @Suppress("UnusedCrossTarget")
@@ -1988,20 +1647,5 @@ internal fun VoiceMessageBubble(
             )
         }
     }
-}
-
-@Composable
-private fun ColumnScope.MessageTimeLabel(time: String?) {
-    if (time == null) return
-    // 不加 fillMaxWidth：一行时间会把整个气泡撑满聊天列，短消息也被拉成整行宽。
-    // 靠 align(Alignment.End) 贴右下。
-    Text(
-        text = time,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-        modifier = Modifier
-            .align(Alignment.End)
-            .padding(top = 2.dp),
-    )
 }
 

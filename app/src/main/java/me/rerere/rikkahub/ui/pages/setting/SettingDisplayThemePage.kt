@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,7 +38,6 @@ import me.rerere.rikkahub.ui.pages.setting.components.PresetThemeButtonGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
@@ -133,56 +130,6 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
-                    item(
-                        headlineContent = { Text("界面实时渲染") },
-                        supportingContent = { Text("在支持的设备上为玻璃界面启用实时背景渲染") },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.interfaceRealtimeRendering,
-                                onCheckedChange = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(interfaceRealtimeRendering = it)
-                                    )
-                                },
-                            )
-                        },
-                    )
-                    if (displaySetting.interfaceRealtimeRendering) {
-                        item(
-                            headlineContent = { Text("聊天气泡实时模糊") },
-                            supportingContent = { Text("为普通聊天气泡实时渲染背景模糊") },
-                            trailingContent = {
-                                Switch(
-                                    checked = displaySetting.chatBubbleRealtimeBlur,
-                                    onCheckedChange = {
-                                        updateDisplaySetting(
-                                            displaySetting.copy(chatBubbleRealtimeBlur = it)
-                                        )
-                                    },
-                                )
-                            },
-                        )
-                        item(
-                            headlineContent = { Text("模糊强度") },
-                            supportingContent = {
-                                Column {
-                                    Slider(
-                                        value = displaySetting.interfaceBlurRadius.coerceIn(3f, 20f),
-                                        onValueChange = {
-                                            updateDisplaySetting(
-                                                displaySetting.copy(interfaceBlurRadius = it)
-                                            )
-                                        },
-                                        valueRange = 3f..20f,
-                                    )
-                                    Text(
-                                        text = "${displaySetting.interfaceBlurRadius.coerceIn(3f, 20f).roundToInt()} dp",
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                            },
-                        )
-                    }
                     // Custom theme management entry
                     item(
                         onClick = { navController.navigate(Screen.SettingTheme) },

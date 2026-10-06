@@ -403,26 +403,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
-            item("about") {
-                CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    title = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(HugeIcons.Idea01, null, modifier = Modifier.size(18.dp))
-                            Text("关于")
-                        }
-                    },
-                ) {
-                    item(
-                        onClick = { navController.navigate(Screen.SettingAbout) },
-                        supportingContent = { Text("版本信息、开源许可、捐赠方式") },
-                        headlineContent = { Text("关于橘瓣") },
-                    )
-                }
-            }
         }
     }
 }

@@ -131,7 +131,6 @@ import me.rerere.rikkahub.ui.pages.miniapp.MiniAppEditPage
 import me.rerere.rikkahub.ui.pages.miniapp.MiniAppManagerPage
 import me.rerere.rikkahub.ui.pages.miniapp.MiniAppPage
 import me.rerere.rikkahub.ui.pages.search.SearchPage
-import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayCodeInteractionPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayColorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayGeneralPage
@@ -142,7 +141,6 @@ import me.rerere.rikkahub.ui.pages.setting.SettingDisplayUserProfilePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayTransparencyPage
 import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
-import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
@@ -521,52 +519,6 @@ class RouteActivity : ComponentActivity() {
                                         .background(Brush.verticalGradient(creamRoseScrim))
                                 }
 
-                                "nightsky" -> {
-                                    // 夜游与港口 / 奶油玫瑰共用同一张底图，只换上层 scrim。
-                                    // 底图是极亮的暖白纸纹（863x1822，平均 L* 93.6），所以夜间必须压暗。
-                                    //
-                                    // scrim 只靠 alpha 做斜坡，不靠换色号（奶油玫瑰踩过的「整屏棕滤镜」）。
-                                    // 批 73：夜间色号由中性灰 #1E1F24 换成夜街角锚点 #10192D ——
-                                    // 中性灰合成后整屏 C* 只有 1.3，读作中灰，「深靛蓝」在页面层
-                                    // 完全没落地；换成靛蓝锚点后同 alpha 下 C* 升到 7.6。alpha 一字未动。
-                                    // 日间仍取页面软化色 #E8E6DC（不用纸白锚点 #F1E7B0 —— 它是 C*=28.5
-                                    // 的暖黄，任何够用的 alpha 都会把整屏染黄，实测 C*=7.3）。
-                                    //
-                                    // 夜间：**单层、两点、连续**（批 70 统一）。原来 0.975/0.982/0.990
-                                    // 把底图压到只剩 1~2.5%，屏幕上就是一块深灰 —— 用户点名的
-                                    // 「叠层过厚」。现在收到 0.62→0.72：底图透出约三成，页面按
-                                    // 「底图可见优先」整体偏亮。
-                                    //
-                                    // 像素级实测（st/bg_measure.py，逐行按 alpha 合成）：
-                                    //   日间 #E8E6DC @ 0.20/0.12/0.34 -> L* 93.2  C* 2.9
-                                    //   对照 奶油玫瑰 日 L* 93.6 C* 2.8
-                                    val nightStrollPainter = painterResource(
-                                        id = R.drawable.harbor_chat_bg
-                                    )
-                                    val nightStrollScrim = if (LocalDarkMode.current) {
-                                        listOf(
-                                            // 夜街角锚点 #10192D（批 73：色号由中性灰换成靛蓝锚点）。
-                                            // 两点纯线性，没有折点 ⇒ 没有分段色带。
-                                            // 合成整屏 L* 40.2 / C* 7.6（旧 #1E1F24 是 42.0 / 1.3）。
-                                            Color(0xFF10192D).copy(alpha = 0.62f),
-                                            Color(0xFF10192D).copy(alpha = 0.72f),
-                                        )
-                                    } else {
-                                        listOf(
-                                            // 页面软化色 #E8E6DC（纸白压彩度到 C*≈5.2，L* 91 不动）
-                                            Color(0xFFE8E6DC).copy(alpha = 0.20f),
-                                            Color(0xFFE8E6DC).copy(alpha = 0.12f),
-                                            Color(0xFFE8E6DC).copy(alpha = 0.34f),
-                                        )
-                                    }
-                                    base
-                                        .paint(
-                                            painter = nightStrollPainter,
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                        .background(Brush.verticalGradient(nightStrollScrim))
-                                }
-
                                 else -> base
                             }
                         }
@@ -725,10 +677,6 @@ class RouteActivity : ComponentActivity() {
                                 SettingModelPage()
                             }
 
-                            entry<Screen.SettingAbout> {
-                                SettingAboutPage()
-                            }
-
                             entry<Screen.SettingSearch> {
                                 SettingSearchPage()
                             }
@@ -744,10 +692,6 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingMcp> {
                                 SettingMcpPage()
-                            }
-
-                            entry<Screen.SettingDonate> {
-                                SettingDonatePage()
                             }
 
                             entry<Screen.SettingFiles> {
@@ -1205,9 +1149,6 @@ sealed interface Screen : NavKey {
     data object SettingModels : Screen
 
     @Serializable
-    data object SettingAbout : Screen
-
-    @Serializable
     data object SettingSearch : Screen
 
     @Serializable
@@ -1218,9 +1159,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingMcp : Screen
-
-    @Serializable
-    data object SettingDonate : Screen
 
     @Serializable
     data object SettingFiles : Screen

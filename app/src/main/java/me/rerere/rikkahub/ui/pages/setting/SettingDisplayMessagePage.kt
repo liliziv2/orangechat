@@ -66,7 +66,6 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
     val nameTimeOn = listOf(
         displaySetting.showModelName,
         displaySetting.showDateBelowName,
-        displaySetting.showDateTimeInMessage,
         displaySetting.showTokenUsage,
     ).count { it }
     val thinkingOn = listOf(
@@ -224,7 +223,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                 CollapsibleCardGroup(
                     flat = true,
                     title = { Text("名称与时间") },
-                    summary = { Text("$nameTimeOn / 4 项已开") },
+                    summary = { Text("$nameTimeOn / 3 项已开") },
                 ) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
@@ -246,18 +245,6 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                                 checked = displaySetting.showDateBelowName,
                                 onCheckedChange = {
                                     updateDisplaySetting(displaySetting.copy(showDateBelowName = it))
-                                }
-                            )
-                        },
-                    )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showDateTimeInMessage,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it))
                                 }
                             )
                         },
