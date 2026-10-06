@@ -83,7 +83,7 @@ fun ReasoningButton(
                 modifier = Modifier.size(iconSize),
                 contentAlignment = Alignment.Center
             ) {
-                ReasoningIcon(reasoningLevel)
+                ReasoningIcon(reasoningLevel, iconSize)
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))
         }
@@ -270,14 +270,18 @@ private fun ReasoningScale(
 }
 
 @Composable
-private fun ReasoningIcon(level: ReasoningLevel) {
+private fun ReasoningIcon(level: ReasoningLevel, size: Dp) {
+    // 尺寸显式落在**叶子 Icon** 上。外层 Box(Modifier.size) 本来就会把子节点夹到
+    // 同一尺寸，所以此前屏幕上看着「差不多」；但那是隐式巧合：外层一改尺寸，
+    // 这些 Icon 就会各自退回 M3 默认的 24dp。声明在这里才不依赖外层。
+    val iconModifier = Modifier.size(size)
     when (level) {
-        ReasoningLevel.OFF -> Icon(HugeIcons.Idea, null)
-        ReasoningLevel.AUTO -> Icon(HugeIcons.Idea01, null)
-        ReasoningLevel.LOW -> Icon(ReasoningLow, null)
-        ReasoningLevel.MEDIUM -> Icon(ReasoningMedium, null)
-        ReasoningLevel.HIGH -> Icon(ReasoningHigh, null)
-        ReasoningLevel.XHIGH -> Icon(ReasoningHigh, null)
+        ReasoningLevel.OFF -> Icon(HugeIcons.Idea, null, modifier = iconModifier)
+        ReasoningLevel.AUTO -> Icon(HugeIcons.Idea01, null, modifier = iconModifier)
+        ReasoningLevel.LOW -> Icon(ReasoningLow, null, modifier = iconModifier)
+        ReasoningLevel.MEDIUM -> Icon(ReasoningMedium, null, modifier = iconModifier)
+        ReasoningLevel.HIGH -> Icon(ReasoningHigh, null, modifier = iconModifier)
+        ReasoningLevel.XHIGH -> Icon(ReasoningHigh, null, modifier = iconModifier)
     }
 }
 

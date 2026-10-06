@@ -21,7 +21,7 @@ val ReasoningLow: ImageVector
         ).apply {
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -33,7 +33,7 @@ val ReasoningLow: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -51,7 +51,7 @@ val ReasoningLow: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -60,7 +60,7 @@ val ReasoningLow: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -69,7 +69,7 @@ val ReasoningLow: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -96,7 +96,7 @@ val ReasoningMedium: ImageVector
         ).apply {
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -108,7 +108,7 @@ val ReasoningMedium: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -126,7 +126,7 @@ val ReasoningMedium: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -135,7 +135,7 @@ val ReasoningMedium: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -144,7 +144,7 @@ val ReasoningMedium: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -153,7 +153,7 @@ val ReasoningMedium: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -162,7 +162,7 @@ val ReasoningMedium: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -189,7 +189,7 @@ val ReasoningHigh: ImageVector
         ).apply {
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -201,7 +201,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -219,7 +219,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -228,7 +228,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -237,7 +237,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -246,7 +246,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -255,7 +255,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -264,7 +264,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -273,7 +273,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -282,7 +282,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {
@@ -291,7 +291,7 @@ val ReasoningHigh: ImageVector
             }
             path(
                 stroke = SolidColor(Color.Black),
-                strokeLineWidth = 2.0f,
+                strokeLineWidth = 1.5f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Miter
             ) {

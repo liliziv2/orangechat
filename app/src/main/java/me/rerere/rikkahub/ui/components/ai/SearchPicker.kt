@@ -93,6 +93,8 @@ fun SearchPickerButton(
                     Icon(
                         imageVector = HugeIcons.AiSearch02,
                         contentDescription = stringResource(R.string.use_web_search),
+                        // 尺寸落在**图标本体**上，而不是只给外层 Box —— 见批 72 说明。
+                        modifier = Modifier.size(iconSize),
                     )
                 } else if (enableSearch && currentService != null) {
                     AutoAIIcon(
@@ -104,6 +106,8 @@ fun SearchPickerButton(
                     Icon(
                         imageVector = HugeIcons.Search01,
                         contentDescription = stringResource(R.string.use_web_search),
+                        // 尺寸落在**图标本体**上，而不是只给外层 Box —— 见批 72 说明。
+                        modifier = Modifier.size(iconSize),
                     )
                 }
             }
