@@ -490,8 +490,8 @@ class RouteActivity : ComponentActivity() {
                                         painted.background(
                                             Brush.verticalGradient(
                                                 colors = listOf(
-                                                    Color(0xFF0E252C).copy(alpha = 0.62f),
-                                                    Color(0xFF0E252C).copy(alpha = 0.72f),
+                                                    Color(0xFF0D2933).copy(alpha = 0.62f),
+                                                    Color(0xFF0D2933).copy(alpha = 0.72f),
                                                 )
                                             )
                                         )
