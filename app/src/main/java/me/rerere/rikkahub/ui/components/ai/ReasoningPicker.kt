@@ -33,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
@@ -54,6 +55,9 @@ fun ReasoningButton(
     onlyIcon: Boolean = false,
     reasoningLevel: ReasoningLevel,
     onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
+    // 图标尺寸。默认 24dp 原样不动；聊天输入框的操作行显式传 20dp，
+    // 与 + / 搜索 / 语音 / 发送 同一套图标尺寸。
+    iconSize: Dp = 24.dp,
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
@@ -76,7 +80,7 @@ fun ReasoningButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(iconSize),
                 contentAlignment = Alignment.Center
             ) {
                 ReasoningIcon(reasoningLevel)

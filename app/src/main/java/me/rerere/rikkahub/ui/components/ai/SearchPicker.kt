@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools
@@ -64,6 +65,9 @@ fun SearchPickerButton(
     onToggleSearch: (Boolean) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     model: Model?,
+    // 图标尺寸。默认 24dp 原样不动（其余调用点零影响）；
+    // 聊天输入框的操作行显式传 20dp，与 + / 语音 / 发送 同一套图标尺寸。
+    iconSize: Dp = 24.dp,
 ) {
     var showSearchPicker by remember { mutableStateOf(false) }
     val currentService = settings.searchServices.getOrNull(settings.searchServiceSelected)
@@ -82,7 +86,7 @@ fun SearchPickerButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(iconSize),
                 contentAlignment = Alignment.Center
             ) {
                 if (model?.tools?.contains(BuiltInTools.Search) == true) {
@@ -93,6 +97,7 @@ fun SearchPickerButton(
                 } else if (enableSearch && currentService != null) {
                     AutoAIIcon(
                         name = currentService.displayName,
+                        modifier = Modifier.size(iconSize),
                         color = Color.Transparent
                     )
                 } else {

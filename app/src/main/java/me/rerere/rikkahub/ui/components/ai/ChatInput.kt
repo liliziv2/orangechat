@@ -710,7 +710,8 @@ fun ChatInput(
                             Icon(
                                 imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
                                 contentDescription = stringResource(R.string.more_options),
-                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(CapsuleActionIconSize),
                             )
                         }
                     }
@@ -738,6 +739,7 @@ fun ChatInput(
                             SearchPickerButton(
                                 enableSearch = enableSearch,
                                 settings = settings,
+                                iconSize = CapsuleActionIconSize,
                                 onToggleSearch = { enabled ->
                                     onToggleSearch(enabled)
                                     toaster.show(
@@ -768,6 +770,7 @@ fun ChatInput(
                                         onUpdateAssistant(assistant.copy(reasoningLevel = it))
                                     },
                                     onlyIcon = true,
+                                    iconSize = CapsuleActionIconSize,
                                 )
                             }
                         }
@@ -808,7 +811,7 @@ fun ChatInput(
                                         imageVector = HugeIcons.Voice,
                                         contentDescription = "Voice",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(CapsuleActionIconSize)
                                     )
                                 }
                             }
@@ -858,14 +861,14 @@ fun ChatInput(
                                         imageVector = HugeIcons.Cancel01,
                                         contentDescription = stringResource(R.string.stop),
                                         tint = contentColor,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(CapsuleActionIconSize)
                                     )
                                 } else {
                                     Icon(
                                         imageVector = HugeIcons.ArrowUp02,
                                         contentDescription = stringResource(R.string.send),
                                         tint = contentColor,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(CapsuleActionIconSize)
                                     )
                                 }
                             }
@@ -1204,6 +1207,21 @@ private val ActionButtonSize = 40.dp
  * 而发送是唯一的实心强调色元素，该由它立住。36dp 仍高于可用触摸区下限。
  */
 private val CapsuleActionSize = 36.dp
+
+/**
+ * 操作行内联功能按钮的**图标**尺寸(+ / 搜索 / 思考 / 语音 / 发送)。
+ *
+ * 以前这五个按钮的图标是两种尺寸：+ / 语音 / 发送显式 20dp，而搜索 / 思考的图标
+ * 藏在各自组件内部、按 M3 默认的 24dp 画（外面还套着 8dp 内边距，凑成 40dp 被
+ * 36dp 的容器压回来，实际既不是 24 也不是 20）。同一排里出现两种墨迹大小，
+ * 读起来就是散的。
+ *
+ * 现在统一到这一个常量：**组件默认值一个都不动**（搜索 / 思考组件的 iconSize
+ * 默认仍是 24dp，其余调用点零影响），只有聊天输入框这一处显式传 20dp。
+ * 20 + 组件自身的 8dp 内边距 = 36dp，正好等于 CapsuleActionSize，
+ * 所以点击区也一起对齐了 —— 没有 scale()、没有手写 offset。
+ */
+private val CapsuleActionIconSize = 20.dp
 
 /**
  * 正文输入区的行数上限与绝对高度上限（**只管多行态**）。
