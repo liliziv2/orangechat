@@ -486,17 +486,17 @@ class RouteActivity : ComponentActivity() {
                                         )
                                     if (LocalDarkMode.current) {
                                         // 夜间：单层、两点、连续（与 harbor / creamrose 同一套结构）。
-                                        // 色号取青屿底色的近邻深青，底图透出约三成。
+                                        // 色号取青屿夜间 Background 锚点 #0E2025，底图透出约三成。
                                         painted.background(
                                             Brush.verticalGradient(
                                                 colors = listOf(
-                                                    Color(0xFF0D2933).copy(alpha = 0.62f),
-                                                    Color(0xFF0D2933).copy(alpha = 0.72f),
+                                                    Color(0xFF0E2025).copy(alpha = 0.62f),
+                                                    Color(0xFF0E2025).copy(alpha = 0.72f),
                                                 )
                                             )
                                         )
                                     } else {
-                                        // 日间：沿用 harbor 的四点结构（主题色覆盖 → 强调过渡 → 底色反白）。
+                                        // 日间：沿用 harbor 的四点结构；色号统一为页面软化色 #E8E6DC（夜游日间那套，实测合成 L* 93.2 / C* 2.9）。
                                         painted.background(
                                             Brush.verticalGradient(
                                                 colors = listOf(
