@@ -140,7 +140,6 @@ fun ModelSelector(
     onSelect: (Model) -> Unit
 ) {
     var popup by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val model = providers.findModelById(modelId ?: Uuid.random())
 
     if (!onlyIcon) {
@@ -230,42 +229,64 @@ fun ModelSelector(
     }
 
     if (popup) {
-        val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = {
-                popup = false
-            },
-            sheetState = state,
+        ModelSelectorSheet(
+            modelId = modelId,
+            providers = providers,
+            type = type,
+            onSelect = onSelect,
+            onDismiss = { popup = false },
+        )
+    }
+}
+
+/**
+ * 模型选择弹窗本体：**只有 sheet，没有触发按钮**。
+ *
+ * 抽出来是为了让「不是按钮」的入口也能复用同一套选择器 —— 聊天顶栏第二行
+ * （助手名 · 当前模型）现在是模型切换入口，但它读作一行上下文，用户明确要求
+ * 不新增独立模型按钮，所以挂不了 ModelSelector 的 TextButton。
+ * 这里只把弹窗逻辑单独暴露；ModelSelector 自己仍然调它，行为一字未变。
+ */
+@Composable
+fun ModelSelectorSheet(
+    modelId: Uuid?,
+    providers: List<ProviderSetting>,
+    type: ModelType,
+    onSelect: (Model) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val dismiss: () -> Unit = {
+        scope.launch {
+            state.hide()
+            onDismiss()
+        }
+    }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = state,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxHeight(0.8f)
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(8.dp)
-                    .fillMaxHeight(0.8f)
-                    .imePadding(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                val filteredProviderSettings = providers.fastFilter {
-                    it.enabled && it.models.fastAny { model -> model.type == type }
-                }
-                ModelList(
-                    currentModel = modelId,
-                    providers = filteredProviderSettings,
-                    modelType = type,
-                    onSelect = {
-                        onSelect(it)
-                        scope.launch {
-                            state.hide()
-                            popup = false
-                        }
-                    },
-                    onDismiss = {
-                        scope.launch {
-                            state.hide()
-                            popup = false
-                        }
-                    }
-                )
+            val filteredProviderSettings = providers.fastFilter {
+                it.enabled && it.models.fastAny { model -> model.type == type }
             }
+            ModelList(
+                currentModel = modelId,
+                providers = filteredProviderSettings,
+                modelType = type,
+                onSelect = {
+                    onSelect(it)
+                    dismiss()
+                },
+                onDismiss = dismiss
+            )
         }
     }
 }

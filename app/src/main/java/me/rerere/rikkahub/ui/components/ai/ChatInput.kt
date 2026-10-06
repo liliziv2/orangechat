@@ -87,9 +87,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.Job
-import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
-import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
 import me.rerere.common.android.appTempFolder
@@ -151,7 +149,6 @@ fun ChatInput(
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    onUpdateChatModel: (Model) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Job,
@@ -617,54 +614,6 @@ fun ChatInput(
                 .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // 当前模型：从输入框内部的功能行里挪出来，单独做成输入框上方的小 pill。
-            //
-            // 它回答的是「现在在跟哪个模型说话」——属于上下文信息，和 + / 搜索 / 思考
-            // 那些「操作」不是一类东西。混在操作行里会同时踩两个坑：抢走发送按钮的视觉权重，
-            // 以及功能按钮一多就和附件入口挤在同一条横向滚动里。
-            Surface(
-                shape = RoundedCornerShape(50),
-                // 槽位从 surfaceContainerHigh 换到 surfaceContainer（批 27）。
-                //
-                // 原来它和输入框是**同一个槽位**：FLAT 模式下输入框也读
-                // surfaceContainerHigh，两者只隔 6dp，叠在同一个页面上就是同一块颜色，
-                // pill 的下边缘和输入框的上边缘糊成一条，读不出这是两层。
-                // 换到低一档的 surfaceContainer（合成差 ΔL* 2.4）之后边界才立得住。
-                //
-                // 也不再手写 alpha：槽位本身带 interfaceSurfaceOpacity（默认 0.82），
-                // 手写 0.80 只会让它比同类表面更贴近页面，反而更糊。
-                // 形状、位置、尺寸全部不变。
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                // 一根发丝边。胶囊面积小、视觉重量低，只靠填充差（与输入框合成差
-                // ΔL* 2.4）还不足以在小尺寸上读出边界，所以补一根边。
-                // 0.07 是全局统一的描边档位（与输入框、气泡同一档），
-                // 它只负责托起边界，不构成「描边感」。
-                border = BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
-                ),
-                modifier = Modifier.padding(start = 4.dp),
-            ) {
-                ModelSelector(
-                    modelId = assistant.chatModelId ?: settings.chatModelId,
-                    providers = settings.providers,
-                    onSelect = {
-                        onUpdateChatModel(it)
-                        dismissExpand()
-                    },
-                    type = ModelType.CHAT,
-                    // onlyIcon = false → 显示模型名，pill 的意义就在于把名字亮出来
-                    // showIcon = false → 不显示模型图标。那个 36dp 图标会把 pill 撑高，
-                    //   也把「现在在跟谁说话」这行上下文信息重新读成控件；名字本身够了。
-                    // compact = true → 只在这一处启用紧凑档（30–32dp 高 / 10dp 内边距）。
-                    //   输入区上方只需要一行上下文，默认的 40dp 按钮尺寸在这里偏重。
-                    //   形状、材质、位置都不动，只收尺寸。
-                    onlyIcon = false,
-                    showIcon = false,
-                    compact = true,
-                )
-            }
-
             // 附件预览与「编辑中」提示条留在输入容器之外（上方）。
             //
             // 容器的内部结构是固定的两行：上行正文、下行操作。缩略图与提示条是

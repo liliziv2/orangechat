@@ -68,7 +68,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.clickable
@@ -79,7 +78,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -97,6 +95,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -111,7 +110,6 @@ import me.rerere.rikkahub.data.datastore.ChatAvatarMode
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getAssistantById
-import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.files.FilesManager
@@ -119,6 +117,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.VoiceCallService
 import me.rerere.rikkahub.ui.components.ai.ChatInput
+import me.rerere.rikkahub.ui.components.ai.ModelSelectorSheet
 import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
 import me.rerere.rikkahub.ui.components.message.LiveBubbleBlurContext
 import me.rerere.rikkahub.ui.components.message.LocalLiveBubbleBlur
@@ -617,6 +616,9 @@ private fun ChatPageContent(
                             }
                         }
                     },
+                    onUpdateChatModel = {
+                        vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
+                    },
                 )
             },
             bottomBar = {
@@ -696,9 +698,6 @@ private fun ChatPageContent(
                             }
                         }
                         inputState.clearInput()
-                    },
-                    onUpdateChatModel = {
-                        vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
                     },
                     onUpdateAssistant = {
                         vm.updateSettings(
@@ -874,6 +873,7 @@ private fun TopBar(
     onCloseout: () -> Unit,
     onUpdateTitle: (String) -> Unit,
     onVoiceCall: () -> Unit,
+    onUpdateChatModel: (Model) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -897,6 +897,8 @@ private fun TopBar(
     }
     // 次要开关收进溢出菜单，图标行只保留抽屉/语音/更多
     var showOverflowMenu by remember { mutableStateOf(false) }
+    // 模型选择弹窗：由顶栏第二行（助手名 · 当前模型）触发
+    var showModelPicker by remember { mutableStateOf(false) }
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -925,58 +927,44 @@ private fun TopBar(
             }
         },
         title = {
-            Surface(
-                onClick = openTitleEdit,
-                color = Color.Transparent,
-            ) {
-                Column {
-                    val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
-                    val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    val assistantName = assistant.name.ifBlank {
-                        stringResource(R.string.assistant_page_default_assistant)
-                    }
-                    // 双头像版式：整栏只留助手名，像聊天软件的联系人标题；点它照样能改会话名
-                    //
-                    // 双头像版式下把这一行降一档（16sp/Medium -> 15sp/Normal）：它要跟左边的
-                    // 叠压头像读成一个整体，而不是一个独立的大标题 —— 浅色主题下
-                    // 「头像 + 大标题」叠在顶栏会让上方明显偏重。
-                    // 非双头像版式下这一行是会话标题（下面还挂着助手/模型/提供商副标题），
-                    // 是顶栏的主信息，保持原样不动。
-                    val titleStyle = if (topBarDualAvatar) {
-                        MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Normal,
-                        )
-                    } else {
-                        MaterialTheme.typography.titleMedium
-                    }
-                    Text(
-                        text = if (topBarDualAvatar) {
-                            assistantName
-                        } else {
-                            conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) }
-                        },
-                        maxLines = 1,
-                        style = titleStyle,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    val subtitle = when {
-                        topBarDualAvatar -> null
-                        model == null -> null
-                        provider == null -> null
-                        else -> "$assistantName / ${model.displayName} (${provider.name})"
-                    }
-                    if (subtitle != null) {
-                        Text(
-                            text = subtitle,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                val assistant = settings.getCurrentAssistant()
+                val model = settings.getCurrentChatModel()
+                val assistantName = assistant.name.ifBlank {
+                    stringResource(R.string.assistant_page_default_assistant)
                 }
+                // 普通模式：第一行是会话名，点它改标题。
+                //
+                // 双头像模式**不再单独占一行标题**（「栖」那一行整条取消）：左边已经有一对
+                // 叠压头像，再来一行助手名会让顶栏上方偏重，而名字在第二行里本来就有。
+                // 改名入口没丢 —— 双头像本身可点（navigationIcon 里的 ChatTopBarDualAvatar，
+                // onClick = openTitleEdit）。
+                if (!topBarDualAvatar) {
+                    Text(
+                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                        maxLines = 1,
+                        style = MaterialTheme.typography.titleMedium,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClickLabel = editTitleLabel, onClick = openTitleEdit),
+                    )
+                }
+                // 第二行：助手名 · 当前模型。**整行可点，打开模型选择**。
+                //
+                // 模型 chip 从输入框上方挪走之后，模型信息全仓只在顶栏这一行出现一次，
+                // 同时承担切换入口（用户本轮的要求）。它不是按钮，读作一行上下文，
+                // 所以不套 Surface、不加图标。
+                Text(
+                    text = if (model != null) "$assistantName · ${model.displayName}" else assistantName,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showModelPicker = true },
+                )
             }
         },
         actions = {
@@ -1065,6 +1053,18 @@ private fun TopBar(
                     Text(stringResource(R.string.cancel))
                 }
             },
+        )
+    }
+    if (showModelPicker) {
+        ModelSelectorSheet(
+            modelId = settings.getCurrentAssistant().chatModelId ?: settings.chatModelId,
+            providers = settings.providers,
+            type = ModelType.CHAT,
+            onSelect = {
+                onUpdateChatModel(it)
+                showModelPicker = false
+            },
+            onDismiss = { showModelPicker = false },
         )
     }
     titleState.EditStateContent { title, onUpdate ->
