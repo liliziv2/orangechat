@@ -182,11 +182,32 @@ private val lightScheme = lightColorScheme(
     surfaceContainerHighest = Color(0xFFE4E2D7),
 )
 
+/*
+ * ── 批 71：Night 语义色重映射（用户 2026-10-06）──────────────────────────────
+ * 「Night 不再沿用当前灰黑 Surface 的视觉关系，按『深靛蓝 + 蓝灰 + 暗砖红 +
+ *   玻璃绿 + 月光黄』重新映射整个 Chat 页面，不改结构，只改语义色。背景图保持可见。」
+ *
+ * 诊断：原 surface 家族色相其实已经是 ~278~285°（蓝紫），但**彩度只有 2.3~4.7**
+ * ⇒ 屏幕上读作灰黑。两个深色锚点 夜街角 #10192D(C* 15.08) / 夜蓝黑 #1B2A42(C* 17.21)
+ * 是高彩度靛蓝。
+ *
+ * 改法：**保留每个槽位的 L*（层级关系一字不动）**，色相统一 280°，彩度按深浅重分配 ——
+ *   深槽位（surfaceDim / Lowest / background / surface）→ 深靛蓝 C* 15.2 / 14.8
+ *   中槽位（…ContainerLow → …ContainerHighest / Variant / Bright）→ 蓝灰 C* 12.8 → 7.4
+ *   浅槽位（outline / primaryContainer）→ 蓝灰 C* 7.0
+ * 强调色与文字色**一字未动**：primary #82D0B4（玻璃绿）· secondary #F47E62 /
+ * secondaryContainer #B74A33（暗砖红）· tertiary #F1D37A（月光黄）· 夜纸白 #E7EDF5 ·
+ * onSurfaceVariant #A9B8CC（本来就是蓝灰）· error 家族（M3 标准）。
+ *
+ * 生成器 st/theme_b71.py（含 L*/C* 实测与越界自检）；牙齿 st/teeth_b71.py。
+ * ⚠️ 9 个 surface* 槽位仍被 Theme.kt 乘 interfaceSurfaceOpacity(0.82)，名义色 ≠ 屏幕色。
+ */
+
 private val darkScheme = darkColorScheme(
     // 夜玻璃绿
     primary = Color(0xFF82D0B4),
     onPrimary = Color(0xFF0B2A22),
-    primaryContainer = Color(0xFF48514D),
+    primaryContainer = Color(0xFF4B4F5A),
     onPrimaryContainer = Color(0xFFCFE9DC),
     // 暗砖红·提亮
     secondary = Color(0xFFF47E62),
@@ -197,7 +218,7 @@ private val darkScheme = darkColorScheme(
     // 月光黄
     tertiary = Color(0xFFF1D37A),
     onTertiary = Color(0xFF2A2210),
-    tertiaryContainer = Color(0xFF3C3A36),
+    tertiaryContainer = Color(0xFF363A46),
     // 夜纸白
     onTertiaryContainer = Color(0xFFE7EDF5),
     // M3 语义红
@@ -205,18 +226,18 @@ private val darkScheme = darkColorScheme(
     onError = Color(0xFF690005),
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
-    // 夜街角·软化
-    background = Color(0xFF1E1F24),
+    // 深靛蓝（夜街角同族，批 71 提彩度）
+    background = Color(0xFF151F33),
     // 夜纸白
     onBackground = Color(0xFFE7EDF5),
-    // 夜街角·软化
-    surface = Color(0xFF1E1F24),
+    // 深靛蓝（夜街角同族，批 71 提彩度）
+    surface = Color(0xFF151F33),
     // 夜纸白
     onSurface = Color(0xFFE7EDF5),
-    surfaceVariant = Color(0xFF383A40),
+    surfaceVariant = Color(0xFF363A46),
     onSurfaceVariant = Color(0xFFA9B8CC),
-    outline = Color(0xFF81848B),
-    outlineVariant = Color(0xFF35373D),
+    outline = Color(0xFF808490),
+    outlineVariant = Color(0xFF333743),
     // M3 标准
     scrim = Color(0xFF000000),
     // 夜纸白
@@ -225,12 +246,12 @@ private val darkScheme = darkColorScheme(
     inverseOnSurface = Color(0xFF10192D),
     // 玻璃绿
     inversePrimary = Color(0xFF1E4F49),
-    surfaceDim = Color(0xFF18191C),
-    surfaceBright = Color(0xFF3B3D43),
-    surfaceContainerLowest = Color(0xFF18191C),
-    surfaceContainerLow = Color(0xFF26272D),
-    // 夜蓝黑·软化
-    surfaceContainer = Color(0xFF2E3036),
-    surfaceContainerHigh = Color(0xFF34363D),
-    surfaceContainerHighest = Color(0xFF3B3D43),
+    surfaceDim = Color(0xFF0E192D),
+    surfaceBright = Color(0xFF393D48),
+    surfaceContainerLowest = Color(0xFF0E192D),
+    surfaceContainerLow = Color(0xFF202739),
+    // 蓝灰（夜蓝黑同族，批 71 提彩度）
+    surfaceContainer = Color(0xFF2A303F),
+    surfaceContainerHigh = Color(0xFF323642),
+    surfaceContainerHighest = Color(0xFF393D48),
 )
