@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -887,11 +888,11 @@ fun ChatInput(
                     // 单行态 / 多行态共用同一个 Row，只换对齐方式 ——
                     // 结构不变，按钮的位置就不会「跳」。
                     //
-                    // 容器内加 **12dp** 内边距（[InputContainerPadding]）：这是「Send 贴近
+                    // 容器内加 **14dp** 内边距（[InputContainerPadding]）：这是「Send 贴近
                     // 胶囊边界」的根治。以前操作行直接贴容器边缘，48dp 的发送盒子里那圈
                     // 实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
-                    // 内缩 12dp 后，发送圆右缘到胶囊边界恒为 12dp（单行态下缘更多一档，
-                    // 因为正文区 52dp 比按钮盒 48dp 高）—— 贴在右下角但不挤。
+                    // 内缩 14dp 后，发送圆右缘到胶囊边界恒为 14dp（单行态下缘与上缘同档，
+                    // 因为正文区已收到 48dp、与按钮盒齐平）—— 贴在右下角但不挤。
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1148,6 +1149,17 @@ private fun TextInputRow(
                     singleLine -> state.appendText("\n")
                 }
             },
+            // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 14dp：
+            // 1 行正文（20dp 行高）因此占 20 + 14×2 = 48dp，与 48dp 的操作按钮盒齐平，
+            // 文字不再「浮」在 52dp 的正文区中间。容器总高仍是
+            // max(48, 48) + 14×2 = 76dp，落在目标区间内。
+            // 多行态保持 M3 的默认值（左右上下各 16dp，= TextFieldDefaults
+            // .contentPaddingWithoutLabel()）—— 不硬编码，避免随 M3 版本漂移。
+            contentPadding = if (singleLine) {
+                PaddingValues(top = 14.dp, bottom = 14.dp, start = 16.dp, end = 16.dp)
+            } else {
+                TextFieldDefaults.contentPaddingWithoutLabel()
+            },
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
@@ -1224,7 +1236,7 @@ private fun QuickMessageButton(
  * 单行胶囊态容器高＝内容高（48dp 按钮盒与 1 行正文 52dp 取大者）＋ 上下各 12dp
  * ⇒ 约 76dp，[InputCapsuleShape] 的 `percent 50` 自动落成半径 38dp ⇒ 标准胶囊。
  */
-private val InputContainerPadding = 12.dp
+private val InputContainerPadding = 14.dp
 
 /**
  * 发送按钮的实心圆直径（整条容器唯一的实心强调色元素）。

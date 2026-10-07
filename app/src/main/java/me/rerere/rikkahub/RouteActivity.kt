@@ -486,17 +486,17 @@ class RouteActivity : ComponentActivity() {
                                         )
                                     if (LocalDarkMode.current) {
                                         // 夜间：单层、两点、连续（与 harbor / creamrose 同一套结构）。
-                                        // 色号取雾庭夜间 Background 锚点 #171C21，底图透出约三成。
+                                        // 色号取雾庭夜间 Background 锚点 #1A1416（深栗褐），底图透出约三成。
                                         painted.background(
                                             Brush.verticalGradient(
                                                 colors = listOf(
-                                                    Color(0xFF171C21).copy(alpha = 0.62f),
-                                                    Color(0xFF171C21).copy(alpha = 0.72f),
+                                                    Color(0xFF1A1416).copy(alpha = 0.62f),
+                                                    Color(0xFF1A1416).copy(alpha = 0.72f),
                                                 )
                                             )
                                         )
                                     } else {
-                                        // 日间：沿用 harbor 的四点结构；色号统一为雾庭日间底色 #F6F8FA（冷调近白）。
+                                        // 日间：沿用 harbor 的四点结构；色号统一为雾庭日间底色 #F7F3EE（奶油白）。
                                         painted.background(
                                             Brush.verticalGradient(
                                                 colors = listOf(

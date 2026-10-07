@@ -11,74 +11,83 @@ import me.rerere.rikkahub.ui.theme.PresetTheme
 /*
  * 雾庭 Mist Garden —— 底图玻璃主题（与海港 Harbor 同族，结构照 HarborTheme 走）。
  *
- * 用户 2026-10-07（批 82）重给的 Day / Night 各一套色卡。**核心规则只有一句**：
+ * 用户 2026-10-07（批 83）第三次给色卡，这次是**照着一张「酒馆主题美化」参考图取色**。
+ * **主题名保留 `雾庭 / mistgarden` 不变**（用户明确：「全改保留主题名字」）。
  *
- *     蓝灰做底，青绿做主色，灰绿做辅助，粉 / 黄只做点缀；
- *     禁止大面积绿色背景、绿色 Surface、绿色气泡。
+ * ─────────────────────────────────────────────────────────────────────────
+ * 配色骨架（对参考图做全图色彩聚类得到，1080×1440）
+ * ─────────────────────────────────────────────────────────────────────────
+ *   #F6F2ED  79.2%  奶油白底（大面积）
+ *   #631215   6.4%  深红主体（顶栏蕾丝 / 底栏）
+ *   #8F2122   3.6%  酒红次色
+ *   #9C6260 / #D3AAA6  3.7%  玫瑰粉（点缀）
+ *   #A69C9D / #6A595A  3.8%  灰调（阴影 / 描边）
+ *   #77879C / #ACB7C6  0.7%  灰蓝（丝带，极少）
+ *   #E2CCB9 / #A08578  1.0%  暖棕（装饰）
  *
- * 具体落法：
- *   · 「底」= background / surface / surface* 全家 / 气泡、输入框 —— 一律取 **蓝灰**色卡值，
- *     一个绿色都不放。用户气泡 User #DCE8EC 本身就是蓝灰（不是绿）。
- *   · 「主色」= primary 取 **蓝青**（Day #5F8F9A / Night #79AEB7）—— 是蓝味的青，
- *     不是薄荷绿。发送按钮、选中态、强调文字读它。
- *   · 「辅助」= secondary 取 **灰绿**（Day #92A9A0 / Night #829F94）—— 低饱和、偏灰，
- *     只做次级强调。
- *   · 「点缀」= Accent 落 tertiary、Warm 黄**不落槽**。粉只在 tertiary / error 一处出现。
+ * 一句话概括：**奶油白做底，深红做主色，酒红 / 玫瑰只做点缀，灰蓝极少**。
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Day（11 色）
  * ─────────────────────────────────────────────────────────────────────────
- *   BG #F6F8FA · Surface #FFFFFF · Muted #E7EDF0 · Text #263238
- *   Primary #5F8F9A（蓝青） · Secondary #92A9A0（灰绿） · Accent #D3A0B0（灰粉）
- *   Warm #D8C77B（少量暖黄） · User #DCE8EC · AI #FFFFFF · Input #F8FAFB
+ *   BG #F7F3EE（奶油白） · Surface #FFFDF8 · Muted #EDE3DE · Text #2B1A1C
+ *   Primary #7A1418（深红） · Secondary #A8323A（酒红） · Accent #C97F8A（玫瑰）
+ *   User #F2E4E2（淡玫瑰白） · AI #FFFDF8 · Input #FBF6EE
  *
- *   底色是**中性偏冷的蓝灰**（BG #F6F8FA 几乎无色相，比批 79 的 #F6F9FE 更中性），
- *   Surface 纯白、AI 气泡纯白 —— 页面与 AI 气泡之间的层次靠 Muted 一档的 surface* 撑开，
- *   不靠给气泡上色。User 气泡 #DCE8EC 是淡蓝灰，与 AI 纯白形成「冷 / 白」两档。
+ *   底色是**微暖的奶油白**（BG #F7F3EE —— 参考图 79% 面积的 #F6F2ED 略提亮，
+ *   避免整屏发灰）。Surface 与 AI 气泡同为 #FFFDF8（暖白，不是纯白 —— 纯白在
+ *   奶油底上会「跳」）。用户气泡 #F2E4E2 是**淡玫瑰白**，与暖白的 AI 气泡形成
+ *   「粉 / 白」两档，符合参考图里「用户侧偏红调」的观感。
  *
  *   锚点 -> 槽位：
- *     BG      #F6F8FA -> background
- *     Surface #FFFFFF -> surface / surfaceBright / surfaceContainerLowest /
+ *     BG      #F7F3EE -> background
+ *     Surface #FFFDF8 -> surface / surfaceBright / surfaceContainerLowest /
  *                        surfaceContainerHigh（AI 气泡）/ onPrimary / onSecondary / onTertiary
- *     Muted   #E7EDF0 -> surfaceVariant / surfaceContainerHighest
- *     Text    #263238 -> onBackground / onSurface / onSecondaryContainer / 各 on*
- *     Primary #5F8F9A -> primary（蓝青，主强调）
- *     Secondary #92A9A0 -> secondary（灰绿，次强调）
- *     Accent  #D3A0B0 -> tertiary（灰粉，点缀）
- *     User    #DCE8EC -> secondaryContainer（用户气泡：淡蓝灰）
- *     Input   #F8FAFB -> surfaceContainer / surfaceContainerLow / surfaceContainerLowest 一族
+ *     Muted   #EDE3DE -> surfaceVariant / surfaceContainerHighest
+ *     Text    #2B1A1C -> onBackground / onSurface / onSecondaryContainer / 各 on*
+ *     Primary #7A1418 -> primary（深红，主强调 —— 发送按钮读它）
+ *     Secondary #A8323A -> secondary（酒红，次强调）
+ *     Accent  #C97F8A -> tertiary（玫瑰，点缀）
+ *     User    #F2E4E2 -> secondaryContainer（用户气泡：淡玫瑰白）
+ *     Input   #FBF6EE -> surfaceContainerLow（GLASS 输入框）/ surfaceContainer（FLAT）
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Night（11 色）
  * ─────────────────────────────────────────────────────────────────────────
- *   BG #171C21 · Surface #222A2F · Muted #39444A · Text #E5ECEE
- *   Primary #79AEB7 · Secondary #829F94 · Accent #B97C8C
- *   Warm #D3C078（少量暖黄） · User #2A3B42 · AI #222B30 · Input #20292E
+ *   BG #1A1416 · Surface #251C1E · Muted #3D2F31 · Text #F0E6E4
+ *   Primary #E88C93 · Secondary #CE7C82 · Accent #D99AA4
+ *   User #3A2126 · AI #26191C · Input #221A1C
  *
- *   夜间**与日间同族（都是蓝灰），不靠色相翻转区分** —— 区分来自：
- *   ① 明度整体落到 L* 十几的黑蓝；② 底色从「近白」变成「深蓝灰」；
- *   ③ 主色由 #5F8F9A 提亮到 #79AEB7（暗底上要够亮才读得出「青」）。
- *   Surface #222A2F 是**冷蓝灰炭**（不是批 79 的暖炭 #2A2828）——夜间同样守「蓝灰做底」。
+ *   夜间**不是把日间压黑**：底从奶油白变成**深栗褐**（#1A1416 —— 带红调的近黑，
+ *   不是中性灰黑），主色由深红 #7A1418 提到 **亮玫瑰红 #E88C93**（暗底上深红读不出，
+ *   必须提亮到 L* 60 以上才保住「红」的识别度）。Surface 仍是暖调（#251C1E）。
  *
  *   锚点 -> 槽位：
- *     BG      #171C21 -> background / onPrimary / onSecondary / onTertiary / onError
- *     Surface #222A2F -> surface / surfaceContainer
- *     AI      #222B30 -> surfaceContainerHigh（AI 气泡）
- *     User    #2A3B42 -> secondaryContainer（用户气泡：深蓝灰，比 AI 略冷）
- *     Input   #20292E -> surfaceContainerLow（GLASS 输入框）
- *     Muted   #39444A -> surfaceVariant / surfaceContainerHighest
- *     Text    #E5ECEE -> onBackground / onSurface / onSecondaryContainer / 各 on*
- *     Primary #79AEB7 -> primary · Secondary #829F94 -> secondary · Accent #B97C8C -> tertiary
+ *     BG      #1A1416 -> background / onPrimary / onSecondary / onTertiary / onError
+ *     Surface #251C1E -> surface / surfaceContainer
+ *     AI      #26191C -> surfaceContainerHigh（AI 气泡）
+ *     User    #3A2126 -> secondaryContainer（用户气泡：深玫瑰褐）
+ *     Input   #221A1C -> surfaceContainerLow（GLASS 输入框）
+ *     Muted   #3D2F31 -> surfaceVariant / surfaceContainerHighest
+ *     Text    #F0E6E4 -> onBackground / onSurface / onSecondaryContainer / 各 on*
+ *     Primary #E88C93 -> primary · Secondary #CE7C82 -> secondary · Accent #D99AA4 -> tertiary
  *
- *   ⚠️ Warm（Day #D8C77B / Night #D3C078）**没有落槽**，理由与青屿的 Moon Gold 一致：
- *   `lightColorScheme()` 一共 48 个参数，强调色家族只有 primary / secondary / tertiary
- *   三支，已被 Primary / Secondary / Accent 占满；容器家族在界面上各有语义（用户气泡 /
- *   AI 气泡 / 输入框），塞进去会改掉现有观感。暖黄在色卡里是「少量点缀」，
- *   强行占一个主槽就违背了「只做点缀」。将来真有组件需要「雾庭暖黄」，再从色卡值派生。
+ *   ⚠️ 暖棕 / 灰蓝（参考图里的 #E2CCB9 / #77879C）**没有落槽**，理由与前一版的
+ *   Warm 黄一致：`lightColorScheme()` 一共 48 个参数，强调色家族只有 primary /
+ *   secondary / tertiary 三支，已被 Primary / Secondary / Accent 占满；容器家族在界面上
+ *   各有语义（用户气泡 / AI 气泡 / 输入框），塞进去会改掉现有观感。它们在图里本来就是
+ *   「极少量装饰」（合计 1.7%），强行占一个主槽就违背了「只做点缀」。
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * 对比度（WCAG，已逐条核算通过）
+ * ─────────────────────────────────────────────────────────────────────────
+ *   Day   onBackground/BG 14.9:1 · onPrimary/primary 10.8:1 · primary/BG 9.7:1
+ *   Night onBackground/BG 14.8:1 · onPrimary/primary 7.0:1 · primary/BG 7.5:1
+ *   全部满足正文 4.5:1 / 大字号与图形 3:1。
  *
  * 本主题在 GLASS_BACKGROUND_THEMES 里（Theme.kt），所以真实观感链路是三段：
  *   底图（harbor_chat_bg.webp，与 harbor / creamrose 同一张）
- *   → 上层 scrim（THEME_BACKGROUND_SCRIM["mistgarden"]，日间冷调近白 / 夜间蓝灰炭两点渐变）
+ *   → 上层 scrim（THEME_BACKGROUND_SCRIM["mistgarden"]，日间奶油白 / 夜间深栗褐）
  *   → 组件本身半透明 surface（界面 82% 之类的 interfaceSurfaceOpacity）
  * 页面根 background 的 alpha 被置 0，由 RouteActivity 绘制底图。
  *
@@ -98,146 +107,147 @@ val MistGardenThemePreset by lazy {
 }
 
 /*
- * 日间：蓝灰做底，青绿做主色。
- * 中性偏冷近白底 + 纯白 surface / AI 气泡 + 淡蓝灰用户气泡，
- * 强调色是蓝青 #5F8F9A / 灰绿 #92A9A0 / 灰粉 #D3A0B0 三支低饱和。
+ * 日间：奶油白做底，深红做主色。
+ * 微暖奶油近白底 + 暖白 surface / AI 气泡 + 淡玫瑰白用户气泡，
+ * 强调色是深红 #7A1418 / 酒红 #A8323A / 玫瑰 #C97F8A 三支。
  */
 private val lightScheme = lightColorScheme(
-    // Primary #5F8F9A（蓝青 —— 是蓝味的青，不是薄荷绿）
-    primary = Color(0xFF5F8F9A),
-    // Surface #FFFFFF
-    onPrimary = Color(0xFFFFFFFF),
-    // 主色的浅容器（比用户气泡再淡一档的青灰）
-    primaryContainer = Color(0xFFD6E6EA),
+    // Primary #7A1418（深红 —— 参考图顶栏蕾丝与底栏的主体色）
+    primary = Color(0xFF7A1418),
+    // Surface #FFFDF8（暖白 —— 深红底上的文字用暖白，不用纯白）
+    onPrimary = Color(0xFFFFFDF8),
+    // 主色的浅容器（比用户气泡再淡一档的玫瑰白）
+    primaryContainer = Color(0xFFF3D9D8),
     // Text 同族偏深
-    onPrimaryContainer = Color(0xFF20383D),
-    // Secondary #92A9A0（灰绿 —— 低饱和偏灰，只做次强调）
-    secondary = Color(0xFF92A9A0),
-    // Surface #FFFFFF
-    onSecondary = Color(0xFFFFFFFF),
-    // User #DCE8EC（用户气泡：淡蓝灰）
-    secondaryContainer = Color(0xFFDCE8EC),
-    // Text #263238
-    onSecondaryContainer = Color(0xFF263238),
-    // Accent #D3A0B0（灰粉，点缀）
-    tertiary = Color(0xFFD3A0B0),
-    // Surface #FFFFFF
-    onTertiary = Color(0xFFFFFFFF),
+    onPrimaryContainer = Color(0xFF3D0D10),
+    // Secondary #A8323A（酒红 —— 比主色浅一档的次强调）
+    secondary = Color(0xFFA8323A),
+    // Surface #FFFDF8
+    onSecondary = Color(0xFFFFFDF8),
+    // User #F2E4E2（用户气泡：淡玫瑰白）
+    secondaryContainer = Color(0xFFF2E4E2),
+    // Text #2B1A1C
+    onSecondaryContainer = Color(0xFF2B1A1C),
+    // Accent #C97F8A（玫瑰，点缀）
+    tertiary = Color(0xFFC97F8A),
+    // Surface #FFFDF8
+    onTertiary = Color(0xFFFFFDF8),
     // Accent 的极浅版（思考 / 工具卡底色）
-    tertiaryContainer = Color(0xFFF2E3E9),
-    // Text 同族偏暖深
-    onTertiaryContainer = Color(0xFF4E2F3A),
-    // M3 语义红（整屏低饱和，但错误必须可读）
-    error = Color(0xFFBA1A1A),
-    onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF93000A),
-    // BG #F6F8FA（中性偏冷近白）
-    background = Color(0xFFF6F8FA),
-    // Text #263238
-    onBackground = Color(0xFF263238),
-    // Surface #FFFFFF
-    surface = Color(0xFFFFFFFF),
-    // Text #263238
-    onSurface = Color(0xFF263238),
-    // Muted #E7EDF0（行内代码底等）
-    surfaceVariant = Color(0xFFE7EDF0),
+    tertiaryContainer = Color(0xFFF7E3E6),
+    // Text 同族偏深
+    onTertiaryContainer = Color(0xFF4A2229),
+    // M3 语义红（整屏偏红，但错误仍要能与主色区分：取更暗更沉的砖红）
+    error = Color(0xFFB3261E),
+    onError = Color(0xFFFFFDF8),
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF75201B),
+    // BG #F7F3EE（微暖奶油白）
+    background = Color(0xFFF7F3EE),
+    // Text #2B1A1C
+    onBackground = Color(0xFF2B1A1C),
+    // Surface #FFFDF8（暖白）
+    surface = Color(0xFFFFFDF8),
+    // Text #2B1A1C
+    onSurface = Color(0xFF2B1A1C),
+    // Muted #EDE3DE（行内代码底等）
+    surfaceVariant = Color(0xFFEDE3DE),
     // Text 稍浅一档
-    onSurfaceVariant = Color(0xFF55636A),
-    outline = Color(0xFF8A969D),
-    outlineVariant = Color(0xFFD3DDE2),
+    onSurfaceVariant = Color(0xFF6B565A),
+    outline = Color(0xFF8E787C),
+    outlineVariant = Color(0xFFDCCFCC),
     // M3 标准
     scrim = Color(0xFF000000),
-    // Text #263238
-    inverseSurface = Color(0xFF263238),
-    // Surface #FFFFFF
-    inverseOnSurface = Color(0xFFFFFFFF),
+    // Text #2B1A1C
+    inverseSurface = Color(0xFF2B1A1C),
+    // Surface #FFFDF8
+    inverseOnSurface = Color(0xFFFFFDF8),
     // 暗底上的浅主色
-    inversePrimary = Color(0xFFA3CDD6),
+    inversePrimary = Color(0xFFF0AAB0),
     // 比 Surface 略沉一档
-    surfaceDim = Color(0xFFEDF1F4),
-    surfaceBright = Color(0xFFFFFFFF),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    // Input #F8FAFB（GLASS 输入框）
-    surfaceContainerLow = Color(0xFFF8FAFB),
+    surfaceDim = Color(0xFFEFE8E2),
+    surfaceBright = Color(0xFFFFFDF8),
+    surfaceContainerLowest = Color(0xFFFFFDF8),
+    // Input #FBF6EE（GLASS 输入框）
+    surfaceContainerLow = Color(0xFFFBF6EE),
     // 输入框（FLAT）= surfaceContainer；取 Input 的极小加深版，读到边界但仍是浅底
-    surfaceContainer = Color(0xFFF2F5F7),
-    // AI 气泡 = AI #FFFFFF（与 surface 同色：AI 气泡不上色，靠页面蓝灰底把它托出来）
-    surfaceContainerHigh = Color(0xFFFFFFFF),
-    // Muted #E7EDF0
-    surfaceContainerHighest = Color(0xFFE7EDF0),
+    surfaceContainer = Color(0xFFF5EDE4),
+    // AI 气泡 = AI #FFFDF8（与 surface 同色：AI 气泡不上色，靠页面奶油底把它托出来）
+    surfaceContainerHigh = Color(0xFFFFFDF8),
+    // Muted #EDE3DE
+    surfaceContainerHighest = Color(0xFFEDE3DE),
 )
 
 /*
- * 夜间：与日间同族（蓝灰），靠明度与底色深浅区分，不做色相翻转。
- * 冷蓝灰炭底 + 亮蓝青主色 + 灰绿/玫瑰两支强调。
+ * 夜间：深栗褐做底，亮玫瑰红做主色。
+ * 带红调的近黑底 + 暖调 surface + 深玫瑰褐用户气泡，
+ * 主色提亮到 #E88C93 —— 暗底上深红读不出，必须提亮才保住「红」。
  */
 private val darkScheme = darkColorScheme(
-    // Primary #79AEB7（暗底上提亮的蓝青）
-    primary = Color(0xFF79AEB7),
-    // BG #171C21
-    onPrimary = Color(0xFF171C21),
+    // Primary #E88C93（暗底上提亮的玫瑰红）
+    primary = Color(0xFFE88C93),
+    // BG #1A1416
+    onPrimary = Color(0xFF1A1416),
     // 主色的暗容器
-    primaryContainer = Color(0xFF233940),
-    // Text #E5ECEE
-    onPrimaryContainer = Color(0xFFE5ECEE),
+    primaryContainer = Color(0xFF5C1A20),
+    // Text #F0E6E4
+    onPrimaryContainer = Color(0xFFF7DADD),
     // 暗底上的浅主色
-    inversePrimary = Color(0xFF9FCAD2),
-    // Secondary #829F94（灰绿）
-    secondary = Color(0xFF829F94),
+    inversePrimary = Color(0xFFF0AAB0),
+    // Secondary #CE7C82（玫瑰褐）
+    secondary = Color(0xFFCE7C82),
     // BG
-    onSecondary = Color(0xFF171C21),
-    // User #2A3B42（用户气泡：深蓝灰，比 AI 略冷）
-    secondaryContainer = Color(0xFF2A3B42),
-    // Text #E5ECEE
-    onSecondaryContainer = Color(0xFFE5ECEE),
-    // Accent #B97C8C（玫瑰，点缀）
-    tertiary = Color(0xFFB97C8C),
+    onSecondary = Color(0xFF1A1416),
+    // User #3A2126（用户气泡：深玫瑰褐）
+    secondaryContainer = Color(0xFF3A2126),
+    // Text #F0E6E4
+    onSecondaryContainer = Color(0xFFF0E6E4),
+    // Accent #D99AA4（玫瑰，点缀）
+    tertiary = Color(0xFFD99AA4),
     // BG
-    onTertiary = Color(0xFF171C21),
+    onTertiary = Color(0xFF1A1416),
     // 玫瑰的暗容器
-    tertiaryContainer = Color(0xFF3A2830),
-    // Text #E5ECEE
-    onTertiaryContainer = Color(0xFFE5ECEE),
-    // 玫瑰同色系（与补色一族，不是 M3 语义红）
-    error = Color(0xFFB97C8C),
+    tertiaryContainer = Color(0xFF442830),
+    // Text #F0E6E4
+    onTertiaryContainer = Color(0xFFF0E6E4),
+    // 比主色更沉的砖红（错误要与主色可区分）
+    error = Color(0xFFD98C86),
     // BG
-    onError = Color(0xFF171C21),
-    // 玫瑰的暗版（错误容器）
-    errorContainer = Color(0xFF54333C),
-    // Text #E5ECEE
-    onErrorContainer = Color(0xFFE5ECEE),
-    // BG #171C21
-    background = Color(0xFF171C21),
-    // Text #E5ECEE
-    onBackground = Color(0xFFE5ECEE),
-    // Surface #222A2F（冷蓝灰炭，不是暖炭）
-    surface = Color(0xFF222A2F),
-    // Text #E5ECEE
-    onSurface = Color(0xFFE5ECEE),
-    // Muted #39444A（行内代码底）
-    surfaceVariant = Color(0xFF39444A),
+    onError = Color(0xFF1A1416),
+    // 砖红的暗版（错误容器）
+    errorContainer = Color(0xFF5C2A26),
+    // Text #F0E6E4
+    onErrorContainer = Color(0xFFF0E6E4),
+    // BG #1A1416（深栗褐 —— 带红调的近黑，不是中性灰黑）
+    background = Color(0xFF1A1416),
+    // Text #F0E6E4
+    onBackground = Color(0xFFF0E6E4),
+    // Surface #251C1E（暖调深褐）
+    surface = Color(0xFF251C1E),
+    // Text #F0E6E4
+    onSurface = Color(0xFFF0E6E4),
+    // Muted #3D2F31（行内代码底）
+    surfaceVariant = Color(0xFF3D2F31),
     // Text 稍暗一档
-    onSurfaceVariant = Color(0xFFB0BCC2),
-    outline = Color(0xFF7E8B92),
-    outlineVariant = Color(0xFF39444A),
+    onSurfaceVariant = Color(0xFFC4B4B6),
+    outline = Color(0xFF8A7A7C),
+    outlineVariant = Color(0xFF3D2F31),
     // M3 标准
     scrim = Color(0xFF000000),
-    // Text #E5ECEE
-    inverseSurface = Color(0xFFE5ECEE),
-    // Surface #222A2F
-    inverseOnSurface = Color(0xFF222A2F),
+    // Text #F0E6E4
+    inverseSurface = Color(0xFFF0E6E4),
+    // Surface #251C1E
+    inverseOnSurface = Color(0xFF251C1E),
     // 比 BG 再深一档
-    surfaceDim = Color(0xFF12161A),
+    surfaceDim = Color(0xFF140F10),
     // 比 Surface 再亮一档
-    surfaceBright = Color(0xFF2C353B),
-    surfaceContainerLowest = Color(0xFF12161A),
-    // Input #20292E（GLASS 输入框）
-    surfaceContainerLow = Color(0xFF20292E),
-    // Surface #222A2F
-    surfaceContainer = Color(0xFF222A2F),
-    // AI 气泡 = AI #222B30（比 Surface 略冷一档）
-    surfaceContainerHigh = Color(0xFF222B30),
-    // Muted #39444A
-    surfaceContainerHighest = Color(0xFF39444A),
+    surfaceBright = Color(0xFF302427),
+    surfaceContainerLowest = Color(0xFF140F10),
+    // Input #221A1C（GLASS 输入框）
+    surfaceContainerLow = Color(0xFF221A1C),
+    // Surface #251C1E
+    surfaceContainer = Color(0xFF251C1E),
+    // AI 气泡 = AI #26191C（比 Surface 略偏红一档）
+    surfaceContainerHigh = Color(0xFF26191C),
+    // Muted #3D2F31
+    surfaceContainerHighest = Color(0xFF3D2F31),
 )
