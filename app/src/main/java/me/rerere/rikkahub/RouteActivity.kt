@@ -479,9 +479,10 @@ class RouteActivity : ComponentActivity() {
                                     //
                                     // 与港口的区分点（用户点名要求「夜间背景底色要跟港口区分开」）：
                                     // 港口夜间 scrim 是中性冷蓝 #141A22（页面 C* 近乎 0），
-                                    // 爱丽丝夜间换成**带红调的深棕炭** #2A100E —— 色相从 220 度
-                                    // 转到 33 度一带，页面因此是「暗红褐」而不是「冷灰」，
-                                    // 与港口一眼分得开，且承接主调红的身份。
+                                    // 爱丽丝夜间换成**枣红** #2A1016 —— 色相从 220 度
+                                    // 转到 11 度一带（与苹果皮的冷红同族），页面因此是
+                                    // 「枣红褐」而不是「冷灰」，与港口一眼分得开，
+                                    // 且承接主调红的身份。
                                     //
                                     // 日间也是**与港口同构的 4 段**（top → accent → bottom → bottom），
                                     // 不再是自己那套 3 段半透明薄雾 —— 用户点名「日间要跟港口一样有渐变」。
@@ -491,13 +492,13 @@ class RouteActivity : ComponentActivity() {
                                     val aliceScrim = if (LocalDarkMode.current) {
                                         listOf(
                                             // 夜间：**单层、两点、连续**（与 harbor / creamrose 同一套结构）。
-                                            // 色号 #2A100E（暗红褐，h≈33）—— 这是与港口
+                                            // 色号 #2A1016（枣红，h≈11）—— 这是与港口
                                             // 中性冷蓝 #141A22 的核心区分，也比旧值 #201418
-                                            // （C*=7.0）更红：C*=14.7，与奶油玫瑰拉开。
+                                            // （h≈272，偏紫）更红：C*=14.4，与奶油玫瑰拉开。
                                             // alpha 沿用 0.62→0.72，底图透出约三成，
                                             // 页面按「底图可见优先」整体偏亮。
-                                            Color(0xFF2A100E).copy(alpha = 0.62f),
-                                            Color(0xFF2A100E).copy(alpha = 0.72f),
+                                            Color(0xFF2A1016).copy(alpha = 0.62f),
+                                            Color(0xFF2A1016).copy(alpha = 0.72f),
                                         )
                                     } else {
                                         val s = THEME_BACKGROUND_SCRIM.getValue("alice")
