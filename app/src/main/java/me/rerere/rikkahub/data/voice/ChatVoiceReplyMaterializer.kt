@@ -7,7 +7,10 @@ package me.rerere.rikkahub.data.voice
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.ChatVoiceReplySegment
+import me.rerere.ai.ui.ChatVoiceReplySegmentType
 
 private const val TAG = "ChatVoiceReply"
 
@@ -60,7 +63,27 @@ suspend fun materializeChatVoiceReply(
     if (voiceParts.none { it is UIMessagePart.VoiceMessage }) {
         return message.withPlainChatVoiceText(sourceText, nonTextParts)
     }
-    return message.copy(parts = voiceParts + nonTextParts)
+    // 挂上混排标记：渲染侧靠它区分「混排」与「自动整条转语音」——两者的 parts
+    // 形态都是 Text + VoiceMessage 并存，光看 parts 分不出来（见 ChatMessage 的
+    // hideTextForVoice）。这个 annotation 类型本来就为混排设计（Message.kt），
+    // 只是此前没人写入。兜底路径（上面的 withPlainChatVoiceText）刻意不挂：
+    // 那是纯文本，不是混排。
+    val voiceReplyAnnotation = UIMessageAnnotation.ChatVoiceReply(
+        segments = segments.map { segment ->
+            ChatVoiceReplySegment(
+                type = if (segment.type == ChatVoiceSegmentType.VOICE) {
+                    ChatVoiceReplySegmentType.VOICE
+                } else {
+                    ChatVoiceReplySegmentType.TEXT
+                },
+                text = segment.text,
+            )
+        }
+    )
+    return message.copy(
+        parts = voiceParts + nonTextParts,
+        annotations = message.annotations + voiceReplyAnnotation,
+    )
 }
 
 /**

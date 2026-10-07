@@ -587,11 +587,22 @@ private fun MessagePartsBlock(
                             part.text.replace(Regex("\\[zip:[^\\]]+\\]", RegexOption.IGNORE_CASE), "")
                         }
                         
-                        // 关掉「语音条旁保留文字」时，有语音条就整块不渲染，避免一条回复占两份屏幕。
+                        // 关掉「语音条旁保留文字」时，整块不渲染，避免一条回复占两份屏幕。
+                        //
+                        // ⚠️ 但不能连混排一起隐藏：一条回复里 Text/Voice/Text/Voice 交错时，
+                        // Text 段与语音条是**不同内容**，隐藏文字等于把混排废掉。
+                        // 「混排」与「自动整条转语音」的 parts 形态在结构上无法区分
+                        // （后者是 [Text(全文), VoiceMessage(全文)]，前者是 Text/Voice 交错），
+                        // 所以靠 materializeChatVoiceReply 挂上的 ChatVoiceReply annotation
+                        // 来判定：有该 annotation ⇒ 混排 ⇒ 保留文字。
+                        //
                         // 判断放在 SelectionContainer 外面：留一个空容器的话，父 Column 的 spacedBy
                         // 仍会为它算一份间距，把语音条整体往下推歪。语音条仍在后面的 part 分支渲染。
+                        val isInterleavedVoiceReply =
+                            annotations.any { it is UIMessageAnnotation.ChatVoiceReply }
                         val hideTextForVoice = role == MessageRole.ASSISTANT &&
                             !displaySettings.showTextWithVoiceMessage &&
+                            !isInterleavedVoiceReply &&
                             parts.any { it is UIMessagePart.VoiceMessage }
                         if (!hideTextForVoice) {
                         SelectionContainer {
