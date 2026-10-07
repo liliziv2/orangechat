@@ -475,41 +475,6 @@ class RouteActivity : ComponentActivity() {
                                     }
                                 }
 
-                                "mistgarden" -> {
-                                    // 雾庭与 Harbor 共用同一张底图和铺图逻辑，只替换上层 scrim；
-                                    // 这样两者的玻璃 / 层级效果完全一致（与 creamrose 同一种做法）。
-                                    val scrim = THEME_BACKGROUND_SCRIM.getValue("mistgarden")
-                                    val painted = base
-                                        .paint(
-                                            painter = painterResource(id = R.drawable.harbor_chat_bg),
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                    if (LocalDarkMode.current) {
-                                        // 夜间：单层、两点、连续（与 harbor / creamrose 同一套结构）。
-                                        // 色号取雾庭夜间 Background 锚点 #1A1416（深栗褐），底图透出约三成。
-                                        painted.background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(0xFF1A1416).copy(alpha = 0.62f),
-                                                    Color(0xFF1A1416).copy(alpha = 0.72f),
-                                                )
-                                            )
-                                        )
-                                    } else {
-                                        // 日间：沿用 harbor 的四点结构；色号统一为雾庭日间底色 #F7F3EE（奶油白）。
-                                        painted.background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(scrim.top.toLong()),
-                                                    Color(scrim.accent.toLong()).copy(alpha = 0.12f),
-                                                    Color(scrim.bottom.toLong()).copy(alpha = 0.10f),
-                                                    Color(scrim.bottom.toLong()),
-                                                )
-                                            )
-                                        )
-                                    }
-                                }
-
                                 "creamrose" -> {
                                     // 奶油玫瑰与 Harbor 共用同一张底图和铺图逻辑，
                                     // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。

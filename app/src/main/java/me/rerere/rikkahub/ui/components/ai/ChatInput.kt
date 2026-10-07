@@ -570,7 +570,7 @@ fun ChatInput(
     //
     // - 单行（胶囊）态用 [InputCapsuleShape] = `percent 50`（半径恒等于半高）。
     //   胶囊的定义就是「两端半圆」，半径必须跟着高度走 —— 单行容器高
-    //   = 48dp 按钮盒与正文区（1 行 52dp）取大者 ＋ 上下各 12dp 内边距 ≈ 76dp，
+    //   = 44dp 按钮盒与正文区（1 行 44dp）取大者 ＋ 上下各 10dp 内边距 = 64dp，
     //   半高 38dp 自动成为半径；字体放大把单行撑高时形状依旧成立。
     // - 多行（展开）态用 [InputEditorShape] = 28dp 固定圆角。容器 100dp+ 高，
     //   读作圆角矩形。
@@ -832,7 +832,7 @@ fun ChatInput(
                             enter = fadeIn() + scaleIn(),
                             exit = fadeOut() + scaleOut(),
                         ) {
-                            // 点击区与实心圆同为 48dp：五个按钮共用同一条中心线、
+                            // 点击区与实心圆同为 44dp：五个按钮共用同一条中心线、
                             // 同一档视觉尺度。实心圆等于点击区（不再小一档），
                             // 圆内的箭头图标仍是 24dp（CapsuleActionIconSize）。
                             Box(
@@ -888,11 +888,11 @@ fun ChatInput(
                     // 单行态 / 多行态共用同一个 Row，只换对齐方式 ——
                     // 结构不变，按钮的位置就不会「跳」。
                     //
-                    // 容器内加 **14dp** 内边距（[InputContainerPadding]）：这是「Send 贴近
+                    // 容器内加 **10dp** 内边距（[InputContainerPadding]）：这是「Send 贴近
                     // 胶囊边界」的根治。以前操作行直接贴容器边缘，48dp 的发送盒子里那圈
                     // 实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
-                    // 内缩 14dp 后，发送圆右缘到胶囊边界恒为 14dp（单行态下缘与上缘同档，
-                    // 因为正文区已收到 48dp、与按钮盒齐平）—— 贴在右下角但不挤。
+                    // 内缩 10dp 后，发送圆右缘到胶囊边界恒为 10dp（单行态下缘与上缘同档，
+                    // 因为正文区已收到 44dp、与 44dp 按钮盒齐平）—— 贴在右下角但不挤。
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -928,7 +928,7 @@ fun ChatInput(
                             // 换行之后操作行才落在正文**下方**（P1 结构），
                             // 固定在容器底部，不随正文首行位置上下跳。
                             //
-                            // 行高由 48dp 的按钮盒子决定（= CapsuleActionSize），没有额外
+                            // 行高由 44dp 的按钮盒子决定（= CapsuleActionSize），没有额外
                             // 内边距 —— 五个按钮的中心线因此始终重合在同一条水平线上。
                             if (isMultiLine) {
                                 Row(
@@ -1010,8 +1010,8 @@ private fun ActionIconButton(
     // 功能按钮统一尺寸与形状。
     //
     // 操作行里同时有 + / 搜索 / 思考 / 语音 / 发送 五个按钮，点击区统一走
-    // CapsuleActionSize(48dp)；图标统一走 CapsuleActionIconSize(24dp)，
-    // 由调用点画在盒子正中。发送按钮的实心圆是 ActionButtonSize(48dp)，
+    // CapsuleActionSize(44dp)；图标统一走 CapsuleActionIconSize(24dp)，
+    // 由调用点画在盒子正中。发送按钮的实心圆是 ActionButtonSize(44dp)，
     // 与点击区同大 —— 五个按钮因此共用同一条中心线、同一档视觉尺度。
     // 盒子本身是透明的（color = Color.Transparent），只贡献留白，不画方块。
     // 形状一律正圆。
@@ -1149,14 +1149,14 @@ private fun TextInputRow(
                     singleLine -> state.appendText("\n")
                 }
             },
-            // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 14dp：
-            // 1 行正文（20dp 行高）因此占 20 + 14×2 = 48dp，与 48dp 的操作按钮盒齐平，
-            // 文字不再「浮」在 52dp 的正文区中间。容器总高仍是
-            // max(48, 48) + 14×2 = 76dp，落在目标区间内。
+            // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 12dp：
+            // 1 行正文（20dp 行高）因此占 20 + 12×2 = 44dp，与 44dp 的操作按钮盒齐平，
+            // 文字不再「浮」在正文区中间。容器总高
+            // max(44, 44) + 10×2 = 64dp，是用户点名的单行目标高度。
             // 多行态保持 M3 的默认值（左右上下各 16dp，= TextFieldDefaults
             // .contentPaddingWithoutLabel()）—— 不硬编码，避免随 M3 版本漂移。
             contentPadding = if (singleLine) {
-                PaddingValues(top = 14.dp, bottom = 14.dp, start = 16.dp, end = 16.dp)
+                PaddingValues(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
             } else {
                 TextFieldDefaults.contentPaddingWithoutLabel()
             },
@@ -1229,44 +1229,45 @@ private fun QuickMessageButton(
  * 输入容器内部四周的内边距。
  *
  * **这是「Send 贴近/超出胶囊边界」的根治。** 以前操作行直接贴容器边缘，
- * 48dp 的发送盒子里那圈实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
- * 内缩 12dp 后，发送圆右缘到胶囊边界是 12dp，下缘（单行态）约 14dp ——
+ * 44dp 的发送盒子里那圈实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
+ * 内缩 10dp 后，发送圆右缘到胶囊边界是 10dp，上下缘同为 10dp ——
  * 贴在右下角但不挤。横向量同时让「+」的图标中心与正文左边缘自然对齐。
  *
- * 单行胶囊态容器高＝内容高（48dp 按钮盒与 1 行正文 52dp 取大者）＋ 上下各 12dp
- * ⇒ 约 76dp，[InputCapsuleShape] 的 `percent 50` 自动落成半径 38dp ⇒ 标准胶囊。
+ * 单行胶囊态容器高＝内容高（44dp 按钮盒与 1 行正文 44dp 取大者）＋ 上下各 10dp
+ * ⇒ 64dp，[InputCapsuleShape] 的 `percent 50` 自动落成半径 32dp ⇒ 标准胶囊。
  */
-private val InputContainerPadding = 14.dp
+private val InputContainerPadding = 10.dp
 
 /**
  * 发送按钮的实心圆直径（整条容器唯一的实心强调色元素）。
  *
- * 与点击区同为 48dp：五个按钮共用同一条中心线、同一档视觉尺度 ——
+ * 与点击区同为 44dp：五个按钮共用同一条中心线、同一档视觉尺度 ——
  * 实心圆不再比点击区小一档。圆内箭头图标仍是 24dp（CapsuleActionIconSize）。
  */
-private val ActionButtonSize = 48.dp
+private val ActionButtonSize = 44.dp
 
 /**
  * 操作行里**每一个**按钮的点击区尺寸(+ / 语音 / 搜索 / 思考 / 发送)。
  *
- * 48dp 是触摸目标的下限，五个按钮统一用它，所以操作行的高度恒为 48dp ——
- * 多行态的容器总高就是「正文区高度 + 48dp」，正文每多一行整体长一行。
+ * 44dp 是这一档的点击区尺寸（仍在 44~48dp 触摸目标区间内），五个按钮统一用它，
+ * 所以操作行的高度恒为 44dp —— 多行态的容器总高就是「正文区高度 + 44dp」，
+ * 正文每多一行整体长一行。
  *
- * 按钮本身是透明的（[ActionIconButton] 的 Surface 不画底），48dp 的盒子只贡献
+ * 按钮本身是透明的（[ActionIconButton] 的 Surface 不画底），44dp 的盒子只贡献
  * 「图标到容器边缘 / 图标到图标」的留白，不产生任何可见方块。图标在盒子里居中，
  * 五个按钮因此共用同一条中心线。盒子之间的间距留白交给容器内边距
  * （[InputContainerPadding]，12dp）—— 不再叠加 padding 或 spacedBy。
  *
- * 实心发送圆与它同大（见 [ActionButtonSize]，也是 48dp），居中其中。
+ * 实心发送圆与它同大（见 [ActionButtonSize]，也是 44dp），居中其中。
  */
-private val CapsuleActionSize = 48.dp
+private val CapsuleActionSize = 44.dp
 
 /**
  * 操作行内联功能按钮的**图标**尺寸(+ / 搜索 / 思考 / 语音 / 发送)。
  *
  * 五个按钮共用这一个档位 —— 不因为某个图标本身图形大小不同而再单独 scale()。
  * 搜索 / 思考组件内部还各带 8dp 内边距（24 + 8×2 = 40dp），所以它们的自然尺寸
- * 比 48dp 的盒子小，居中放置即可；其余按钮是 `Icon(size = 本值)` 直接画在 48dp
+ * 比 44dp 的盒子小，居中放置即可；其余按钮是 `Icon(size = 本值)` 直接画在 44dp
  * 盒子的正中。两条路径的**图标墨迹尺寸一致**。
  *
  * 档位取 24dp 的依据（对参考图做了像素测量，1080px / 360dp ⇒ 3 px/dp）：
@@ -1293,8 +1294,8 @@ private val CapsuleActionIconSize = 24.dp
  * 字体放大之后由 [InputMaxHeight] 生效，多出来的文字在编辑区内部滚动，不撑外壳。
  *
  * 容器总高：
- *   单行（胶囊）态 = 内容高（正文区 [InputCapsuleHeight] 48dp 与 1 行 52dp 取大者）
- *                   ＋ 上下各 12dp 内边距 ⇒ 约 76dp（[InputCapsuleShape] 的 percent 50 保证是胶囊）
+ *   单行（胶囊）态 = 内容高（正文区 [InputCapsuleHeight] 44dp 与 1 行 44dp 取大者）
+ *                   ＋ 上下各 10dp 内边距 ⇒ 64dp（[InputCapsuleShape] 的 percent 50 保证是胶囊）
  *   多行（展开）态 = 正文区 52~112 + 操作行 48（[CapsuleActionSize]）＋ 上下各 12dp ⇒ 约 124~184dp
  * 两态都由行数封顶，不会无限长；多行态的正文区高度完全由内容决定，没有固定空壳。
  */
@@ -1304,12 +1305,12 @@ private val InputMaxHeight = 112.dp
 /**
  * 正文区在**单行（胶囊）态**的下限高度。
  *
- * 取 48dp = 操作按钮盒尺寸（[CapsuleActionSize]）：正文区与按钮盒齐高，
- * 单行态容器高度因此只由「1 行正文的自然高度」与这 48dp 的较大者决定，
+ * 取 44dp = 操作按钮盒尺寸（[CapsuleActionSize]）：正文区与按钮盒齐高，
+ * 单行态容器高度因此只由「1 行正文的自然高度」与这 44dp 的较大者决定，
  * 不会出现固定高空壳。容器形状走 [InputCapsuleShape]（percent 50），
  * 无论最终多高都读作一颗标准胶囊。
  */
-private val InputCapsuleHeight = 48.dp
+private val InputCapsuleHeight = 44.dp
 
 /**
  * 正文区在**多行（大卡片）态**的下限高度。
@@ -1327,8 +1328,8 @@ private val InputMinHeight = 1.dp
  * 单行（胶囊）态的容器形状 —— `percent = 50`，即半径恒等于半高。
  *
  * **单行态用百分比的语义才是对的**：胶囊的定义就是「两端是半圆」，半径必须跟着高度走。
- * 单行容器高 = 48dp 按钮盒（[InputCapsuleHeight]）与正文区（1 行 52dp）取大者 ＋
- * 上下各 12dp 内边距（[InputContainerPadding]）≈ 76dp，半高 38dp 自动成为半径；
+ * 单行容器高 = 44dp 按钮盒（[InputCapsuleHeight]）与正文区（1 行 44dp）取大者 ＋
+ * 上下各 10dp 内边距（[InputContainerPadding]）= 64dp，半高 32dp 自动成为半径；
  * 系统字体放大把单行撑高时，胶囊形状依旧成立，不会退化成圆角矩形。
  *
  * ⚠️ 这个百分比**只能给单行态用**。多行态必须用 [InputEditorShape] 的固定 28dp ——
