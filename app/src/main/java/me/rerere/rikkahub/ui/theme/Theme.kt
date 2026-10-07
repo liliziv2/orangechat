@@ -45,12 +45,32 @@ fun popupContainerColor(baseContainerColor: Color): Color {
 
 internal val GLASS_BACKGROUND_THEMES = setOf("harbor", "creamrose", "alice")
 
+/**
+ * 三个带底图主题的日间 scrim。
+ *
+ * **三者的字段语义与段数完全一致**（top 覆盖 → accent 过渡 → bottom 反白 → bottom），
+ * 只在色号上各自取自己的主题色。这样「日间渐变层次」是同一套，不随主题变形 ——
+ * 也正是这一点让 alice / creamrose 不再是一层几乎透明的薄雾。
+ *
+ * 字段含义：
+ * - `top`    —— 顶部**主题色**覆盖层（首段整层压上，字面 alpha 即生效 alpha）
+ * - `accent` —— 中段过渡色（渲染时再乘 0.12，几乎透明，只为把插值拐点拉直）
+ * - `bottom` —— 底部**底色**反白层（尾段整层压上）
+ *
+ * 顶部色的选法：取与 harbor `#A8B4C0`（L*=72.7 C*=7.7）**同一明度/彩度格位**、
+ * 但换成各主题自己的色相 —— 这样三个主题的「渐变强度」一致，只是颜色不同。
+ * - alice：`#C9ADB0`（L*=73.2 C*=10.8 h=11.7）玫瑰灰，承接主调红
+ * - creamrose：`#C6ADB3`（L*=73.0 C*=10.0 h=1.4）玫瑰灰，比 alice 更中性一点
+ */
 internal val THEME_BACKGROUND_SCRIM = mapOf(
     // 每个带底图的主题各有自己的 scrim，不能互相复用。
     "harbor" to ScrimColors(0x80A8B4C0u, 0x60F4F2EFu, 0x38A8B4C0u),
-    // 苹果爱丽丝：底图同 harbor，scrim 取爱丽丝自己的暖白 + 深红调。
-    // 日间 top 带上一点主调红的暖灰（不是纯中性），accent 取强调红。
-    "alice" to ScrimColors(0x80E8DCD8u, 0x60F7F5F1u, 0x38C51F3Au),
+    // 苹果爱丽丝：底图同 harbor，scrim 取爱丽丝自己的玫瑰灰 + 暖白。
+    // 日间 top 是带红调的玫瑰灰（与海水港口的冷灰蓝同明度格位），承接主调红的身份。
+    "alice" to ScrimColors(0x80C9ADB0u, 0x60F7F5F1u, 0x38C9ADB0u),
+    // 奶油玫瑰：底图同 harbor，scrim 取奶油玫瑰自己的玫瑰灰 + 暖白。
+    // 与 alice 同格位但色相更中性（h≈1 vs alice 的 h≈12），两者不互相打架。
+    "creamrose" to ScrimColors(0x80C6ADB3u, 0x60F5EEE9u, 0x38C6ADB3u),
 )
 
 /**

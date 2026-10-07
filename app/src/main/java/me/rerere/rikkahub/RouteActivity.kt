@@ -439,13 +439,11 @@ class RouteActivity : ComponentActivity() {
                         .let { base ->
                             when (settings.themeId) {
                                 "harbor" -> {
-                                    val scrim = THEME_BACKGROUND_SCRIM.getValue("harbor")
-                                    val painted = base
-                                        .paint(
-                                            painter = painterResource(id = R.drawable.harbor_chat_bg),
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                    if (LocalDarkMode.current) {
+                                    val harborScrim = THEME_BACKGROUND_SCRIM.getValue("harbor")
+                                    val harborPainter = painterResource(
+                                        id = R.drawable.harbor_chat_bg
+                                    )
+                                    val harborGradient = if (LocalDarkMode.current) {
                                         // 夜间：**单层、两点、连续**（批 70 统一，三个主题同一套结构）。
                                         //
                                         // 原来是「一层平铺 0.66 + 一层 0.38→0.72 渐变」两层叠着压：
@@ -453,26 +451,26 @@ class RouteActivity : ComponentActivity() {
                                         // 在渐变转折处会露出一道横向色带。现在只留一层，
                                         // alpha 收到 0.62→0.72 —— 底图透出约三成，页面按
                                         // 「底图可见优先」整体偏亮（接近黄昏而非深夜）。
-                                        painted.background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(0xFF141A22).copy(alpha = 0.62f),
-                                                    Color(0xFF141A22).copy(alpha = 0.72f),
-                                                )
-                                            )
+                                        listOf(
+                                            Color(0xFF141A22).copy(alpha = 0.62f),
+                                            Color(0xFF141A22).copy(alpha = 0.72f),
                                         )
                                     } else {
-                                        painted.background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color(scrim.top.toLong()),
-                                                    Color(scrim.accent.toLong()).copy(alpha = 0.12f),
-                                                    Color(scrim.bottom.toLong()).copy(alpha = 0.10f),
-                                                    Color(scrim.bottom.toLong()),
-                                                )
-                                            )
+                                        // 日间：**4 段**（top 覆盖 → accent 过渡 → bottom 反白 → bottom）。
+                                        // 这是三个带底图主题的公共结构，alice / creamrose 同构。
+                                        listOf(
+                                            Color(harborScrim.top.toLong()),
+                                            Color(harborScrim.accent.toLong()).copy(alpha = 0.12f),
+                                            Color(harborScrim.bottom.toLong()).copy(alpha = 0.10f),
+                                            Color(harborScrim.bottom.toLong()),
                                         )
                                     }
+                                    base
+                                        .paint(
+                                            painter = harborPainter,
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        .background(Brush.verticalGradient(harborGradient))
                                 }
 
                                 "alice" -> {
@@ -481,29 +479,33 @@ class RouteActivity : ComponentActivity() {
                                     //
                                     // 与港口的区分点（用户点名要求「夜间背景底色要跟港口区分开」）：
                                     // 港口夜间 scrim 是中性冷蓝 #141A22（页面 C* 近乎 0），
-                                    // 爱丽丝夜间换成**带红调的深棕炭** #201418 —— 色相从 220 度
-                                    // 转到 350 度一带，页面因此是「暗红褐」而不是「冷灰」，
+                                    // 爱丽丝夜间换成**带红调的深棕炭** #2A100E —— 色相从 220 度
+                                    // 转到 33 度一带，页面因此是「暗红褐」而不是「冷灰」，
                                     // 与港口一眼分得开，且承接主调红的身份。
-                                    // 日间仍只换色号、不透明度沿用批 70 统一的两点连续。
+                                    //
+                                    // 日间也是**与港口同构的 4 段**（top → accent → bottom → bottom），
+                                    // 不再是自己那套 3 段半透明薄雾 —— 用户点名「日间要跟港口一样有渐变」。
                                     val alicePainter = painterResource(
                                         id = R.drawable.harbor_chat_bg
                                     )
                                     val aliceScrim = if (LocalDarkMode.current) {
                                         listOf(
                                             // 夜间：**单层、两点、连续**（与 harbor / creamrose 同一套结构）。
-                                            // 色号 #201418（深棕炭，h≈350 带红调）—— 这是与港口
-                                            // 中性冷蓝 #141A22 的核心区分。alpha 沿用 0.62→0.72，
-                                            // 底图透出约三成，页面按「底图可见优先」整体偏亮。
-                                            Color(0xFF201418).copy(alpha = 0.62f),
-                                            Color(0xFF201418).copy(alpha = 0.72f),
+                                            // 色号 #2A100E（暗红褐，h≈33）—— 这是与港口
+                                            // 中性冷蓝 #141A22 的核心区分，也比旧值 #201418
+                                            // （C*=7.0）更红：C*=14.7，与奶油玫瑰拉开。
+                                            // alpha 沿用 0.62→0.72，底图透出约三成，
+                                            // 页面按「底图可见优先」整体偏亮。
+                                            Color(0xFF2A100E).copy(alpha = 0.62f),
+                                            Color(0xFF2A100E).copy(alpha = 0.72f),
                                         )
                                     } else {
+                                        val s = THEME_BACKGROUND_SCRIM.getValue("alice")
                                         listOf(
-                                            // Accent #C51F3A 10% over Background #F7F5F1
-                                            Color(0xFFF0DCDD).copy(alpha = 0.24f),
-                                            // Background #F7F5F1
-                                            Color(0xFFF7F5F1).copy(alpha = 0.16f),
-                                            Color(0xFFF7F5F1).copy(alpha = 0.42f),
+                                            Color(s.top.toLong()),
+                                            Color(s.accent.toLong()).copy(alpha = 0.12f),
+                                            Color(s.bottom.toLong()).copy(alpha = 0.10f),
+                                            Color(s.bottom.toLong()),
                                         )
                                     }
                                     base
@@ -521,7 +523,9 @@ class RouteActivity : ComponentActivity() {
                                     // 底图实测平均 L*=93.6（极亮的暖白纸纹），所以夜间必须压暗；
                                     // 但压到 0.9 以上就是一块深灰，底图完全看不见（用户点名的
                                     // 「叠层过厚」）。批 70 统一收到 0.62→0.72，见下面那段注释。
-                                    // 日间仍只换色号、不透明度沿用原值。
+                                    //
+                                    // 日间也是**与港口同构的 4 段**（top → accent → bottom → bottom），
+                                    // 不再是自己那套 3 段半透明薄雾 —— 用户点名「日间要跟港口一样有渐变」。
                                     val creamRosePainter = painterResource(
                                         id = R.drawable.harbor_chat_bg
                                     )
@@ -542,12 +546,12 @@ class RouteActivity : ComponentActivity() {
                                             Color(0xFF171716).copy(alpha = 0.72f),
                                         )
                                     } else {
+                                        val s = THEME_BACKGROUND_SCRIM.getValue("creamrose")
                                         listOf(
-                                            // Accent #A95362 10% over Background #F5EEE9
-                                            Color(0xFFEDDFDC).copy(alpha = 0.24f),
-                                            // Background #F5EEE9
-                                            Color(0xFFF5EEE9).copy(alpha = 0.16f),
-                                            Color(0xFFF5EEE9).copy(alpha = 0.42f),
+                                            Color(s.top.toLong()),
+                                            Color(s.accent.toLong()).copy(alpha = 0.12f),
+                                            Color(s.bottom.toLong()).copy(alpha = 0.10f),
+                                            Color(s.bottom.toLong()),
                                         )
                                     }
                                     base
