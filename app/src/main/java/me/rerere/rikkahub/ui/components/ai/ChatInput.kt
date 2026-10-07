@@ -546,15 +546,37 @@ fun ChatInput(
             }
         }
     }
-    // 容器形状两态共用同一个常量：固定 28dp 圆角。
+    // 两态判据：**只认真实换行**。
     //
-    // 单行（胶囊）态容器正好 56dp 高 —— 28dp 半径恰好等于半高，它**就是**一颗胶囊。
-    // 多行（大卡片）态容器 106~162dp 高，同一个半径读作圆角卡片。
-    // 所以「从胶囊切到大卡片」时圆角是连续的，不是换了一个组件。
+    // 1. `wrappedToSecondLine` —— 实测已经换过行，由正文 TextField 的 onTextLayout
+    //    把真实行数喂回来。这是唯一跟设备宽度、系统字体缩放都无关的判据
+    //    （字数只是估算，宽屏/小字下会误判）。
+    // 2. 正文里有换行符（用户主动按回车）。
     //
-    // 不能用 `percent = 50`：那个半径恒等于半高，多行态下会变成半径 53~81dp 的半圆，
-    // 底排的 + 与发送会被 `.clip(containerShape)` 啃掉。所以这里是一个纯常量。
-    val containerShape = InputEditorShape
+    // 第 1 条必须**锁存**：切到展开态后正文区会变宽，同一段文字可能又只占一行，
+    // 行数判据就会把状态弹回胶囊态、再换行、再弹回去 —— 死循环。
+    // 所以只在「第一次换行」时置位，输入清空时才复位。
+    //
+    // 提到 `containerShape` 之前是必须的：容器形状要按两态选（单行真胶囊 / 多行圆角卡）。
+    var wrappedToSecondLine by remember { mutableStateOf(false) }
+    val inputText = state.textContent.text
+    val isMultiLine = wrappedToSecondLine || inputText.contains('\n')
+    LaunchedEffect(inputText.isEmpty()) {
+        if (inputText.isEmpty()) wrappedToSecondLine = false
+    }
+
+    // 容器形状**按态选**：
+    //
+    // - 单行（胶囊）态用 [InputCapsuleShape] = `percent 50`（半径恒等于半高）。
+    //   胶囊的定义就是「两端半圆」，半径必须跟着高度走 —— 单行容器高
+    //   = 48dp 按钮盒与正文区（1 行 52dp）取大者 ＋ 上下各 12dp 内边距 ≈ 76dp，
+    //   半高 38dp 自动成为半径；字体放大把单行撑高时形状依旧成立。
+    // - 多行（展开）态用 [InputEditorShape] = 28dp 固定圆角。容器 100dp+ 高，
+    //   读作圆角矩形。
+    //
+    // ⚠️ 百分比**只给单行**：多行态容器 100dp+ 高，半径等于半高会变成半圆，
+    // 底排的 + 与发送会被 `.clip(containerShape)` 啃掉。
+    val containerShape = if (isMultiLine) InputEditorShape else InputCapsuleShape
     val inputContainerBorder = if (useMaterialBorder) {
         // 与 MaterialMode.kt 的全局边框同步降到 0.07
         BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
@@ -681,29 +703,6 @@ fun ChatInput(
                             contentScale = ContentScale.Crop,
                             alpha = 1f,
                         )
-                    }
-                    // 两态：**一行是细长胶囊，换行之后才展开成大卡片**。
-                    //
-                    // 判据只有两条，都指向「真实换行」：
-                    // 1. `wrappedToSecondLine` —— 实测已经换过行，由正文 TextField 的
-                    //    onTextLayout 把真实行数喂回来。这是唯一跟设备宽度、系统字体缩放
-                    //    都无关的判据（字数只是估算，宽屏/小字下会误判）；
-                    // 2. 正文里有换行符（用户主动按回车）。
-                    //
-                    // 不再拿「字数 > N」兜底：字数跟实际换行位置无关 —— 胶囊里正文两侧
-                    // 被 + 与功能组夹着，可用宽度随按钮数量变化（48dp 的按钮盒子，
-                    // 3 个按钮时正文可用约 112dp，5 个按钮时只剩约 64dp），同一个字数
-                    // 在不同机型/不同能力开关下换行点完全不同。按字数切会让「明明还
-                    // 没换行」的短句也弹成大卡片，而大卡片里它只占一行 —— 就是那个空壳。
-                    //
-                    // 第 1 条必须**锁存**：切到卡片态后正文区会变宽，同一段文字可能又只占
-                    // 一行，行数判据就会把状态弹回胶囊态、再换行、再弹回去 —— 死循环。
-                    // 所以只在「第一次换行」时置位，输入清空时才复位。
-                    var wrappedToSecondLine by remember { mutableStateOf(false) }
-                    val inputText = state.textContent.text
-                    val isMultiLine = wrappedToSecondLine || inputText.contains('\n')
-                    LaunchedEffect(inputText.isEmpty()) {
-                        if (inputText.isEmpty()) wrappedToSecondLine = false
                     }
 
                     // 「+」附件/扩展入口。两态共用同一份定义：位置不同（单行在正文左侧、
@@ -832,9 +831,9 @@ fun ChatInput(
                             enter = fadeIn() + scaleIn(),
                             exit = fadeOut() + scaleOut(),
                         ) {
-                            // 点击区与其余操作按钮统一 48dp（CapsuleActionSize）；
-                            // 里面的实心圆仍是 40dp —— 它是整条容器唯一的强调色元素，
-                            // 要立得住，但不该大到把 48dp 的节奏撑破。
+                            // 点击区与实心圆同为 48dp：五个按钮共用同一条中心线、
+                            // 同一档视觉尺度。实心圆等于点击区（不再小一档），
+                            // 圆内的箭头图标仍是 24dp（CapsuleActionIconSize）。
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -888,13 +887,15 @@ fun ChatInput(
                     // 单行态 / 多行态共用同一个 Row，只换对齐方式 ——
                     // 结构不变，按钮的位置就不会「跳」。
                     //
-                    // 这里不再有任何内边距与按钮间距：操作按钮的点击区本身就是 48dp
-                    // （见 CapsuleActionSize），图标在其中居中 —— 48dp 的盒子已经提供了
-                    // 所需的呼吸量。再加 padding / spacedBy 会把 + 与发送从容器两端推开，
-                    // 与参考图的「按钮贴住容器两端、图标中心间距 48dp」不一致。
-                    // 现在 + 的墨迹落在距容器左边缘约 16dp 处，发送圆距右边缘约 8dp。
+                    // 容器内加 **12dp** 内边距（[InputContainerPadding]）：这是「Send 贴近
+                    // 胶囊边界」的根治。以前操作行直接贴容器边缘，48dp 的发送盒子里那圈
+                    // 实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
+                    // 内缩 12dp 后，发送圆右缘到胶囊边界恒为 12dp（单行态下缘更多一档，
+                    // 因为正文区 52dp 比按钮盒 48dp 高）—— 贴在右下角但不挤。
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(InputContainerPadding),
                         verticalAlignment = if (isMultiLine) {
                             Alignment.Bottom
                         } else {
@@ -922,12 +923,12 @@ fun ChatInput(
                                 },
                             )
 
-                            // 多行态：操作行落在正文**下方**（P1 结构）。
-                            // 单行态不渲染这一行 —— 按钮与正文同排。
+                            // 单行态不渲染这一行 —— 按钮与正文同排（图中样式）。
+                            // 换行之后操作行才落在正文**下方**（P1 结构），
+                            // 固定在容器底部，不随正文首行位置上下跳。
                             //
                             // 行高由 48dp 的按钮盒子决定（= CapsuleActionSize），没有额外
-                            // 内边距 —— 多行态的容器总高因此恒等于「正文区高度 + 48dp」，
-                            // 正文每多一行整体长一行；操作行固定在容器底部，不随首行上下跳。
+                            // 内边距 —— 五个按钮的中心线因此始终重合在同一条水平线上。
                             if (isMultiLine) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -1009,8 +1010,8 @@ private fun ActionIconButton(
     //
     // 操作行里同时有 + / 搜索 / 思考 / 语音 / 发送 五个按钮，点击区统一走
     // CapsuleActionSize(48dp)；图标统一走 CapsuleActionIconSize(24dp)，
-    // 由调用点画在盒子正中。发送按钮的实心圆是 ActionButtonSize(40dp)，
-    // 它是整条容器唯一的实心强调色元素，居中在同一个 48dp 盒子里。
+    // 由调用点画在盒子正中。发送按钮的实心圆是 ActionButtonSize(48dp)，
+    // 与点击区同大 —— 五个按钮因此共用同一条中心线、同一档视觉尺度。
     // 盒子本身是透明的（color = Color.Transparent），只贡献留白，不画方块。
     // 形状一律正圆。
     Surface(
@@ -1034,8 +1035,8 @@ private fun TextInputRow(
     onSendMessage: () -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
-    // 容器形状由 ChatInput 顶层传进来（恒为固定 28dp 圆角；单行态它恰好等于半高，
-    // 所以同一个常量在单行时是胶囊、多行时是圆角卡片）。
+    // 容器形状由 ChatInput 顶层按两态传进来（单行 = percent 50 真胶囊，
+    // 多行 = 固定 28dp 圆角）。
     // 这里不能直接用 ChatInput 的局部 containerShape —— 那是另一个函数的作用域。
     shape: Shape,
     // 单行（胶囊）态下按回车要主动补换行（SingleLine 会把换行吃掉），所以两态仍然要区分。
@@ -1212,8 +1213,26 @@ private fun QuickMessageButton(
     }
 }
 
-/** 发送按钮的实心圆直径(整条容器唯一的实心强调色元素)。点击区另见 CapsuleActionSize。 */
-private val ActionButtonSize = 40.dp
+/**
+ * 输入容器内部四周的内边距。
+ *
+ * **这是「Send 贴近/超出胶囊边界」的根治。** 以前操作行直接贴容器边缘，
+ * 48dp 的发送盒子里那圈实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
+ * 内缩 12dp 后，发送圆右缘到胶囊边界是 12dp，下缘（单行态）约 14dp ——
+ * 贴在右下角但不挤。横向量同时让「+」的图标中心与正文左边缘自然对齐。
+ *
+ * 单行胶囊态容器高＝内容高（48dp 按钮盒与 1 行正文 52dp 取大者）＋ 上下各 12dp
+ * ⇒ 约 76dp，[InputCapsuleShape] 的 `percent 50` 自动落成半径 38dp ⇒ 标准胶囊。
+ */
+private val InputContainerPadding = 12.dp
+
+/**
+ * 发送按钮的实心圆直径（整条容器唯一的实心强调色元素）。
+ *
+ * 与点击区同为 48dp：五个按钮共用同一条中心线、同一档视觉尺度 ——
+ * 实心圆不再比点击区小一档。圆内箭头图标仍是 24dp（CapsuleActionIconSize）。
+ */
+private val ActionButtonSize = 48.dp
 
 /**
  * 操作行里**每一个**按钮的点击区尺寸(+ / 语音 / 搜索 / 思考 / 发送)。
@@ -1223,10 +1242,10 @@ private val ActionButtonSize = 40.dp
  *
  * 按钮本身是透明的（[ActionIconButton] 的 Surface 不画底），48dp 的盒子只贡献
  * 「图标到容器边缘 / 图标到图标」的留白，不产生任何可见方块。图标在盒子里居中，
- * 盒子已经提供了所需的呼吸量 —— 不再叠加 padding 或 spacedBy，避免把 + 与发送
- * 从容器两端推开。参考图的图标中心间距正是 48dp。
+ * 五个按钮因此共用同一条中心线。盒子之间的间距留白交给容器内边距
+ * （[InputContainerPadding]，12dp）—— 不再叠加 padding 或 spacedBy。
  *
- * 实心发送圆是 40dp（见 [ActionButtonSize]），比盒子小一档，居中其中。
+ * 实心发送圆与它同大（见 [ActionButtonSize]，也是 48dp），居中其中。
  */
 private val CapsuleActionSize = 48.dp
 
@@ -1262,8 +1281,9 @@ private val CapsuleActionIconSize = 24.dp
  * 字体放大之后由 [InputMaxHeight] 生效，多出来的文字在编辑区内部滚动，不撑外壳。
  *
  * 容器总高：
- *   单行（胶囊）态 = 正文区 56dp（[InputCapsuleHeight]）⇒ 56dp，半径 28dp 恰好是半高，就是一颗胶囊
- *   多行（大卡片）态 = 正文区 52~112 + 操作行 48（[CapsuleActionSize]）⇒ 100~160dp
+ *   单行（胶囊）态 = 内容高（正文区 [InputCapsuleHeight] 48dp 与 1 行 52dp 取大者）
+ *                   ＋ 上下各 12dp 内边距 ⇒ 约 76dp（[InputCapsuleShape] 的 percent 50 保证是胶囊）
+ *   多行（展开）态 = 正文区 52~112 + 操作行 48（[CapsuleActionSize]）＋ 上下各 12dp ⇒ 约 124~184dp
  * 两态都由行数封顶，不会无限长；多行态的正文区高度完全由内容决定，没有固定空壳。
  */
 private const val InputMaxLines = 4
@@ -1272,10 +1292,12 @@ private val InputMaxHeight = 112.dp
 /**
  * 正文区在**单行（胶囊）态**的下限高度。
  *
- * 容器圆角固定 28dp（见 [InputEditorShape]），56dp 高时 28dp 正好是半高 ——
- * 单行态因此读作一颗标准胶囊。这个下限只在单行态生效。
+ * 取 48dp = 操作按钮盒尺寸（[CapsuleActionSize]）：正文区与按钮盒齐高，
+ * 单行态容器高度因此只由「1 行正文的自然高度」与这 48dp 的较大者决定，
+ * 不会出现固定高空壳。容器形状走 [InputCapsuleShape]（percent 50），
+ * 无论最终多高都读作一颗标准胶囊。
  */
-private val InputCapsuleHeight = 56.dp
+private val InputCapsuleHeight = 48.dp
 
 /**
  * 正文区在**多行（大卡片）态**的下限高度。
@@ -1290,16 +1312,23 @@ private val InputCapsuleHeight = 56.dp
 private val InputMinHeight = 1.dp
 
 /**
- * 输入容器的形状 —— 固定 28dp 圆角。**两态共用这一个常量。**
+ * 单行（胶囊）态的容器形状 —— `percent = 50`，即半径恒等于半高。
  *
- * 单行（胶囊）态容器正好 56dp 高，28dp 半径恰好等于半高 ⇒ 它**就是**一颗标准胶囊。
- * 多行（大卡片）态容器 106~162dp 高，同一个半径读作圆角卡片。
- * 所以「从胶囊切到大卡片」时圆角是连续的，不会像换了一个组件。
+ * **单行态用百分比的语义才是对的**：胶囊的定义就是「两端是半圆」，半径必须跟着高度走。
+ * 单行容器高 = 48dp 按钮盒（[InputCapsuleHeight]）与正文区（1 行 52dp）取大者 ＋
+ * 上下各 12dp 内边距（[InputContainerPadding]）≈ 76dp，半高 38dp 自动成为半径；
+ * 系统字体放大把单行撑高时，胶囊形状依旧成立，不会退化成圆角矩形。
  *
- * 不能用 `percent = 50`：那个半径恒等于半高，多行态下会变成半径 53~81dp 的半圆，
- * 底排的 + 与发送会被 `.clip(containerShape)` 啃掉，多行文字的首尾也会被吃掉。
+ * ⚠️ 这个百分比**只能给单行态用**。多行态必须用 [InputEditorShape] 的固定 28dp ——
+ * 多行容器 100dp 以上，半径等于半高会变成半圆，底排的 + 与发送会被 `.clip()` 啃掉。
+ */
+private val InputCapsuleShape = RoundedCornerShape(percent = 50)
+
+/**
+ * 输入容器的形状 —— **多行（展开）态**专用，固定 28dp 圆角。
  *
- * 底排按钮的底部内缩量就是从 28dp 这个半径反算的（见 ChatInput 操作行那段注释）：
- * 半径 28dp 时，距边界 8dp 处下边界抬高约 8.4dp，所以多行态留 10dp。
+ * 容器 100dp 以上高，28dp 读作圆角矩形。单行态不用它，见 [InputCapsuleShape]。
+ * 不使用 `percent = 50`：那个半径恒等于半高，多行态下会变成半径 50~80dp 的半圆，
+ * 底排的 + 与发送会被 `.clip(containerShape)` 啃掉。所以这里是一个纯常量。
  */
 private val InputEditorShape = RoundedCornerShape(28.dp)

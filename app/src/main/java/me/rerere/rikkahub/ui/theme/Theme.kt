@@ -48,7 +48,7 @@ internal val GLASS_BACKGROUND_THEMES = setOf("harbor", "creamrose", "mistgarden"
 internal val THEME_BACKGROUND_SCRIM = mapOf(
     // 每个带底图的主题各有自己的 scrim，不能互相复用。
     "harbor" to ScrimColors(0x80A8B4C0u, 0x60F4F2EFu, 0x38A8B4C0u),
-    "mistgarden" to ScrimColors(0x80F6F9FEu, 0x60F6F9FEu, 0x38F6F9FEu),
+    "mistgarden" to ScrimColors(0x80F6F8FAu, 0x60F6F8FAu, 0x38F6F8FAu),
 )
 
 /**
