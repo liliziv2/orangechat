@@ -498,11 +498,13 @@ class RouteActivity : ComponentActivity() {
                                             Color(0xFF201418).copy(alpha = 0.72f),
                                         )
                                     } else {
-                                        // Accent #C51F3A 10% over Background #F7F5F1
-                                        Color(0xFFF0DCDD).copy(alpha = 0.24f),
-                                        // Background #F7F5F1
-                                        Color(0xFFF7F5F1).copy(alpha = 0.16f),
-                                        Color(0xFFF7F5F1).copy(alpha = 0.42f),
+                                        listOf(
+                                            // Accent #C51F3A 10% over Background #F7F5F1
+                                            Color(0xFFF0DCDD).copy(alpha = 0.24f),
+                                            // Background #F7F5F1
+                                            Color(0xFFF7F5F1).copy(alpha = 0.16f),
+                                            Color(0xFFF7F5F1).copy(alpha = 0.42f),
+                                        )
                                     }
                                     base
                                         .paint(
