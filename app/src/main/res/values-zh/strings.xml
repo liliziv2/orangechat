@@ -1055,6 +1055,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="text_area_save">保存</string>
   <string name="theme_name_minimal">极简</string>
   <string name="theme_name_harbor">港口</string>
+  <string name="theme_name_alice">苹果爱丽丝</string>
   <string name="theme_name_creamrose">奶油玫瑰</string>
   <string name="theme_name_claude">克洛德</string>
   <string name="title_activity_safe_mode">安全模式</string>

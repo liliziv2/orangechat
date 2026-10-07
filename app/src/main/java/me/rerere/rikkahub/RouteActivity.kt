@@ -475,6 +475,43 @@ class RouteActivity : ComponentActivity() {
                                     }
                                 }
 
+                                "alice" -> {
+                                    // 苹果爱丽丝与 Harbor 共用同一张底图和铺图逻辑，
+                                    // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。
+                                    //
+                                    // 与港口的区分点（用户点名要求「夜间背景底色要跟港口区分开」）：
+                                    // 港口夜间 scrim 是中性冷蓝 #141A22（页面 C* 近乎 0），
+                                    // 爱丽丝夜间换成**带红调的深棕炭** #201418 —— 色相从 220 度
+                                    // 转到 350 度一带，页面因此是「暗红褐」而不是「冷灰」，
+                                    // 与港口一眼分得开，且承接主调红的身份。
+                                    // 日间仍只换色号、不透明度沿用批 70 统一的两点连续。
+                                    val alicePainter = painterResource(
+                                        id = R.drawable.harbor_chat_bg
+                                    )
+                                    val aliceScrim = if (LocalDarkMode.current) {
+                                        listOf(
+                                            // 夜间：**单层、两点、连续**（与 harbor / creamrose 同一套结构）。
+                                            // 色号 #201418（深棕炭，h≈350 带红调）—— 这是与港口
+                                            // 中性冷蓝 #141A22 的核心区分。alpha 沿用 0.62→0.72，
+                                            // 底图透出约三成，页面按「底图可见优先」整体偏亮。
+                                            Color(0xFF201418).copy(alpha = 0.62f),
+                                            Color(0xFF201418).copy(alpha = 0.72f),
+                                        )
+                                    } else {
+                                        // Accent #C51F3A 10% over Background #F7F5F1
+                                        Color(0xFFF0DCDD).copy(alpha = 0.24f),
+                                        // Background #F7F5F1
+                                        Color(0xFFF7F5F1).copy(alpha = 0.16f),
+                                        Color(0xFFF7F5F1).copy(alpha = 0.42f),
+                                    }
+                                    base
+                                        .paint(
+                                            painter = alicePainter,
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        .background(Brush.verticalGradient(aliceScrim))
+                                }
+
                                 "creamrose" -> {
                                     // 奶油玫瑰与 Harbor 共用同一张底图和铺图逻辑，
                                     // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。
