@@ -43,12 +43,12 @@ fun popupContainerColor(baseContainerColor: Color): Color {
     return baseContainerColor.copy(alpha = popupAlpha)
 }
 
-internal val GLASS_BACKGROUND_THEMES = setOf("harbor", "creamrose", "qingyu")
+internal val GLASS_BACKGROUND_THEMES = setOf("harbor", "creamrose", "mistgarden")
 
 internal val THEME_BACKGROUND_SCRIM = mapOf(
     // 每个带底图的主题各有自己的 scrim，不能互相复用。
     "harbor" to ScrimColors(0x80A8B4C0u, 0x60F4F2EFu, 0x38A8B4C0u),
-    "qingyu" to ScrimColors(0x80E8E6DCu, 0x60E8E6DCu, 0x38E8E6DCu),
+    "mistgarden" to ScrimColors(0x80F6F9FEu, 0x60F6F9FEu, 0x38F6F9FEu),
 )
 
 /**

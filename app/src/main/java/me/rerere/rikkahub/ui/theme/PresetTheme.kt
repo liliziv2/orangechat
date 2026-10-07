@@ -6,7 +6,7 @@ import me.rerere.rikkahub.ui.theme.presets.ClaudeThemePreset
 import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.CreamRoseThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.HarborThemePreset
-import me.rerere.rikkahub.ui.theme.presets.custom.QingyuThemePreset
+import me.rerere.rikkahub.ui.theme.presets.custom.MistGardenThemePreset
 
 data class PresetTheme(
     val id: String,
@@ -26,7 +26,7 @@ val PresetThemes by lazy {
     listOf(
         MinimalThemePreset,
         HarborThemePreset,
-        QingyuThemePreset,
+        MistGardenThemePreset,
         CreamRoseThemePreset,
         ClaudeThemePreset,
     )

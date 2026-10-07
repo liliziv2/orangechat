@@ -169,11 +169,12 @@ private fun SideAvatarRow(
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        // 用户侧头像贴得更近（6dp）；助手侧维持 8dp。
+        horizontalArrangement = Arrangement.spacedBy(if (mine) 6.dp else 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         if (!mine) {
-            SideAvatarSlot(showAvatar, role, model, assistant, loading)
+            SideAvatarSlot(showAvatar, role, model, assistant, loading, mine = false)
         }
         Column(
             modifier = Modifier.weight(1f),
@@ -183,7 +184,7 @@ private fun SideAvatarRow(
             content()
         }
         if (mine) {
-            SideAvatarSlot(showAvatar, role, model, assistant, loading)
+            SideAvatarSlot(showAvatar, role, model, assistant, loading, mine = true)
         }
     }
 }
@@ -196,7 +197,11 @@ private fun SideAvatarSlot(
     model: Model?,
     assistant: Assistant?,
     loading: Boolean,
+    mine: Boolean,
 ) {
+    // 用户侧头像顶对齐内容列顶端（= 附件/图片顶），不再下沉；
+    // 助手侧维持原有的 2dp 下沉。
+    val topPad = if (mine) 0.dp else 2.dp
     if (showAvatar) {
         ChatMessageSideAvatar(
             role = role,
@@ -204,14 +209,14 @@ private fun SideAvatarSlot(
             assistant = assistant,
             loading = loading,
             size = 32.dp,
-            modifier = Modifier.padding(top = 2.dp),
+            modifier = Modifier.padding(top = topPad),
         )
     } else {
         // 关掉头像不留空洞：自己是实心四角星，对方是描边菱形
         ChatMessageSideMark(
             mine = role == MessageRole.USER,
             size = 32.dp,
-            modifier = Modifier.padding(top = 2.dp),
+            modifier = Modifier.padding(top = topPad),
         )
     }
 }
@@ -510,7 +515,24 @@ private fun MessagePartsBlock(
  
     // Render parts in original order (group thinking/tool as chain-of-thought)
     val groupedParts = remember(parts) { parts.groupMessageParts() }
-    groupedParts.fastForEach { block ->
+    // 用户消息：把非文本附件（图片/视频/音频/文档）提到文本之前 ——
+    // 「有图片时图片显示在文字气泡上方」（2026-10-07 批 79 要求）。
+    // 只在渲染层重排分组先后，不动 UIMessage.parts，也不动存储顺序；
+    // 助手消息分区顺序原样保留（思考/工具链顺序敏感）。
+    val orderedParts = remember(groupedParts, role) {
+        if (role == MessageRole.USER) {
+            val attachments = groupedParts.filter { b ->
+                b is MessagePartBlock.ContentBlock && b.part !is UIMessagePart.Text
+            }
+            val texts = groupedParts.filter { b ->
+                b !is MessagePartBlock.ContentBlock || b.part is UIMessagePart.Text
+            }
+            attachments + texts
+        } else {
+            groupedParts
+        }
+    }
+    orderedParts.fastForEachIndexed { partIndex, block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
                 if (block.steps.isNotEmpty()) {
@@ -855,6 +877,17 @@ private fun MessagePartsBlock(
                     else -> {
                         // Skip unknown part types (e.g., deprecated ToolCall, ToolResult, Search)
                     }
+                }
+                // 用户消息：附件与**其后紧跟的文字**之间补足到 8dp ——
+                // 外层容器统一 spacedBy(4dp)，这里再加 4dp。判据是「下一个 block 是文字」，
+                // 这样附件与附件之间仍是 4dp，只有「附件 -> 文字」那一处变成 8dp。
+                if (role == MessageRole.USER &&
+                    block.part !is UIMessagePart.Text &&
+                    orderedParts.getOrNull(partIndex + 1)?.let { next ->
+                        next is MessagePartBlock.ContentBlock && next.part is UIMessagePart.Text
+                    } == true
+                ) {
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
