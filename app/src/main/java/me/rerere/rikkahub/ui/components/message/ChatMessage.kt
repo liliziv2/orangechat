@@ -279,10 +279,21 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+    // 署名行（头像 / 昵称 / 时间）与内容之间的间距。两者属于**同一条消息 cluster**，
+    // 间距在这里显式给定：文字 10dp、图片 5dp（图片自带视觉重量，间距再大就散了）。
+    //
+    // 旧实现把它交给外层 Column 的 spacedBy(4dp) 顺带决定，用户侧还在署名行上叠了
+    // 一层 padding(vertical = 8.dp) —— 那一层既不参与对齐、又只作用于用户侧，
+    // 结果就是署名行与气泡之间出现一段读作「两段内容」的空白。
+    // 现在这里没有 Spacer / weight / fillMaxHeight 参与，间距只由这一个值决定。
+    val hasLeadingImage =
+        message.parts.firstOrNull { it !is UIMessagePart.Text } is UIMessagePart.Image
+    val headerToContentGap = if (hasLeadingImage) 5.dp else 10.dp
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        // 这一层只负责「署名行 -> 内容」这一处间距；内容内部的间距由下面那层 Column 管。
+        verticalArrangement = Arrangement.spacedBy(headerToContentGap)
     ) {
         if (!message.parts.isEmptyUIMessage() && !sideAvatar) {
             Row(
@@ -306,100 +317,109 @@ fun ChatMessage(
                 )
             }
         }
-        ProvideTextStyle(textStyle) {
-            // SIDE 版式下内容缩进一列，旁边留出头像槽；
-            // 用 Row + weight 而不是把头像塞进外层 Column，气泡才不会被压成一竖列汉字。
-            SideAvatarRow(
-                enabled = sideAvatar,
-                showAvatar = showSideSlot,
-                mine = message.role == MessageRole.USER,
-                role = message.role,
-                model = model,
-                assistant = assistant,
-                loading = loading,
-            ) {
-                MessagePartsBlock(
-                    assistant = assistant,
+        // 内容层：正文 / 翻译 / 药丸 / 操作行 / token 明细都在这一层。
+        // 单独包一层，只是把「署名行 -> 内容」的间距从外层 spacedBy 里独立出来 ——
+        // 内容内部沿用原来的 4dp，间距语义因此不再和署名行混在一起。
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            ProvideTextStyle(textStyle) {
+                // SIDE 版式下内容缩进一列，旁边留出头像槽；
+                // 用 Row + weight 而不是把头像塞进外层 Column，气泡才不会被压成一竖列汉字。
+                SideAvatarRow(
+                    enabled = sideAvatar,
+                    showAvatar = showSideSlot,
+                    mine = message.role == MessageRole.USER,
                     role = message.role,
-                    parts = message.parts,
-                    annotations = message.annotations,
-                    loading = loading,
                     model = model,
-                    onToolApproval = onToolApproval,
-                    onToolAnswer = onToolAnswer,
-                    onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
-                    // 长按自己的消息 = 打开「更多」操作单；药丸入口在单子里（见下方 onPill）。
-                    // 助手气泡不给这个回调，长按保持无反应。
-                    onUserMessageLongClick = if (message.role == MessageRole.USER) {
-                        { showActionsSheet = true }
-                    } else {
-                        null
-                    },
-                )
- 
-                message.translation?.let { translation ->
-                    CollapsibleTranslationText(
-                        content = translation,
-                        onClickCitation = {}
+                    assistant = assistant,
+                    loading = loading,
+                ) {
+                    MessagePartsBlock(
+                        assistant = assistant,
+                        role = message.role,
+                        parts = message.parts,
+                        annotations = message.annotations,
+                        loading = loading,
+                        model = model,
+                        onToolApproval = onToolApproval,
+                        onToolAnswer = onToolAnswer,
+                        onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
+                        // 长按自己的消息 = 打开「更多」操作单；药丸入口在单子里（见下方 onPill）。
+                        // 助手气泡不给这个回调，长按保持无反应。
+                        onUserMessageLongClick = if (message.role == MessageRole.USER) {
+                            { showActionsSheet = true }
+                        } else {
+                            null
+                        },
                     )
-                }
-            }
-        }
  
-        // 已挂药丸标记。放在气泡下方、操作行上方，和 ChatMessageEditedFiles 的
-        // 文件 chip 用同一套视觉（Surface + RoundedCornerShape(50) + labelSmall），
-        // 不新造一种 chip。只在真的挂了药丸时出现，平时不占位。
-        if (message.role == MessageRole.USER && attachedPills.isNotEmpty()) {
-            Row(
-                modifier = Modifier.padding(top = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                attachedPills.forEach { code ->
-                    val pill = PillRegistry.byCode(code) ?: return@forEach
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                    ) {
-                        Text(
-                            text = pill.name,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    message.translation?.let { translation ->
+                        CollapsibleTranslationText(
+                            content = translation,
+                            onClickCitation = {}
                         )
                     }
                 }
             }
-        }
-
-        val showActions = if (lastMessage) {
-            !loading
-        } else {
-            message.parts.isEmptyUIMessage().not()
-        }
  
-        AnimatedVisibility(
-            visible = showActions,
-            enter = slideInVertically { it / 2 } + fadeIn(),
-            exit = slideOutVertically { it / 2 } + fadeOut()
-        ) {
-            Column(
-                modifier = Modifier.animateContentSize()
-            ) {
-                ChatMessageActionButtons(
-                    message = message,
-                    onRegenerate = onRegenerate,
-                    node = node,
-                    onUpdate = onUpdate,
-                    onOpenActionSheet = {
-                        showActionsSheet = true
-                    },
-                    onTranslate = onTranslate,
-                    onClearTranslation = onClearTranslation
-                )
+            // 已挂药丸标记。放在气泡下方、操作行上方，和 ChatMessageEditedFiles 的
+            // 文件 chip 用同一套视觉（Surface + RoundedCornerShape(50) + labelSmall），
+            // 不新造一种 chip。只在真的挂了药丸时出现，平时不占位。
+            if (message.role == MessageRole.USER && attachedPills.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    attachedPills.forEach { code ->
+                        val pill = PillRegistry.byCode(code) ?: return@forEach
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Text(
+                                text = pill.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
             }
-        }
+
+            val showActions = if (lastMessage) {
+                !loading
+            } else {
+                message.parts.isEmptyUIMessage().not()
+            }
  
-        ProvideTextStyle(textStyle) {
-            ChatMessageNerdLine(message = message)
+            AnimatedVisibility(
+                visible = showActions,
+                enter = slideInVertically { it / 2 } + fadeIn(),
+                exit = slideOutVertically { it / 2 } + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.animateContentSize()
+                ) {
+                    ChatMessageActionButtons(
+                        message = message,
+                        onRegenerate = onRegenerate,
+                        node = node,
+                        onUpdate = onUpdate,
+                        onOpenActionSheet = {
+                            showActionsSheet = true
+                        },
+                        onTranslate = onTranslate,
+                        onClearTranslation = onClearTranslation
+                    )
+                }
+            }
+ 
+            ProvideTextStyle(textStyle) {
+                ChatMessageNerdLine(message = message)
+            }
         }
     }
     if (showPillSheet) {

@@ -26,8 +26,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
@@ -41,6 +45,80 @@ import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.toLocalString
 import java.io.File
+
+// ── 署名行（头像 + 昵称 + 时间）的统一规格 ─────────────────────────────────
+//
+// 用户侧与助手侧必须**完全同档**：字号、行高、颜色、头像尺寸只由 alignEnd 镜像。
+// 旧实现是两套：用户昵称 titleSmall、助手昵称 titleSmallEmphasized（字重不同）；
+// 用户时间 labelSmall(11sp)/alpha .6、助手时间 labelSmall 或 titleSmall(14sp)/alpha .8；
+// 头像 36dp vs 32dp —— 「User 的时间明显偏小、和 Assistant 不是同一视觉等级」
+// 就是这么来的。现在只留这一份规格，两侧共用。
+
+/** 署名行头像尺寸。用户与助手同一档。 */
+private val META_AVATAR_SIZE = 32.dp
+
+/** 头像与昵称/时间之间的横向间距。两侧同档。 */
+private val META_AVATAR_TEXT_GAP = 8.dp
+
+/** 昵称与时间戳之间的纵向间距。 */
+private val META_NAME_TIME_GAP = 2.dp
+
+/** 昵称样式：16sp / 22sp。两侧共用，不再有 Emphasized 与非 Emphasized 之分。 */
+private val META_NAME_STYLE = TextStyle(
+    fontSize = 16.sp,
+    lineHeight = 22.sp,
+    fontWeight = FontWeight.Medium,
+)
+
+/** 时间戳样式：13sp / 18sp。与昵称同一套字体，只小一档、淡一档。 */
+private val META_TIME_STYLE = TextStyle(
+    fontSize = 13.sp,
+    lineHeight = 18.sp,
+)
+
+/** 昵称 / 时间戳的不透明度。两侧必须一致。 */
+private const val META_NAME_ALPHA = 0.85f
+private const val META_TIME_ALPHA = 0.62f
+
+/**
+ * 署名行的「昵称 + 时间戳」列。用户与助手共用这一份实现 ——
+ * 字号、行高、颜色、对齐只由 [alignEnd] 镜像，不存在两套 typography。
+ * 两者都不显示时整列不渲染（不占位、不留空洞）。
+ */
+@Composable
+private fun MetaNameTimeColumn(
+    nickname: String,
+    timeText: String,
+    showName: Boolean,
+    showTime: Boolean,
+    alignEnd: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (!showName && !showTime) return
+    Column(
+        modifier = modifier,
+        horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(META_NAME_TIME_GAP),
+    ) {
+        if (showName) {
+            Text(
+                text = nickname,
+                style = META_NAME_STYLE,
+                color = LocalContentColor.current.copy(alpha = META_NAME_ALPHA),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (showTime) {
+            Text(
+                text = timeText,
+                style = META_TIME_STYLE,
+                color = LocalContentColor.current.copy(alpha = META_TIME_ALPHA),
+                maxLines = 1,
+            )
+        }
+    }
+}
 
 @Composable
 private fun AvatarFrameOverlay(
@@ -80,34 +158,25 @@ fun ChatMessageUserAvatar(
 ) {
     val settings = LocalSettings.current
     if (message.role == MessageRole.USER && !message.parts.isEmptyUIMessage() && settings.displaySetting.showUserAvatar) {
+        // 署名行本身**不带纵向 padding** —— 它和气泡之间的距离由 ChatMessage 的
+        // 外层 cluster 间距统一决定（文字 10dp / 图片 5dp）。在这里加 padding 只会
+        // 把用户侧的署名行从消息顶端往下推、和助手侧错开一档。
         Row(
-            modifier = modifier.padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(META_AVATAR_TEXT_GAP, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(
-                modifier = Modifier,
-                horizontalAlignment = Alignment.End,
-            ) {
-                Text(
-                    text = nickname.ifEmpty { stringResource(R.string.user_default_name) },
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    color = LocalContentColor.current.copy(alpha = 0.85f),
-                )
-                if (settings.displaySetting.showDateBelowName) {
-                    Text(
-                        text = message.createdAt.toJavaLocalDateTime().toLocalString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LocalContentColor.current.copy(alpha = 0.6f),
-                        maxLines = 1,
-                    )
-                }
-            }
+            MetaNameTimeColumn(
+                nickname = nickname.ifEmpty { stringResource(R.string.user_default_name) },
+                timeText = message.createdAt.toJavaLocalDateTime().toLocalString(),
+                showName = true,
+                showTime = settings.displaySetting.showDateBelowName,
+                alignEnd = true,
+            )
             Box(contentAlignment = Alignment.Center) {
                 UIAvatar(
                     name = nickname,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(META_AVATAR_SIZE),
                     value = avatar,
                     loading = false,
                 )
@@ -116,7 +185,7 @@ fun ChatMessageUserAvatar(
                     offsetX = settings.displaySetting.userAvatarFrameOffsetX,
                     offsetY = settings.displaySetting.userAvatarFrameOffsetY,
                     scale = settings.displaySetting.userAvatarFrameScale,
-                    baseSize = 36f,
+                    baseSize = META_AVATAR_SIZE.value,
                 )
             }
         }
@@ -135,83 +204,55 @@ fun ChatMessageAssistantAvatar(
     val showIcon = settings.displaySetting.showModelIcon
     val useAssistantAvatar = assistant?.useAssistantAvatar == true
     if (message.role == MessageRole.ASSISTANT && (model != null || useAssistantAvatar)) {
+        // 昵称与时间戳走与用户侧**同一份**实现（MetaNameTimeColumn）：
+        // 字号 / 行高 / 颜色只由 alignEnd 镜像，不再有第二套 typography。
+        val name = if (useAssistantAvatar) {
+            assistant?.name.orEmpty().ifEmpty {
+                stringResource(R.string.assistant_page_default_assistant)
+            }
+        } else {
+            model?.displayName.orEmpty()
+        }
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(META_AVATAR_TEXT_GAP),
             verticalAlignment = Alignment.CenterVertically,
             modifier = modifier
         ) {
-            if (useAssistantAvatar) {
-                if (showIcon) {
-                    Box(contentAlignment = Alignment.Center) {
+            if (showIcon) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (useAssistantAvatar && assistant != null) {
                         UIAvatar(
                             name = assistant.name,
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(META_AVATAR_SIZE),
                             value = assistant.avatar,
                             loading = loading,
                         )
-                        AvatarFrameOverlay(
-                            framePath = settings.displaySetting.aiAvatarFramePath,
-                            offsetX = settings.displaySetting.aiAvatarFrameOffsetX,
-                            offsetY = settings.displaySetting.aiAvatarFrameOffsetY,
-                            scale = settings.displaySetting.aiAvatarFrameScale,
-                            baseSize = 32f,
-                        )
-                    }
-                }
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if(settings.displaySetting.showModelName) {
-                        Text(
-                            text = assistant.name.ifEmpty { stringResource(R.string.assistant_page_default_assistant) },
-                            style = MaterialTheme.typography.titleSmallEmphasized,
-                            maxLines = 1,
-                        )
-                        if (settings.displaySetting.showDateBelowName) {
-                            Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalString(),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f),
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
-            } else if (model != null) {
-                if (showIcon) {
-                    Box(contentAlignment = Alignment.Center) {
+                    } else {
                         AutoAIIcon(
-                            name = model.modelId,
-                            modifier = Modifier.size(32.dp),
-                            loading = loading
-                        )
-                        AvatarFrameOverlay(
-                            framePath = settings.displaySetting.aiAvatarFramePath,
-                            offsetX = settings.displaySetting.aiAvatarFrameOffsetX,
-                            offsetY = settings.displaySetting.aiAvatarFrameOffsetY,
-                            scale = settings.displaySetting.aiAvatarFrameScale,
-                            baseSize = 32f,
+                            name = model?.modelId ?: assistant?.name.orEmpty(),
+                            modifier = Modifier.size(META_AVATAR_SIZE),
+                            loading = loading,
                         )
                     }
-                }
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if(settings.displaySetting.showModelName) {
-                        Text(
-                            text = model.displayName,
-                            style = MaterialTheme.typography.titleSmallEmphasized,
-                        )
-                        if (settings.displaySetting.showDateBelowName) {
-                            Text(
-                                text = message.createdAt.toJavaLocalDateTime().toLocalString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = LocalContentColor.current.copy(alpha = 0.8f)
-                            )
-                        }
-                    }
+                    AvatarFrameOverlay(
+                        framePath = settings.displaySetting.aiAvatarFramePath,
+                        offsetX = settings.displaySetting.aiAvatarFrameOffsetX,
+                        offsetY = settings.displaySetting.aiAvatarFrameOffsetY,
+                        scale = settings.displaySetting.aiAvatarFrameScale,
+                        baseSize = META_AVATAR_SIZE.value,
+                    )
                 }
             }
+            MetaNameTimeColumn(
+                nickname = name,
+                timeText = message.createdAt.toJavaLocalDateTime().toLocalString(),
+                showName = settings.displaySetting.showModelName,
+                // 时间戳的**显示门控保持原样**：旧实现把它嵌在 showModelName 之下，
+                // 本轮不改显示行为，只统一字号 / 行高 / 颜色（见 META_* 常量）。
+                showTime = settings.displaySetting.showModelName && settings.displaySetting.showDateBelowName,
+                alignEnd = false,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

@@ -77,10 +77,12 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import com.dokar.sonner.ToastType
@@ -1105,9 +1107,11 @@ private fun TextInputRow(
                 // 那层 `defaultMinSize(minHeight = TextFieldDefaults.MinHeight = 56.dp)`
                 // 会生效（TextField.kt:306）。它是「传入约束 minHeight == 0 时才套自己
                 // 的下限」（foundation Size.kt 的 UnspecifiedConstraintsNode），
-                // 1dp 即可让它让位 —— 于是 1 行文字只占 52dp，不再被顶成 56dp 的空壳。
-                // 单行（胶囊）态反过来要**故意**占满 56dp：容器圆角固定 28dp，
-                // 56dp 高时 28dp 正好是半高，读作一颗标准胶囊。
+                // 1dp 即可让它让位 —— 于是 1 行文字只占「1 行行高 + 32dp 内边距」（24 + 32 = 56dp），
+                // 高度完全由内容决定，不会被额外顶高。
+                // 单行（胶囊）态反过来要**故意**给一个 44dp 下限（InputCapsuleHeight）：
+                // 正文区与 44dp 的操作按钮盒齐高；容器形状走 InputCapsuleShape（percent 50），
+                // 无论多高都读作一颗标准胶囊。
                 .heightIn(
                     min = if (singleLine) InputCapsuleHeight else InputMinHeight,
                     max = InputMaxHeight,
@@ -1116,16 +1120,23 @@ private fun TextInputRow(
                 // 超出的文字由 BasicTextField 自己内部滚动，不撑外壳。
                 .contentReceiver(receiveContentListener),
             shape = shape,
-            // 输入与占位文字降一级:输入框是常驻控件,文字不该跟消息正文同级抢读。
-            textStyle = MaterialTheme.typography.bodyMedium,
+            // 输入文字与聊天正文**同一档**。
+            //
+            // 正文来自 RikkahubTheme -> MaterialExpressiveTheme 提供的
+            // LocalTextStyle（= typography.bodyLarge，16sp/24sp），ChatMessage
+            // 再按 fontSizeRatio 缩放。旧值 bodyMedium（14sp/20sp）比正文小一级，
+            // 读起来像「次要输入」，被用户点名「文字太小」。
+            // 这里显式给 17sp —— 与正文同档，行高 24sp 与正文一致。
+            // 占位文字必须是**同一个** style，否则输入前后字号会跳。
+            textStyle = InputTextStyle,
             placeholder = {
                 Text(
                     text = placeholder,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = InputTextStyle,
                 )
             },
-            // 上限从 5 行收到 4 行：5 行时外壳约 136–166dp（随字体缩放），已经超出
-            // 「最大 120–140dp」；4 行固定 116dp。超出的文字在编辑区内部滚动。
+            // 上限从 5 行收到 4 行：5 行时外壳约 152–188dp（随字体缩放），已经超出
+            // 「最大 120–140dp」；4 行固定 128dp。超出的文字在编辑区内部滚动。
             //
             // **正文恒为 MultiLine，不再按两态在 SingleLine / MultiLine 之间切。**
             // 原来单行态走 SingleLine，代价是长句在框内**横向滚动**：光标移到句尾时
@@ -1149,14 +1160,18 @@ private fun TextInputRow(
                     singleLine -> state.appendText("\n")
                 }
             },
-            // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 12dp：
-            // 1 行正文（20dp 行高）因此占 20 + 12×2 = 44dp，与 44dp 的操作按钮盒齐平，
+            // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 10dp：
+            // 1 行正文（24dp 行高）因此占 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平，
             // 文字不再「浮」在正文区中间。容器总高
             // max(44, 44) + 10×2 = 64dp，是用户点名的单行目标高度。
             // 多行态保持 M3 的默认值（左右上下各 16dp，= TextFieldDefaults
             // .contentPaddingWithoutLabel()）—— 不硬编码，避免随 M3 版本漂移。
             contentPadding = if (singleLine) {
-                PaddingValues(top = 12.dp, bottom = 12.dp, start = 16.dp, end = 16.dp)
+                // 纵向 12 -> 10dp：正文行高从 20sp 提到 24sp（见 InputTextStyle），
+                // 1 行正文 = 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平 ——
+                // 胶囊总高仍是 44 + 10×2 = 64dp，**一点没变**。
+                // 只动纵向：左右仍是 16dp，长句的阅读宽度不受影响。
+                PaddingValues(top = 10.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
             } else {
                 TextFieldDefaults.contentPaddingWithoutLabel()
             },
@@ -1256,7 +1271,7 @@ private val ActionButtonSize = 44.dp
  * 按钮本身是透明的（[ActionIconButton] 的 Surface 不画底），44dp 的盒子只贡献
  * 「图标到容器边缘 / 图标到图标」的留白，不产生任何可见方块。图标在盒子里居中，
  * 五个按钮因此共用同一条中心线。盒子之间的间距留白交给容器内边距
- * （[InputContainerPadding]，12dp）—— 不再叠加 padding 或 spacedBy。
+ * （[InputContainerPadding]，10dp）—— 不再叠加 padding 或 spacedBy。
  *
  * 实心发送圆与它同大（见 [ActionButtonSize]，也是 44dp），居中其中。
  */
@@ -1287,20 +1302,20 @@ private val CapsuleActionIconSize = 24.dp
  *
  * 为什么两个都要，而不是只留一个：
  * - `maxHeightInLines` 决定「能看见几行」，但它的**实际高度会随系统字体缩放漂移** ——
- *   行高 = 字号 × 行距系数，字号放大 1.3 倍，同样 4 行就从约 112dp 变成约 136dp。
+ *   行高 = 字号 × 行距系数，字号放大 1.3 倍，同样 4 行就从约 128dp 变成约 157dp。
  * - 所以再压一条**绝对 dp 上限**兜底，让外壳高度与字体缩放无关。
  *
- * 这两个值一致（4 行 = 4 × 20dp 行高 + 32dp 内边距 = 112dp），所以默认字体下由谁生效都一样；
+ * 这两个值一致（4 行 = 4 × 24dp 行高 + 32dp 内边距 = 128dp），所以默认字体下由谁生效都一样；
  * 字体放大之后由 [InputMaxHeight] 生效，多出来的文字在编辑区内部滚动，不撑外壳。
  *
  * 容器总高：
  *   单行（胶囊）态 = 内容高（正文区 [InputCapsuleHeight] 44dp 与 1 行 44dp 取大者）
  *                   ＋ 上下各 10dp 内边距 ⇒ 64dp（[InputCapsuleShape] 的 percent 50 保证是胶囊）
- *   多行（展开）态 = 正文区 52~112 + 操作行 48（[CapsuleActionSize]）＋ 上下各 12dp ⇒ 约 124~184dp
+ *   多行（展开）态 = 正文区 56~128 + 操作行 48（[CapsuleActionSize]）＋ 上下各 12dp ⇒ 约 128~200dp
  * 两态都由行数封顶，不会无限长；多行态的正文区高度完全由内容决定，没有固定空壳。
  */
 private const val InputMaxLines = 4
-private val InputMaxHeight = 112.dp
+private val InputMaxHeight = 128.dp
 
 /**
  * 正文区在**单行（胶囊）态**的下限高度。
@@ -1320,7 +1335,7 @@ private val InputCapsuleHeight = 44.dp
  * （TextField.kt:306，MinHeight = 56.dp），而 `defaultMinSize` **只在传入约束的
  * minHeight == 0 时才套用自己的下限**（foundation Size.kt 的 UnspecifiedConstraintsNode）。
  * 给一个非 0 的下限即可让它让位，正文区高度于是完全由内容决定：
- * 1 行 = 20dp 行高 + 32dp contentPadding = 52dp，2 行 = 72dp，不再有 56dp 的固定空壳。
+ * 1 行 = 24dp 行高 + 32dp contentPadding = 56dp，2 行 = 80dp，高度完全由内容决定。
  */
 private val InputMinHeight = 1.dp
 
@@ -1345,3 +1360,21 @@ private val InputCapsuleShape = RoundedCornerShape(percent = 50)
  * 底排的 + 与发送会被 `.clip(containerShape)` 啃掉。所以这里是一个纯常量。
  */
 private val InputEditorShape = RoundedCornerShape(28.dp)
+
+/**
+ * 正文输入区的文字样式。
+ *
+ * 字号 17sp —— 与聊天正文同一档（正文 = [MaterialExpressiveTheme] 提供的
+ * `typography.bodyLarge`，16sp/24sp）。旧值 `bodyMedium`（14sp/20sp）比正文小一级，
+ * 输入框因此读作「次要输入」，被用户点名「文字太小」。
+ *
+ * 行高 24sp 与正文一致：输入框是写正文的地方，行距不该比正文紧。
+ *
+ * ⚠️ 它与单行胶囊高度是**联动**的：单行态正文区高 = 行高 + contentPadding×2
+ * = 24 + 10×2 = 44dp（见 [TextInputRow] 里 singleLine 分支的 contentPadding），
+ * 所以容器总高仍是 44 + [InputContainerPadding]×2 = 64dp。改行高必须同时看那里。
+ */
+private val InputTextStyle = TextStyle(
+    fontSize = 17.sp,
+    lineHeight = 24.sp,
+)
