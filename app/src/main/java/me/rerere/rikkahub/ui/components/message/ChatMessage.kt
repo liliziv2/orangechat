@@ -78,13 +78,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAll
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
+import androidx.compose.ui.zIndex
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import androidx.core.net.toUri
@@ -501,7 +501,11 @@ private fun UserImageStack(
     urls: List<String>,
     modifier: Modifier = Modifier,
 ) {
+    // 写法对齐全仓既有的自定义 Layout 先例 `FaviconRow`（ui/components/ui/Favicon.kt）：
+    // measure 直接吃 constraints、layout 直接给算好的宽高、placeRelative 定位、
+    // 用 zIndex 显式指定层叠（不依赖绘制顺序的隐式约定）。
     Layout(
+        modifier = modifier,
         content = {
             urls.fastForEachIndexed { index, url ->
                 key(index) {
@@ -512,6 +516,7 @@ private fun UserImageStack(
                         // 透明留白，叠起来会互相透出下层、读不出层次。Gallery 里仍是原图完整显示。
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
+                            .zIndex(index.toFloat())
                             .size(IMAGE_STACK_THUMB_SIZE)
                             .clip(MaterialTheme.shapes.medium),
                         gallery = urls,
@@ -520,20 +525,14 @@ private fun UserImageStack(
                 }
             }
         },
-        modifier = modifier,
     ) { measurables, constraints ->
+        val placeables = measurables.map { measurable -> measurable.measure(constraints) }
         val thumbPx = IMAGE_STACK_THUMB_SIZE.roundToPx()
         val revealPx = IMAGE_STACK_REVEAL.roundToPx()
-        val childConstraints = Constraints.fixed(thumbPx, thumbPx)
-        val placeables = measurables.map { it.measure(childConstraints) }
         val stackHeight = thumbPx + revealPx * (placeables.size - 1).coerceAtLeast(0)
-        // 后一张压在前一张上 ⇒ 声明顺序即绘制顺序，最后一张完整可见。
-        // 内容贴节点右侧（父级已右对齐，这里再兜一层，避免父级最小宽度把它顶到左边）。
-        val nodeWidth = constraints.constrainWidth(thumbPx)
-        val nodeHeight = constraints.constrainHeight(stackHeight)
-        layout(nodeWidth, nodeHeight) {
+        layout(thumbPx, stackHeight) {
             placeables.fastForEachIndexed { index, placeable ->
-                placeable.place(x = nodeWidth - thumbPx, y = index * revealPx)
+                placeable.placeRelative(x = 0, y = index * revealPx)
             }
         }
     }
