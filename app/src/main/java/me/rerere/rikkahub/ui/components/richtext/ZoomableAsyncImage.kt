@@ -30,6 +30,10 @@ fun ZoomableAsyncImage(
     alignment: Alignment = Alignment.Center,
     contentScale: ContentScale = ContentScale.Fit,
     alpha: Float = DefaultAlpha,
+    // 多图消息（图片组）用：整组 URL + 当前这张在组内的下标。
+    // 不传（全部既有调用点）时行为与改动前完全一致 —— 只预览自己这一张。
+    gallery: List<String>? = null,
+    galleryIndex: Int = 0,
 ) {
     var showImageViewer by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -64,7 +68,14 @@ fun ZoomableAsyncImage(
         },
     )
     if (showImageViewer) {
-        ImagePreviewDialog(images = listOf(model ?: "")) {
+        // 图片组把整组 URL 与当前张的下标一起带进来 ⇒ 打开的是**同一个** Gallery，
+        // 可以左右滑动浏览同组全部图片，并且直接落在点击的那一张上。
+        // gallery 为 null 时退回「只预览自己这一张」，单图消息的展示与交互完全不变。
+        val previewImages = gallery?.takeIf { it.isNotEmpty() } ?: listOf(model ?: "")
+        ImagePreviewDialog(
+            images = previewImages,
+            initialPage = galleryIndex.coerceIn(0, previewImages.lastIndex),
+        ) {
             showImageViewer = false
         }
     }

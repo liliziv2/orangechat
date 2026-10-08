@@ -78,6 +78,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -136,6 +137,7 @@ import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.foundation.Image
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.base64Encode
@@ -477,6 +479,72 @@ fun ChatMessage(
     }
 }
  
+/**
+ * 用户消息里的多图（连续 ≥2 张）在**渲染层**聚成一个整体，以「叠卡片」方式呈现：
+ * 每张统一 [IMAGE_STACK_THUMB_SIZE] 方块，后一张压在前一张上、每张只露出顶部
+ * [IMAGE_STACK_REVEAL] 一条。
+ *
+ * 整组高度 = 边长 + (张数 - 1) × 露出高度，远小于逐张纵向堆叠（N × 72dp + 间距），
+ * 所以多图不会再一张一张把聊天记录撑高。
+ *
+ * 约束（2026-10-08 任务单）：
+ * - 整组宽度恒为边长，不突破消息最大宽度，也不新增外层 Card / 相册页；
+ * - 整组仍在该条消息自己的 Column 里（署名行下方、文字气泡上方），不会被读成独立消息；
+ * - 与文字气泡的间距由调用点补足到 8dp，组不会与文字脱开；
+ * - 点击任意一张进入**同一个** Gallery（整组 URL + 该张下标），可左右滑动浏览全组。
+ *
+ * 单张图片不走这里 —— 仍保持原来的 72dp 高 + 原比例，见调用点。
+ * 这里只决定「怎么画」，不改 UIMessagePart / 上传 / 缓存逻辑。
+ */
+@Composable
+private fun UserImageStack(
+    urls: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    Layout(
+        content = {
+            urls.fastForEachIndexed { index, url ->
+                key(index) {
+                    ZoomableAsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        // 缩略图统一成方块，用 Crop 而不是 Fit：Fit 会在方块里留下大小不一的
+                        // 透明留白，叠起来会互相透出下层、读不出层次。Gallery 里仍是原图完整显示。
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(IMAGE_STACK_THUMB_SIZE)
+                            .clip(MaterialTheme.shapes.medium),
+                        gallery = urls,
+                        galleryIndex = index,
+                    )
+                }
+            }
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val thumbPx = IMAGE_STACK_THUMB_SIZE.roundToPx()
+        val revealPx = IMAGE_STACK_REVEAL.roundToPx()
+        val childConstraints = Constraints.fixed(thumbPx, thumbPx)
+        val placeables = measurables.map { it.measure(childConstraints) }
+        val stackHeight = thumbPx + revealPx * (placeables.size - 1).coerceAtLeast(0)
+        // 后一张压在前一张上 ⇒ 声明顺序即绘制顺序，最后一张完整可见。
+        // 内容贴节点右侧（父级已右对齐，这里再兜一层，避免父级最小宽度把它顶到左边）。
+        val nodeWidth = constraints.constrainWidth(thumbPx)
+        val nodeHeight = constraints.constrainHeight(stackHeight)
+        layout(nodeWidth, nodeHeight) {
+            placeables.fastForEachIndexed { index, placeable ->
+                placeable.place(x = nodeWidth - thumbPx, y = index * revealPx)
+            }
+        }
+    }
+}
+
+/** 图片组缩略图的边长；与单图的高（72dp）同值，两种形态在视觉上同档。 */
+private val IMAGE_STACK_THUMB_SIZE = 72.dp
+
+/** 图片组里每张露出的高度：越小整组越紧凑。 */
+private val IMAGE_STACK_REVEAL = 20.dp
+
 @OptIn(FlowPreview::class)
 @Composable
 private fun MessagePartsBlock(
@@ -552,6 +620,48 @@ private fun MessagePartsBlock(
             groupedParts
         }
     }
+    // 用户消息里的多图（连续 ≥2 张 Image）在渲染层聚成一个整体：
+    // 整组交给 UserImageStack 画成叠卡片，段内其余 block 在遍历时跳过。
+    // 单张不进来（仍走原分支，保持 72dp 高 + 原比例）；
+    // 助手侧不参与（思考/工具链顺序敏感，任务单也只针对 UserMessage）。
+    val userImageGroups: Map<Int, List<String>> = remember(orderedParts, role) {
+        if (role != MessageRole.USER) {
+            emptyMap<Int, List<String>>()
+        } else {
+            buildMap<Int, List<String>> {
+                var i = 0
+                while (i < orderedParts.size) {
+                    val head = (orderedParts[i] as? MessagePartBlock.ContentBlock)?.part
+                    if (head is UIMessagePart.Image) {
+                        val urls = mutableListOf(head.url)
+                        var j = i + 1
+                        while (j < orderedParts.size) {
+                            val next = (orderedParts[j] as? MessagePartBlock.ContentBlock)?.part
+                            if (next is UIMessagePart.Image) {
+                                urls.add(next.url)
+                                j++
+                            } else {
+                                break
+                            }
+                        }
+                        if (urls.size >= 2) put(i, urls)
+                        i = j
+                    } else {
+                        i++
+                    }
+                }
+            }
+        }
+    }
+    // 组内除首张外的下标：它们已随整组画过，遍历时直接跳过。
+    val userImageGroupRest: Set<Int> = remember(userImageGroups) {
+        buildSet<Int> {
+            userImageGroups.forEach { (start, urls) ->
+                for (offset in 1 until urls.size) add(start + offset)
+            }
+        }
+    }
+
     orderedParts.fastForEachIndexed { partIndex, block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -599,7 +709,25 @@ private fun MessagePartsBlock(
                 }
             }
  
-            is MessagePartBlock.ContentBlock -> key(block.index) {
+            is MessagePartBlock.ContentBlock -> if (partIndex in userImageGroups) {
+                // 多图：整组只画一次（叠卡片），点击任意一张都进同一个 Gallery。
+                val groupUrls = userImageGroups.getValue(partIndex)
+                // 图片组 -> 紧随其后的文字气泡之间保持 8dp：内层 Column 的 spacedBy 已给 4dp，
+                // 这里再补 4dp。
+                // ⚠️ 不用 Spacer 补：Spacer 自己也是 Column 的子项，会被 spacedBy 再插一层
+                //    （4 + 4 + 4 = 12dp），补出来的不是 8dp。padding 只加在组自己身上，正好。
+                val followedByText =
+                    (orderedParts.getOrNull(partIndex + groupUrls.size) as? MessagePartBlock.ContentBlock)
+                        ?.part is UIMessagePart.Text
+                key(block.index) {
+                    UserImageStack(
+                        urls = groupUrls,
+                        modifier = if (followedByText) Modifier.padding(bottom = 4.dp) else Modifier,
+                    )
+                }
+            } else if (partIndex in userImageGroupRest) {
+                // 这张图已并入前一张开始的图片组，整组渲染时已经画过 —— 这里不再重复画。
+            } else key(block.index) {
                 when (val part = block.part) {
                     is UIMessagePart.Text -> {
                         // 从显示文本中移除[zip:...]标记
