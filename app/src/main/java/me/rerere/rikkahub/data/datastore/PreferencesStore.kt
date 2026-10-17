@@ -483,7 +483,8 @@ class SettingsStore(
 
     // 把 Settings 的全部字段编码成 (key, value) 对；value 为 null 表示该 key 应被移除。
     // 与旧 update() 的逐字段赋值一一对应，键集合与存储格式不变。
-    private fun Settings.toPreferencePairs(): List<Pair<Preferences.Key<*>, Any?>> = listOf(
+    private fun Settings.toPreferencePairs(): List<Pair<Preferences.Key<*>, Any?>> =
+        listOf<Pair<Preferences.Key<*>, Any?>>(
         DYNAMIC_COLOR to dynamicColor,
         THEME_ID to themeId,
         CUSTOM_THEMES to JsonInstant.encodeToString(customThemes),
