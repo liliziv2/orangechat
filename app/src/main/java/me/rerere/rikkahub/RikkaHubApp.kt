@@ -152,9 +152,9 @@ class RikkaHubApp : Application() {
         get<AppScope>().launch {
             runCatching {
                 val store = get<SettingsStore>()
-                val current = store.settingsFlowRaw.first()
-                store.update(current.copy(launchCount = current.launchCount + 1))
-                Log.i(TAG, "incrementLaunchCount: ${store.settingsFlowRaw.first().launchCount}")
+                // P1：以内存最新值为基准（磁盘快照可能落后于刚生效的修改），只递增计数
+                store.update { it.copy(launchCount = it.launchCount + 1) }
+                Log.i(TAG, "incrementLaunchCount: ${store.settingsFlow.value.launchCount}")
             }.onFailure {
                 Log.e(TAG, "incrementLaunchCount failed", it)
             }

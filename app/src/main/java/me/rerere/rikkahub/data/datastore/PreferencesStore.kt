@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.core.IOException
 import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -11,10 +13,17 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.pebbletemplates.pebble.PebbleEngine
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import me.rerere.ai.core.MessageRole
@@ -46,7 +55,6 @@ import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.toMutableStateFlow
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
 import me.rerere.tts.provider.TTSProviderSetting
@@ -406,94 +414,179 @@ class SettingsStore(
             }
         }
 
-    val settingsFlow = settingsFlowRaw
-        .distinctUntilChanged()
-        .toMutableStateFlow(scope, Settings.dummy())
+    // 内存是唯一的事实来源：启动时从盘上读一次种子，之后不再把盘上的值镜像回内存。
+    // 原实现把 dataStore.data 持续收集进 StateFlow，写盘后的磁盘回读比内存晚一拍，
+    // 会盖掉这期间的新修改（快速输入/连续拖 slider 丢更新，上游 3462d9ee 的根因）。
+    // settingsFlowRaw 本身保留：多处服务用 settingsFlowRaw.first() 取磁盘快照，行为不变。
+    val settingsFlow = MutableStateFlow(Settings.dummy())
 
-    suspend fun update(settings: Settings) {
-        if(settings.init) {
+    // 设置加载完成标记：磁盘加载失败时 update(fn) 退回旧行为，不无限等待
+    @Volatile
+    private var settingsLoadFailed = false
+
+    // 写盘串行 + 合并：连续修改只落盘最新一份；trySend 永不挂起，
+    // 写入方常驻 AppScope，调用方协程被取消也不会丢掉已生效的更改。
+    private val pendingWrites = Channel<Settings>(capacity = Channel.CONFLATED)
+
+    // 序列化内存修改：并发 update 不再互相覆盖
+    private val updateMutex = Mutex()
+
+    init {
+        scope.launch {
+            runCatching { settingsFlowRaw.first() }
+                .onSuccess { loaded ->
+                    lastAssistantsForCacheInvalidation = loaded.assistants
+                    settingsFlow.value = loaded
+                }
+                .onFailure { e ->
+                    settingsLoadFailed = true
+                    Log.e(TAG, "Failed to load settings from disk", e)
+                }
+        }
+        // 常驻写盘方：消费合并后的最新设置并落盘。
+        scope.launch {
+            for (settings in pendingWrites) {
+                try {
+                    dataStore.edit { preferences -> persist(settings, preferences) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to persist settings", e)
+                }
+            }
+        }
+    }
+
+    private suspend fun awaitLoaded() {
+        settingsFlow.filterNot { it.init }.first()
+    }
+
+    // 内存写入路径：原 settingsFlowRaw.onEach 里的 Pebble 缓存失效逻辑随镜像一起迁过来
+    private fun updateMemory(settings: Settings) {
+        // 只在助手列表变化时才清空 Pebble 模板缓存（assistant 的 messageTemplate 字段决定模板内容）
+        // 避免无关设置变化（如显示设置、provider 设置等）触发不必要的模板重新编译
+        if (settings.assistants != lastAssistantsForCacheInvalidation) {
+            lastAssistantsForCacheInvalidation = settings.assistants
+            get<PebbleEngine>().templateCache.invalidateAll()
+        }
+        settingsFlow.value = settings
+    }
+
+    private fun applyUpdate(settings: Settings) {
+        if (settings.init) {
             Log.w(TAG, "Cannot update dummy settings")
             return
         }
-        settingsFlow.value = settings
-        dataStore.edit { preferences ->
-            preferences[DYNAMIC_COLOR] = settings.dynamicColor
-            preferences[THEME_ID] = settings.themeId
-            preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
-            preferences[DEVELOPER_MODE] = settings.developerMode
-            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
+        updateMemory(settings)
+        pendingWrites.trySend(settings)
+    }
 
-            preferences[DISCLAIMER_ACCEPTED] = settings.disclaimerAccepted
-            preferences[DISCLAIMER_ACCEPTED_AT] = settings.disclaimerAcceptedAt
+    // 把 Settings 的全部字段编码成 (key, value) 对；value 为 null 表示该 key 应被移除。
+    // 与旧 update() 的逐字段赋值一一对应，键集合与存储格式不变。
+    private fun Settings.toPreferencePairs(): List<Pair<Preferences.Key<*>, Any?>> = listOf(
+        DYNAMIC_COLOR to dynamicColor,
+        THEME_ID to themeId,
+        CUSTOM_THEMES to JsonInstant.encodeToString(customThemes),
+        DEVELOPER_MODE to developerMode,
+        DISPLAY_SETTING to JsonInstant.encodeToString(displaySetting),
+        DISCLAIMER_ACCEPTED to disclaimerAccepted,
+        DISCLAIMER_ACCEPTED_AT to disclaimerAcceptedAt,
+        ENABLE_WEB_SEARCH to enableWebSearch,
+        FAVORITE_MODELS to JsonInstant.encodeToString(favoriteModels),
+        SELECT_MODEL to chatModelId.toString(),
+        TITLE_MODEL to titleModelId.toString(),
+        TRANSLATE_MODEL to translateModeId.toString(),
+        SUGGESTION_MODEL to suggestionModelId.toString(),
+        IMAGE_GENERATION_MODEL to imageGenerationModelId.toString(),
+        TITLE_PROMPT to titlePrompt,
+        TRANSLATION_PROMPT to translatePrompt,
+        TRANSLATE_THINKING_BUDGET to translateThinkingBudget,
+        SUGGESTION_PROMPT to suggestionPrompt,
+        OCR_MODEL to ocrModelId.toString(),
+        OCR_PROMPT to ocrPrompt,
+        COMPRESS_MODEL to compressModelId.toString(),
+        COMPRESS_PROMPT to compressPrompt,
+        PROVIDERS to JsonInstant.encodeToString(providers),
+        ASSISTANTS to JsonInstant.encodeToString(assistants),
+        SELECT_ASSISTANT to assistantId.toString(),
+        ASSISTANT_TAGS to JsonInstant.encodeToString(assistantTags),
+        SEARCH_SERVICES to JsonInstant.encodeToString(searchServices),
+        SEARCH_COMMON to JsonInstant.encodeToString(searchCommonOptions),
+        SEARCH_SELECTED to searchServiceSelected.coerceIn(0, searchServices.size - 1),
+        MCP_SERVERS to JsonInstant.encodeToString(mcpServers),
+        WEBDAV_CONFIG to JsonInstant.encodeToString(webDavConfig),
+        S3_CONFIG to JsonInstant.encodeToString(s3Config),
+        TTS_PROVIDERS to JsonInstant.encodeToString(ttsProviders),
+        SELECTED_TTS_PROVIDER to selectedTTSProviderId?.toString(),
+        ASR_PROVIDERS to JsonInstant.encodeToString(asrProviders),
+        SELECTED_ASR_PROVIDER to selectedASRProviderId?.toString(),
+        MODE_INJECTIONS to JsonInstant.encodeToString(modeInjections),
+        LOREBOOKS to JsonInstant.encodeToString(lorebooks),
+        QUICK_MESSAGES to JsonInstant.encodeToString(quickMessages),
+        WEB_SERVER_ENABLED to webServerEnabled,
+        WEB_SERVER_PORT to webServerPort,
+        WEB_SERVER_JWT_ENABLED to webServerJwtEnabled,
+        WEB_SERVER_ACCESS_PASSWORD to webServerAccessPassword,
+        WEB_SERVER_LOCALHOST_ONLY to webServerLocalhostOnly,
+        BACKUP_REMINDER_CONFIG to JsonInstant.encodeToString(backupReminderConfig),
+        LAUNCH_COUNT to launchCount,
+        SPONSOR_ALERT_DISMISSED_AT to sponsorAlertDismissedAt,
+        SYSTEM_TOOLS_SETTING to JsonInstant.encodeToString(systemToolsSetting),
+        PROACTIVE_MESSAGE_SETTING to JsonInstant.encodeToString(proactiveMessageSetting),
+        WECHAT_BOT_SETTING to JsonInstant.encodeToString(wechatBotSetting),
+        QQ_BOT_SETTING to JsonInstant.encodeToString(qqBotSetting),
+        KEEP_ALIVE_ENABLED to keepAliveEnabled,
+        EXTERNAL_MEMORIES to JsonInstant.encodeToString(externalMemories),
+        MINI_APPS to JsonInstant.encodeToString(miniApps),
+        FORCE_CONFIRM_TOOL_CALLS to forceConfirmToolCalls,
+        WORKFLOW_HEADLESS_BLOCK_SENSITIVE to workflowHeadlessBlockSensitive,
+        AUTO_APPROVE_ALL_TOOLS to autoApproveAllTools,
+    )
 
-            preferences[ENABLE_WEB_SEARCH] = settings.enableWebSearch
-            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
-            preferences[SELECT_MODEL] = settings.chatModelId.toString()
-            preferences[TITLE_MODEL] = settings.titleModelId.toString()
-            preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
-            preferences[SUGGESTION_MODEL] = settings.suggestionModelId.toString()
-            preferences[IMAGE_GENERATION_MODEL] = settings.imageGenerationModelId.toString()
-            preferences[TITLE_PROMPT] = settings.titlePrompt
-            preferences[TRANSLATION_PROMPT] = settings.translatePrompt
-            preferences[TRANSLATE_THINKING_BUDGET] = settings.translateThinkingBudget
-            preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
-            preferences[OCR_MODEL] = settings.ocrModelId.toString()
-            preferences[OCR_PROMPT] = settings.ocrPrompt
-            preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
-            preferences[COMPRESS_PROMPT] = settings.compressPrompt
+    // 首写整份落盘；之后只写与上次落盘相比变化的字段。
+    private fun persist(settings: Settings, preferences: MutablePreferences) {
+        val current = settings.toPreferencePairs()
+        val previous = lastPersisted
+        if (previous == null) {
+            for ((key, value) in current) write(preferences, key, value)
+        } else {
+            val previousByKey = previous.associateBy { it.first }
+            for ((key, value) in current) {
+                if (previousByKey[key]?.second != value) write(preferences, key, value)
+            }
+        }
+        lastPersisted = current
+    }
 
-            preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
+    // 只被常驻写盘协程调用，无需加锁。
+    @Volatile
+    private var lastPersisted: List<Pair<Preferences.Key<*>, Any?>>? = null
 
-            preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
-            preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
-            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
-
-            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
-            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
-            preferences[SEARCH_SELECTED] = settings.searchServiceSelected.coerceIn(0, settings.searchServices.size - 1)
-
-            preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
-            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
-            preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
-            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
-            settings.selectedTTSProviderId?.let {
-                preferences[SELECTED_TTS_PROVIDER] = it.toString()
-            } ?: preferences.remove(SELECTED_TTS_PROVIDER)
-            preferences[ASR_PROVIDERS] = JsonInstant.encodeToString(settings.asrProviders)
-            settings.selectedASRProviderId?.let {
-                preferences[SELECTED_ASR_PROVIDER] = it.toString()
-            } ?: preferences.remove(SELECTED_ASR_PROVIDER)
-            preferences[MODE_INJECTIONS] = JsonInstant.encodeToString(settings.modeInjections)
-            preferences[LOREBOOKS] = JsonInstant.encodeToString(settings.lorebooks)
-            preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(settings.quickMessages)
-            preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
-            preferences[WEB_SERVER_PORT] = settings.webServerPort
-            preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
-            preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
-            preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
-            preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
-            preferences[LAUNCH_COUNT] = settings.launchCount
-            preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
-            preferences[SYSTEM_TOOLS_SETTING] = JsonInstant.encodeToString(settings.systemToolsSetting)
-            preferences[PROACTIVE_MESSAGE_SETTING] = JsonInstant.encodeToString(settings.proactiveMessageSetting)
-            preferences[WECHAT_BOT_SETTING] = JsonInstant.encodeToString(settings.wechatBotSetting)
-            preferences[QQ_BOT_SETTING] = JsonInstant.encodeToString(settings.qqBotSetting)
-            preferences[KEEP_ALIVE_ENABLED] = settings.keepAliveEnabled
-            preferences[EXTERNAL_MEMORIES] = JsonInstant.encodeToString(settings.externalMemories)
-            preferences[MINI_APPS] = JsonInstant.encodeToString(settings.miniApps)
-            preferences[FORCE_CONFIRM_TOOL_CALLS] = settings.forceConfirmToolCalls
-            preferences[WORKFLOW_HEADLESS_BLOCK_SENSITIVE] = settings.workflowHeadlessBlockSensitive
-            preferences[AUTO_APPROVE_ALL_TOOLS] = settings.autoApproveAllTools
+    private fun write(preferences: MutablePreferences, key: Preferences.Key<*>, value: Any?) {
+        when (value) {
+            null -> preferences.remove(key)
+            is Boolean -> preferences[key as Preferences.Key<Boolean>] = value
+            is Int -> preferences[key as Preferences.Key<Int>] = value
+            is String -> preferences[key as Preferences.Key<String>] = value
+            else -> error("Unsupported settings value type: ${value::class}")
         }
     }
 
-    suspend fun update(fn: (Settings) -> Settings) {
-        update(fn(settingsFlow.value))
+    suspend fun update(settings: Settings) = updateMutex.withLock {
+        applyUpdate(settings)
+    }
+
+    suspend fun update(fn: (Settings) -> Settings) = updateMutex.withLock {
+        var current = settingsFlow.value
+        // 冷启动设置尚未加载完成时，等待真实设置后再应用，不再作用在 dummy 上被直接丢弃
+        if (current.init && !settingsLoadFailed) awaitLoaded()
+        applyUpdate(fn(settingsFlow.value))
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
-        dataStore.edit { preferences ->
-            preferences[SELECT_ASSISTANT] = assistantId.toString()
+        // 并入统一写入路径：先改内存再落盘，不再绕过内存直接编辑 DataStore
+        update { settings ->
+            settings.copy(assistantId = assistantId)
         }
     }
 
