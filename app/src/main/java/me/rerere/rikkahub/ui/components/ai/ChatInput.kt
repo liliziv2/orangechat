@@ -708,8 +708,9 @@ fun ChatInput(
                         )
                     }
 
-                    // 「+」附件/扩展入口。两态共用同一份定义：位置不同（单行在正文左侧、
-                    // 多行在操作行最左），但尺寸、图标、行为必须完全一致，不能各写一遍。
+                    // 「+」附件/扩展入口。两态共用同一份定义，位置也一致：都在
+                    // trailingActions 里（思考之后、发送之前），尺寸、图标、行为
+                    // 必须完全一致，不能各写一遍。
                     val attachButton: @Composable () -> Unit = {
                         ActionIconButton(
                             size = CapsuleActionSize,
@@ -725,7 +726,7 @@ fun ChatInput(
                         }
                     }
 
-                    // 操作行的右侧功能组（搜索 / 思考 / 语音 / 发送）。同样两态共用。
+                    // 操作行的右侧功能组（搜索 / 思考 / 「+」附件 / 语音 / 发送）。同样两态共用。
                     //
                     // 抽成一个 lambda 而不是复制两份：这四块带着 toaster、语音 ASR 状态机、
                     // 发送的三种行为，复制一遍就等于开了第二套并行实现。
@@ -783,6 +784,9 @@ fun ChatInput(
                                 )
                             }
                         }
+
+                        // 「+」附件入口：搜索、思考之后，语音/发送之前。
+                        attachButton()
 
                         // 语音：固定在发送左边。通话进行中禁用，避免两路麦克风冲突。
                         if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
@@ -905,11 +909,6 @@ fun ChatInput(
                             Alignment.CenterVertically
                         },
                     ) {
-                        // 单行态：「+」直接排在正文左边。
-                        if (!isMultiLine) {
-                            attachButton()
-                        }
-
                         // 正文。**两态共用同一个调用点** —— 这是硬要求：
                         // 挪到另一个分支的调用点，Compose 会把它当成另一个 composable
                         // 销毁重建，输入焦点和光标位置一起丢，键盘会在切形态的瞬间收起。
@@ -931,13 +930,13 @@ fun ChatInput(
                             // 固定在容器底部，不随正文首行位置上下跳。
                             //
                             // 行高由 44dp 的按钮盒子决定（= CapsuleActionSize），没有额外
-                            // 内边距 —— 五个按钮的中心线因此始终重合在同一条水平线上。
+                            // 内边距 —— 搜索/思考/「+」/语音/发送的中心线因此始终
+                            // 重合在同一条水平线上，与单行态同一顺序。
                             if (isMultiLine) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    attachButton()
                                     Spacer(Modifier.weight(1f))
                                     trailingActions()
                                 }
@@ -1377,4 +1376,4 @@ private val InputEditorShape = RoundedCornerShape(28.dp)
 private val InputTextStyle = TextStyle(
     fontSize = 17.sp,
     lineHeight = 24.sp,
-)
+)
