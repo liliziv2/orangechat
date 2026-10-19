@@ -6,6 +6,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.Modality
+import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
@@ -30,13 +32,20 @@ class ChatCompletionsAPIMessageTest {
     }
 
     // Helper to invoke private buildMessages method via reflection
+    private fun createTestModel(): Model = Model(
+        modelId = "gpt-test",
+        displayName = "Test Model",
+        inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+    )
+
     private fun invokeBuildMessages(messages: List<UIMessage>): JsonArray {
         val method = ChatCompletionsAPI::class.java.getDeclaredMethod(
             "buildMessages",
-            List::class.java
+            List::class.java,
+            Model::class.java,
         )
         method.isAccessible = true
-        return method.invoke(api, messages) as JsonArray
+        return method.invoke(api, messages, createTestModel()) as JsonArray
     }
 
     @Test
@@ -198,12 +207,9 @@ class ChatCompletionsAPIMessageTest {
 
         assertEquals(2, assistantMessages.size)
 
-        // First assistant should NOT have reasoning_content
+        // 6873ccc8 之后全量回传所有 assistant 消息的 reasoning_content
         val first = assistantMessages[0].jsonObject
-        assertTrue("First assistant should not have reasoning_content",
-            !first.containsKey("reasoning_content") ||
-            first["reasoning_content"]?.jsonPrimitive?.content.isNullOrEmpty()
-        )
+        assertEquals("Initial thinking", first["reasoning_content"]?.jsonPrimitive?.content)
 
         // Second assistant SHOULD have reasoning_content
         val second = assistantMessages[1].jsonObject
@@ -302,7 +308,7 @@ class ChatCompletionsAPIMessageTest {
     }
 
     @Test
-    fun `assistant with only reasoning and empty text should be filtered out`() {
+    fun `assistant with only reasoning and empty text should keep reasoning content`() {
         val messages = listOf(
             UIMessage.user("Question 1"),
             UIMessage(
@@ -317,11 +323,15 @@ class ChatCompletionsAPIMessageTest {
 
         val result = invokeBuildMessages(messages)
 
-        assertEquals(2, result.size)
+        // isValidToUpload 把非空 Reasoning 视为有效内容, 纯思考消息不再被过滤,
+        // 其 reasoning_content 会随消息一起回传 (见 6873ccc8)
+        assertEquals(3, result.size)
         assertEquals("user", result[0].jsonObject["role"]?.jsonPrimitive?.content)
         assertEquals("Question 1", result[0].jsonObject["content"]?.jsonPrimitive?.content)
-        assertEquals("user", result[1].jsonObject["role"]?.jsonPrimitive?.content)
-        assertEquals("Question 2", result[1].jsonObject["content"]?.jsonPrimitive?.content)
+        assertEquals("assistant", result[1].jsonObject["role"]?.jsonPrimitive?.content)
+        assertEquals("thinking", result[1].jsonObject["reasoning_content"]?.jsonPrimitive?.content)
+        assertEquals("user", result[2].jsonObject["role"]?.jsonPrimitive?.content)
+        assertEquals("Question 2", result[2].jsonObject["content"]?.jsonPrimitive?.content)
     }
 
     @Test
