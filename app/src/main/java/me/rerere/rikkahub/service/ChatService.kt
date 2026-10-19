@@ -1144,6 +1144,25 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
 
             // 取消 Live Update 通知
             cancelLiveUpdateNotification(conversationId)
+            // 回收空白回复: 若失败发生在助手占位消息刚建立、尚未写入任何可见内容时
+            // (例如流式连接在首个内容块前被网关用 {"error": true} 之类的错误包掐断),
+            // 内存里会残留一个 parts 为空的助手节点 —— 界面上表现为一块空白区域,
+            // 且因 loading 已结束而显示复制/重新生成/更多操作等按钮。
+            // 这里把尾部「没有任何可见内容」的助手节点摘掉, 只改内存状态, 不落库
+            // (失败路径不触发 saveConversation, 数据库不受影响)。
+            // Tool part 一律视为有内容 (见 UIMessage.hasNoVisibleReply):
+            // 正在等审批/执行的工具调用轮次不会被误删。
+            // 判定方式与 sendMessage 里对「只思考半成品」的清理保持一致。
+            runCatching {
+                val failedConversation = getConversationFlow(conversationId).value
+                val trimmedNodes = failedConversation.messageNodes.dropLastWhile { node ->
+                    node.messages.getOrNull(node.selectIndex)?.hasNoVisibleReply() == true
+                }
+                if (trimmedNodes.size != failedConversation.messageNodes.size) {
+                    Logging.log(TAG, "handleMessageComplete onFailure: trimmed ${failedConversation.messageNodes.size - trimmedNodes.size} empty assistant node(s)")
+                    updateConversation(conversationId, failedConversation.copy(messageNodes = trimmedNodes))
+                }
+            }
 
             e.printStackTrace()
             addError(e, conversationId, title = context.getString(R.string.error_title_generation))
