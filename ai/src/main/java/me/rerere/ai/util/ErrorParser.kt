@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 class HttpException(
@@ -18,7 +19,12 @@ fun JsonElement.parseErrorDetail(): HttpException {
             val errorFields = listOf("error", "detail", "message", "description")
 
             // 查找第一个存在的错误字段
-            val foundField = errorFields.firstOrNull { this[it] != null }
+            // 跳过布尔型 / 空白字段值: 例如 {"error": true} 里的 "error" 只是错误标记,
+            // 不含任何可读信息, 若直接取其 content 会把字面量 "true"/"false"/"" 当成错误文案展示
+            val foundField = errorFields.firstOrNull { key ->
+                val value = this[key]
+                value != null && !(value is JsonPrimitive && (value.booleanOrNull != null || value.content.isBlank()))
+            }
 
             if (foundField != null) {
                 // 递归解析找到的字段值
@@ -39,8 +45,13 @@ fun JsonElement.parseErrorDetail(): HttpException {
         }
 
         is JsonPrimitive -> {
-            // 对于基本类型，直接使用其内容
-            HttpException(this.jsonPrimitive.content)
+            if (booleanOrNull != null) {
+                // 裸布尔值不携带任何错误信息, 保留原始标记但注明无详情, 避免 UI 显示 "true"
+                HttpException("Unknown error: $content (no detail provided)")
+            } else {
+                // 对于基本类型，直接使用其内容
+                HttpException(this.jsonPrimitive.content)
+            }
         }
 
         else -> {
