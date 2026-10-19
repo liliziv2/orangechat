@@ -113,6 +113,10 @@ fun ErrorCard(
     val scope = rememberCoroutineScope()
     val checkTitleModelSettings = stringResource(R.string.chat_page_check_title_model_settings)
     val linkColor = MaterialTheme.colorScheme.primary
+    // 部分异常的 message 为 null 或纯空白, 直接显示会得到一张空白卡片;
+    // 回退到异常类名, 保证用户始终能看到错误的来源类型。
+    val errorText = error.error.message?.takeIf { it.isNotBlank() }
+        ?: error.error.javaClass.simpleName.ifBlank { "Unknown error" }
 
     // 5 秒后自动消失
     LaunchedEffect(error.id) {
@@ -147,7 +151,7 @@ fun ErrorCard(
                     )
                 }
                 Text(
-                    text = error.error.message ?: "Unknown error",
+                    text = errorText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                     overflow = TextOverflow.Ellipsis,
@@ -183,7 +187,7 @@ fun ErrorCard(
                     scope.launch {
                         clipboard.setClipEntry(
                             ClipEntry(
-                                clipData = ClipData.newPlainText("Error", error.error.message ?: "Unknown error")
+                                clipData = ClipData.newPlainText("Error", errorText)
                             )
                         )
                     }
