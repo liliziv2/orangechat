@@ -6,6 +6,7 @@ on:
       - glass-fx-only
       - orangechat-ib-tg
       - feat/ib-inspired-six-fx
+      - fix/244-baseline-error-and-sync
   workflow_dispatch:
 
 permissions:
