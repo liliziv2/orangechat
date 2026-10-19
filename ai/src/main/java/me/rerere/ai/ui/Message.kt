@@ -28,7 +28,9 @@ data class UIMessage(
     val finishedAt: LocalDateTime? = null,
     val modelId: Uuid? = null,
     val usage: TokenUsage? = null,
-    val translation: String? = null
+    val translation: String? = null,
+    // 压缩检查点：此消息是它之前全部历史的摘要，组装请求时从最后一个检查点开始取
+    val isContextCheckpoint: Boolean = false,
 ) {
 
     fun summaryAsText(): String {
@@ -213,10 +215,31 @@ fun UIMessage.hasNoVisibleReply(): Boolean {
     }
 }
 
-fun List<UIMessage>.limitContext(size: Int): List<UIMessage> {
-    if (size <= 0 || this.size <= size) return this
+/**
+ * 截取实际发送给模型的上下文
+ *
+ * 先丢弃最后一个压缩检查点之前的消息(它们只保留给用户查看), 再按 [limit] 限制条数。
+ * 检查点本身是被压缩历史的唯一来源, 始终保留, 条数限制只作用于它之后的消息。
+ *
+ * @param limit 触发截断的消息条数上限, 小于等于 0 表示不限制
+ */
+fun List<UIMessage>.limitContext(limit: Int): List<UIMessage> {
+    val checkpointIndex = indexOfLast { it.isContextCheckpoint }
+    if (checkpointIndex < 0) return limitMessageCount(limit)
+    return listOf(this[checkpointIndex]) + subList(checkpointIndex + 1, size).limitMessageCount(limit)
+}
 
-    val startIndex = this.size - size
+/**
+ * 按阶梯式(滞回)策略限制上下文消息数量
+ *
+ * (原 limitContext, 移植上游检查点方案后改名为内部实现)
+ *
+ * @param limit 触发截断的消息条数上限, 小于等于 0 表示不限制
+ */
+private fun List<UIMessage>.limitMessageCount(limit: Int): List<UIMessage> {
+    if (limit <= 0 || this.size <= limit) return this
+
+    val startIndex = this.size - limit
     var adjustedStartIndex = startIndex
 
     // 循环往前查找，直到满足所有依赖条件

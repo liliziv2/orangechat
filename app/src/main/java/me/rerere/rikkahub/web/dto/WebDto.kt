@@ -176,7 +176,9 @@ data class MessageDto(
     val finishedAt: String? = null,
     val modelId: String? = null,
     val usage: TokenUsage? = null,
-    val translation: String? = null
+    val translation: String? = null,
+    // 压缩检查点：此消息是它之前全部历史的摘要，之前的消息不再发送给模型
+    val isContextCheckpoint: Boolean = false,
 )
 
 @Serializable
@@ -295,5 +297,6 @@ fun UIMessage.toDto() = MessageDto(
     finishedAt = finishedAt?.toString(),
     modelId = modelId?.toString(),
     usage = usage,
-    translation = translation
+    translation = translation,
+    isContextCheckpoint = isContextCheckpoint,
 )

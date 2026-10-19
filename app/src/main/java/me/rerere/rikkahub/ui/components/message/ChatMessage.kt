@@ -245,6 +245,16 @@ fun ChatMessage(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
 ) {
     val message = node.messages[node.selectIndex]
+    // 压缩检查点：单独渲染为分隔线样式, 不走常规气泡 (移植自上游 rikkahub bf614d89)
+    if (message.isContextCheckpoint) {
+        ChatMessageContextCheckpoint(
+            message = message,
+            onEdit = onEdit,
+            onDelete = onDelete,
+            modifier = modifier,
+        )
+        return
+    }
     // 挂在这条消息上的药丸。PillStore 是进程内 StateFlow，界面直接读它画标记 ——
     // 药丸只作用一轮，用户得看得见「这条挂了什么」，而不是靠记忆猜。
     val pendingPills by PillStore.pending.collectAsState()

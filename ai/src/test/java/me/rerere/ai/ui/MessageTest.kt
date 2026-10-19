@@ -1,6 +1,7 @@
 ﻿package me.rerere.ai.ui
 
 import kotlinx.serialization.json.JsonPrimitive
+import kotlin.uuid.Uuid
 import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -708,6 +709,47 @@ class MessageTest {
     }
 
     // ==================== Helper Functions ====================
+
+    // ==================== Context Checkpoint Tests ====================
+    @Test
+    fun `limitContext without checkpoint keeps old behavior`() {
+        val messages = createTestMessages(5)
+        val result = messages.limitContext(3)
+        assertEquals(3, result.size)
+        assertEquals(messages.subList(2, 5), result)
+    }
+
+    @Test
+    fun `limitContext keeps checkpoint and limits only messages after it`() {
+        val history = createTestMessages(6)
+        val checkpoint = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(UIMessagePart.Text("summary of earlier messages")),
+            isContextCheckpoint = true,
+        )
+        val after = createTestMessages(4).map { it.copy(id = Uuid.random()) }
+        val messages = history + listOf(checkpoint) + after
+        val result = messages.limitContext(3)
+        // checkpoint itself is always kept; only 3 messages after it are kept
+        assertEquals(4, result.size)
+        assertEquals(checkpoint.id, result[0].id)
+        assertTrue(result[0].isContextCheckpoint)
+        assertEquals(after.takeLast(3), result.subList(1, 4))
+    }
+
+    @Test
+    fun `limitContext with checkpoint but no limit sends everything after checkpoint`() {
+        val checkpoint = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(UIMessagePart.Text("summary")),
+            isContextCheckpoint = true,
+        )
+        val after = createTestMessages(2)
+        val messages = listOf(checkpoint) + after
+        val result = messages.limitContext(0)
+        assertEquals(messages, result)
+    }
+
 
     private fun createTestMessages(count: Int): List<UIMessage> {
         return (0 until count).map { i ->
