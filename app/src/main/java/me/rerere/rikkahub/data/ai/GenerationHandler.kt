@@ -26,6 +26,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.core.merge
+import me.rerere.ai.core.sum
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
@@ -661,6 +662,16 @@ class GenerationHandler(
         )
  
         var messages: List<UIMessage> = messages
+        // 多步工具调用时, 最后一条助手消息可能已经带着之前步骤的 usage 统计。
+        // 本步从零开始统计 (merge 只适合同一次请求内的快照), 结束时再与之前步骤累加,
+        // 修复多轮工具调用后 token 统计被最后一步覆盖的问题。
+        // (移植上游 rikkahub e7f2c04f; 橘瓣无 generationTimeMs, 仅处理 usage)
+        val stepBaseUsage = messages.lastOrNull()
+            ?.takeIf { it.role == MessageRole.ASSISTANT }
+            ?.usage
+        if (stepBaseUsage != null) {
+            messages = messages.dropLast(1) + messages.last().copy(usage = null)
+        }
         val params = TextGenerationParams(
             model = model,
             temperature = assistant.temperature,
@@ -730,7 +741,7 @@ class GenerationHandler(
                 it.usage?.let { usage ->
                     messages = messages.mapIndexed { index, message ->
                         if (index == messages.lastIndex) {
-                            message.copy(usage = message.usage.merge(usage))
+                            message.copy(usage = stepBaseUsage.sum(message.usage.merge(usage)))
                         } else {
                             message
                         }
@@ -760,7 +771,7 @@ class GenerationHandler(
                 messages = messages.mapIndexed { index, message ->
                     if (index == messages.lastIndex) {
                         message.copy(
-                            usage = message.usage.merge(usage)
+                            usage = stepBaseUsage.sum(message.usage.merge(usage))
                         )
                     } else {
                         message
