@@ -137,8 +137,11 @@ class ChatCompletionsAPI(
             // 断成多行,按行取 data: 会把完整 JSON 拆碎导致解析失败(Unexpected EOF)。
             val sseChunks = parseSseEvents(bodyStr)
                 .mapNotNull { data ->
+                    // 部分网关会在流中夹杂 data: null 之类的非对象行, 跳过而不是让
+                    // JsonNull 强转 JsonObject 崩掉整轮解析
+                    // (移植上游 rikkahub #2137, 提交 240deb5f)
                     if (data.isNotBlank() && data != "[DONE]") {
-                        json.parseToJsonElement(data).jsonObject
+                        json.parseToJsonElement(data).jsonObjectOrNull
                     } else null
                 }
 
@@ -279,8 +282,8 @@ class ChatCompletionsAPI(
                 // 这里直接当一个完整 JSON 解析即可, 不能再按 '\n' 二次拆分 —— 否则当
                 // tool_call 的 arguments 含真实换行且被中间链路断行时, 会把完整 JSON
                 // 拆成不完整碎片导致 Unexpected EOF。
-                val chunkJson = try {
-                    json.parseToJsonElement(data).jsonObject
+                val chunkJson: JsonObject? = try {
+                    json.parseToJsonElement(data).jsonObjectOrNull
                 } catch (e: Throwable) {
                     // 上游真的发了坏数据时不要让整个流直接崩掉裸抛 Unexpected EOF。
                     // 记录长度和前后片段便于定位, 但避免把整个超长内容打进日志。
@@ -299,6 +302,10 @@ class ChatCompletionsAPI(
                     )
                     return
                 }
+                // data: null 之类的事件解析出来是 JsonNull, 不是 JsonObject,
+                // 静默跳过该事件, 不让整个流中断
+                // (移植上游 rikkahub #2137, 提交 240deb5f)
+                if (chunkJson == null) return
                 if (chunkJson["error"] != null) {
                     // 流式响应中携带了 error 字段 (HTTP 连接本身是200, 但错误包在流数据里)
                     // 记录完整的原始 error JSON 内容, 便于排查上游返回的具体错误原因
@@ -932,15 +939,18 @@ class ChatCompletionsAPI(
     }
 
     private fun parseAnnotations(jsonArray: JsonArray): List<UIMessageAnnotation> {
-        return jsonArray.map { element ->
+        return jsonArray.mapNotNull { element ->
+            // annotations 数组中可能夹杂 null 元素, 跳过非对象值
+            // (移植上游 rikkahub #2137, 提交 240deb5f)
+            val annotation = element.jsonObjectOrNull ?: return@mapNotNull null
             val type =
-                element.jsonObject["type"]?.jsonPrimitive?.contentOrNull ?: error("type is null")
+                annotation["type"]?.jsonPrimitive?.contentOrNull ?: error("type is null")
             when (type) {
                 "url_citation" -> {
                     UIMessageAnnotation.UrlCitation(
-                        title = element.jsonObject["url_citation"]?.jsonObject?.get("title")?.jsonPrimitive?.contentOrNull
+                        title = annotation["url_citation"]?.jsonObjectOrNull?.get("title")?.jsonPrimitive?.contentOrNull
                             ?: "",
-                        url = element.jsonObject["url_citation"]?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull
+                        url = annotation["url_citation"]?.jsonObjectOrNull?.get("url")?.jsonPrimitive?.contentOrNull
                             ?: "",
                     )
                 }
