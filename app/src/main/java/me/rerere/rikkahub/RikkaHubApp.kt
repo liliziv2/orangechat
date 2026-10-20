@@ -219,7 +219,12 @@ class RikkaHubApp : Application() {
 
     private fun startNetworkChangeMonitor() {
         runCatching {
-            me.rerere.rikkahub.utils.NetworkChangeMonitor.start(this)
+            // 必须把全局 AI OkHttp 单例注册进来: 之前只 start(this) 不带 client,
+            // evictAll() 清的是空注册表, Wi-Fi<->蜂窝切换后 LLM 的陈旧 keep-alive
+            // socket 没被清掉, 表现为 Broken pipe / Software caused connection abort
+            // 反复出现在模型调用上。
+            val aiClient = get<okhttp3.OkHttpClient>()
+            me.rerere.rikkahub.utils.NetworkChangeMonitor.start(this, aiClient)
         }.onFailure {
             Log.e(TAG, "startNetworkChangeMonitor failed", it)
         }

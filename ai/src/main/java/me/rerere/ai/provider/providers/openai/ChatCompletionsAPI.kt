@@ -49,6 +49,7 @@ import me.rerere.ai.util.joinUrl
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.parseHttpErrorResponse
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
@@ -112,7 +113,7 @@ class ChatCompletionsAPI(
             if (HttpDiagnostics.looksLikeHtml(responseContentType, errorBody)) {
                 throw HttpDiagnostics.htmlResponseException(response.code, finalUrl, responseContentType, errorBody)
             }
-            throw Exception("Failed to get response: ${response.code} $errorBody")
+            throw parseHttpErrorResponse(response.code, errorBody)
         }
 
         val bodyStr = response.body?.string() ?: ""
@@ -400,9 +401,6 @@ class ChatCompletionsAPI(
                     if (!bodyRaw.isNullOrBlank()) {
                         if (HttpDiagnostics.looksLikeHtml(responseContentType, bodyRaw)) {
                             // 服务器返回的是 HTML（通常是网关/CDN 拦截页），不是 JSON。
-                            // 绝不能把它交给 JSON 解析器：那样最终抛给用户的是 kotlinx 的
-                            // "Unexpected JSON token ... JSON input: <!DOCTYPE html>"，
-                            // 真实的状态码 / Content-Type / 最终 URL 会被完全掩盖。
                             exception = HttpDiagnostics.htmlResponseException(
                                 code = response?.code ?: -1,
                                 finalUrl = finalUrl,
@@ -410,8 +408,9 @@ class ChatCompletionsAPI(
                                 body = bodyRaw,
                             )
                         } else {
-                            val bodyElement = Json.parseToJsonElement(bodyRaw)
-                            exception = bodyElement.parseErrorDetail()
+                            // 统一走 parseHttpErrorResponse: 异常消息保留真实 HTTP 状态码,
+                            // 不再出现「只有 body 片段、看不到 400/403」的情况
+                            exception = parseHttpErrorResponse(response?.code ?: -1, bodyRaw)
                             val detailMsg = "onFailure: parsed error detail: $exception"
                             Log.e(TAG, detailMsg)
                             Logging.log(TAG, detailMsg)

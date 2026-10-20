@@ -52,6 +52,7 @@ import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
+import me.rerere.ai.util.parseHttpErrorResponse
 import me.rerere.ai.util.removeElements
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
@@ -184,7 +185,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
         val response = client.newCall(request).await()
         if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body?.string()}")
+            throw parseHttpErrorResponse(response.code, response.body?.string())
         }
 
         val bodyStr = response.body?.string() ?: ""
@@ -309,19 +310,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 try {
                     if (t == null && response != null) {
                         val bodyStr = response.body.stringSafe()
-                        if (!bodyStr.isNullOrEmpty()) {
-                            val bodyElement = json.parseToJsonElement(bodyStr)
-                            println(bodyElement)
-                            if (bodyElement is JsonObject) {
-                                exception = Exception(
-                                    bodyElement["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content
-                                        ?: "unknown"
-                                )
-                            }
-                        } else {
-                            exception = Exception("Unknown error: ${response.code}")
-                        }
-                    }
+                        // 统一走 parseHttpErrorResponse: 保留真实 HTTP 状态码,
+                        // 空 body / 非 JSON body 都由 helper 兜底, 不丢状态码
+                        exception = parseHttpErrorResponse(response.code, bodyStr)
+                    }  
                 } catch (e: Throwable) {
                     e.printStackTrace()
                     exception = e

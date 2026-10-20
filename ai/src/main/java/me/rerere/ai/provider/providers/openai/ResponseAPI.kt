@@ -44,6 +44,7 @@ import me.rerere.ai.util.joinUrl
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.parseHttpErrorResponse
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
@@ -222,7 +223,7 @@ class ResponseAPI(
                         } else {
                             val bodyElement = Json.parseToJsonElement(bodyRaw)
                             println(bodyElement)
-                            exception = bodyElement.parseErrorDetail()
+                            exception = parseHttpErrorResponse(response?.code ?: -1, bodyRaw)
                             Log.i(TAG, "onFailure: $exception")
                         }
                     }

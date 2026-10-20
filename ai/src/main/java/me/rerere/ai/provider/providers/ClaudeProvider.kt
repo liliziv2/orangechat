@@ -45,6 +45,7 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.parseHttpErrorResponse
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
@@ -121,7 +122,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
 
         val response = client.newCall(request).await()
         if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body?.string()}")
+            throw parseHttpErrorResponse(response.code, response.body?.string())
         }
 
         val bodyStr = response.body?.string() ?: ""
@@ -232,18 +233,10 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 Log.e(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response")
 
                 val bodyRaw = response?.body?.stringSafe()
-                try {
-                    if (!bodyRaw.isNullOrBlank()) {
-                        val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        Log.i(TAG, "Error response: $bodyElement")
-                        exception = bodyElement.parseErrorDetail()
-                    }
-                } catch (e: Throwable) {
-                    Log.w(TAG, "onFailure: failed to parse from $bodyRaw")
-                    e.printStackTrace()
-                } finally {
-                    close(exception)
-                }
+                // 统一走 parseHttpErrorResponse: 保留真实 HTTP 状态码
+                exception = parseHttpErrorResponse(response?.code ?: -1, bodyRaw)
+                Log.i(TAG, "onFailure parsed: $exception")
+                close(exception)
             }
 
             override fun onClosed(eventSource: EventSource) {
