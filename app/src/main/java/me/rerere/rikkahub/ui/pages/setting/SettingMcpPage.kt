@@ -95,6 +95,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.McpOAuthState
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
@@ -768,6 +769,51 @@ private fun McpCommonOptionsConfigure(
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.setting_mcp_page_add_header))
                 }
+            }
+        }
+
+        HorizontalDivider()
+        // 允许 OAuth 授权: 开启后连接遇到 401 时走 MCP 授权规范 (2025-11-25) 的
+        // OAuth 2.1 流程 (元数据发现 -> 动态注册 -> 浏览器授权 -> 令牌管理/刷新)。
+        // 关闭或手动配了 Authorization header 时维持普通连接方式, 互不影响。
+        FormItem(
+            label = {
+                Text(stringResource(R.string.setting_mcp_page_allow_oauth))
+            },
+            description = {
+                Text(stringResource(R.string.setting_mcp_page_allow_oauth_desc))
+            }
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val oauthEnabled = config.commonOptions.oauth?.enabled == true
+                val oauthAuthorized = config.commonOptions.oauth?.isAuthorized == true
+                Text(stringResource(R.string.setting_mcp_page_allow_oauth))
+                if (oauthAuthorized) {
+                    Tag(type = TagType.SUCCESS) { Text("OAuth") }
+                }
+                Spacer(Modifier.weight(1f))
+                Switch(
+                    checked = oauthEnabled,
+                    onCheckedChange = { enabled ->
+                        val newOauth = config.commonOptions.oauth
+                            ?.copy(enabled = enabled)
+                            ?: McpOAuthState(enabled = enabled)
+                        update(
+                            when (config) {
+                                is McpServerConfig.SseTransportServer -> config.copy(
+                                    commonOptions = config.commonOptions.copy(oauth = newOauth)
+                                )
+                                is McpServerConfig.StreamableHTTPServer -> config.copy(
+                                    commonOptions = config.commonOptions.copy(oauth = newOauth)
+                                )
+                            }
+                        )
+                    }
+                )
             }
         }
     }

@@ -1160,4 +1160,6 @@
   <string name="chat_page_compress_blocked_generating">請先停止生成，再壓縮上下文</string>
   <string name="chat_page_compress_conversation_changed">對話在壓縮期間已變更。請再試一次。</string>
   <string name="chat_page_compress_pending_tools">請先處理待處理的工具呼叫，或保留包含這些呼叫的近期訊息</string>
+  <string name="setting_mcp_page_allow_oauth">允許 OAuth 授權</string>
+  <string name="setting_mcp_page_allow_oauth_desc">伺服器回傳 401 時按 MCP OAuth 2.1 流程連線（中繼資料探索、動態註冊、瀏覽器授權、權杖重新整理）。關閉則使用普通 URL 或手動 Authorization 標頭。</string>
 </resources>

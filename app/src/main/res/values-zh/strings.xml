@@ -1279,4 +1279,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_compress_blocked_generating">请先停止生成再压缩上下文</string>
   <string name="chat_page_compress_conversation_changed">对话在压缩期间发生变化，请重试</string>
   <string name="chat_page_compress_pending_tools">请先处理待审批的工具调用，或保留包含它的最近消息后再压缩</string>
+  <string name="setting_mcp_page_allow_oauth">允许 OAuth 授权</string>
+  <string name="setting_mcp_page_allow_oauth_desc">服务器返回 401 时按 MCP OAuth 2.1 流程连接（元数据发现、动态注册、浏览器授权、令牌刷新）。关闭则使用普通 URL 或手动 Authorization 请求头。</string>
 </resources>
