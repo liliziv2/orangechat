@@ -228,7 +228,7 @@
   <string name="cancel_edit">Отменить редактирование</string>
   <string name="chain_of_thought_collapse">Свернуть</string>
   <string name="chain_of_thought_show_more_steps">Показать ещё %d шагов</string>
-  <string name="chat_input_placeholder">Чат с %1$s</string>
+  <string name="chat_input_placeholder">Поговорить с %1$s…</string>
   <string name="agent_status_thinking">Думаю…</string>
   <string name="agent_status_context">Проверяю память…</string>
   <string name="agent_status_memory">Проверяю память…</string>

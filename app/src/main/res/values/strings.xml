@@ -228,7 +228,7 @@
   <string name="cancel_edit">Cancel Edit</string>
   <string name="chain_of_thought_collapse">Collapse</string>
   <string name="chain_of_thought_show_more_steps">Show %d more steps</string>
-  <string name="chat_input_placeholder">Chat with %1$s</string>
+  <string name="chat_input_placeholder">Talk with %1$s…</string>
   <string name="agent_status_thinking">Thinking…</string>
   <string name="agent_status_context">Checking memory…</string>
   <string name="agent_status_memory">Checking memory…</string>

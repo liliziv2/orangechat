@@ -1128,8 +1128,8 @@ private fun TextInputRow(
                     style = InputTextStyle,
                 )
             },
-            // 上限从 5 行收到 4 行：5 行时外壳约 152–188dp（随字体缩放），已经超出
-            // 「最大 120–140dp」；4 行固定 128dp。超出的文字在编辑区内部滚动。
+            // 上限 4 行：多行态内边距上下 8dp 时, 4 行 = 4×24 + 8×2 = 112dp,
+            // 落在任务单「最大 112dp」候选值上。超出的文字在编辑区内部滚动。
             //
             // **正文恒为 MultiLine，不再按两态在 SingleLine / MultiLine 之间切。**
             // 原来单行态走 SingleLine，代价是长句在框内**横向滚动**：光标移到句尾时
@@ -1154,19 +1154,14 @@ private fun TextInputRow(
                 }
             },
             // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 10dp：
-            // 1 行正文（24dp 行高）因此占 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平，
-            // 文字不再「浮」在正文区中间。容器总高
-            // max(44, 44) + 10×2 = 64dp，是用户点名的单行目标高度。
-            // 多行态保持 M3 的默认值（左右上下各 16dp，= TextFieldDefaults
-            // .contentPaddingWithoutLabel()）—— 不硬编码，避免随 M3 版本漂移。
+            // 1 行正文（24dp 行高）因此占 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平。
+            // 多行态同样收紧: 上下 16 -> 8dp (任务单要求「多行态上下留白收紧」),
+            // 4 行正文 = 4×24 + 8×2 = 112dp 正好落在任务单给的候选值上;
+            // 左右保持 16dp 不动, 长句阅读宽度不受影响。
             contentPadding = if (singleLine) {
-                // 纵向 12 -> 10dp：正文行高从 20sp 提到 24sp（见 InputTextStyle），
-                // 1 行正文 = 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平 ——
-                // 胶囊总高仍是 44 + 10×2 = 64dp，**一点没变**。
-                // 只动纵向：左右仍是 16dp，长句的阅读宽度不受影响。
                 PaddingValues(top = 10.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
             } else {
-                TextFieldDefaults.contentPaddingWithoutLabel()
+                PaddingValues(top = 8.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
             },
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
@@ -1252,9 +1247,15 @@ private val InputContainerPadding = 10.dp
  * 与点击区同为 44dp：五个按钮共用同一条中心线、同一档视觉尺度 ——
  * 实心圆不再比点击区小一档。圆内箭头图标仍是 24dp（CapsuleActionIconSize）。
  */
-private val ActionButtonSize = 44.dp
-// 发送按钮实心圆底：与点击区（44dp）分别控制，圆略小于点击区，箭头 24dp，避免显得过大。
-private val SendButtonCircleSize = 40.dp
+// 点击区 44dp: 五个按钮 (+/搜索/思考/语音/发送) 共用, 操作行高度恒 44dp。
+// (ActionButtonSize 是它历史上在发送按钮处的名字, 现在统一引用同一个常量,
+// 消除任务单点名的「多套互相冲突的尺寸定义」。
+private val CapsuleActionSize = 44.dp
+private val ActionButtonSize = CapsuleActionSize
+// 发送实心圆: 以思考灯泡/搜索的 24dp 图标墨迹为视觉重量基准 —— 圆径 36dp 时
+// 箭头墨迹与 24dp 图标在 44dp 盒内的视觉重量一致 (任务单: 以灯泡为参考调发送键),
+// 实心圆仍是操作行唯一强调色元素, 点击区仍是 44dp。
+private val SendButtonCircleSize = 36.dp
 
 /**
  * 操作行里**每一个**按钮的点击区尺寸(+ / 语音 / 搜索 / 思考 / 发送)。
@@ -1268,9 +1269,8 @@ private val SendButtonCircleSize = 40.dp
  * 五个按钮因此共用同一条中心线。盒子之间的间距留白交给容器内边距
  * （[InputContainerPadding]，10dp）—— 不再叠加 padding 或 spacedBy。
  *
- * 实心发送圆与它同大（见 [ActionButtonSize]，也是 44dp），居中其中。
+ * 实心发送圆与它同大（见 [CapsuleActionSize]，也是 44dp），居中其中。
  */
-private val CapsuleActionSize = 44.dp
 
 /**
  * 操作行内联功能按钮的**图标**尺寸(+ / 搜索 / 思考 / 语音 / 发送)。
@@ -1372,4 +1372,4 @@ private val InputEditorShape = RoundedCornerShape(28.dp)
 private val InputTextStyle = TextStyle(
     fontSize = 17.sp,
     lineHeight = 24.sp,
-)
+)

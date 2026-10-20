@@ -228,7 +228,7 @@
   <string name="cancel_edit">편집 취소</string>
   <string name="chain_of_thought_collapse">접기</string>
   <string name="chain_of_thought_show_more_steps">%d단계 더 보기</string>
-  <string name="chat_input_placeholder">%1$s와 채팅</string>
+  <string name="chat_input_placeholder">%1$s님과 대화…</string>
   <string name="agent_status_thinking">생각하는 중…</string>
   <string name="agent_status_context">관련 기억 확인 중…</string>
   <string name="agent_status_memory">관련 기억 확인 중…</string>

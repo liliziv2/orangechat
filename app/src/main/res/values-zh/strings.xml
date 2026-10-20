@@ -228,7 +228,7 @@
   <string name="cancel_edit">取消编辑</string>
   <string name="chain_of_thought_collapse">收起</string>
   <string name="chain_of_thought_show_more_steps">再显示 %d 步</string>
-  <string name="chat_input_placeholder">与%1$s聊天</string>
+  <string name="chat_input_placeholder">和%1$s说说话…</string>
   <string name="agent_status_thinking">正在思考…</string>
   <string name="agent_status_context">正在查看相关记忆…</string>
   <string name="agent_status_memory">正在查看相关记忆…</string>
