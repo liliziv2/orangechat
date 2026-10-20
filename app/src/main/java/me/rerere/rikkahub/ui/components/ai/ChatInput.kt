@@ -641,7 +641,9 @@ fun ChatInput(
                 .navigationBarsPadding()
                 // 输入区是一块独立的悬浮容器:与屏幕底部、左右边缘都留出空间,
                 // 让它读作「浮在页面上的输入组件」,而不是贴底的一行工具栏。
-                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                // 底部 12 -> 10dp: 输入容器本身已有 10dp 内边距, 外层再留 10dp 足够
+                // 「浮起」的呼吸感, 多出来的 2dp 在小屏上是可感知的拥挤。
+                .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // 附件预览与「编辑中」提示条留在输入容器之外（上方）。
@@ -1158,10 +1160,13 @@ private fun TextInputRow(
             // 多行态同样收紧: 上下 16 -> 8dp (任务单要求「多行态上下留白收紧」),
             // 4 行正文 = 4×24 + 8×2 = 112dp 正好落在任务单给的候选值上;
             // 左右保持 16dp 不动, 长句阅读宽度不受影响。
+            // 起始位置 16 -> 14dp: 「+」按钮 44dp 盒子自带 (44-24)/2 = 10dp 图标留白,
+            // 再叠 16dp 文字起点会显得空; 收到 14dp 后文字更靠近 + , 阅读起点自然。
+            // 纵向维持上轮的 10/8dp 收紧成果。
             contentPadding = if (singleLine) {
-                PaddingValues(top = 10.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
+                PaddingValues(top = 10.dp, bottom = 10.dp, start = 14.dp, end = 14.dp)
             } else {
-                PaddingValues(top = 8.dp, bottom = 8.dp, start = 16.dp, end = 16.dp)
+                PaddingValues(top = 8.dp, bottom = 8.dp, start = 14.dp, end = 14.dp)
             },
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,

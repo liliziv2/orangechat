@@ -511,9 +511,16 @@ private fun UserImageStack(
     urls: List<String>,
     modifier: Modifier = Modifier,
 ) {
+    // 微信式横向错位叠: 缩略图从左往右排, 后一张压住前一张的右侧,
+    // 每张露出 [IMAGE_STACK_REVEAL] 的宽度。相比旧版纵向叠, 横向叠在
+    // 聊天流里读作「一叠照片横向展开」, 与用户消息右对齐的方向一致,
+    // 也不会把整组高度撑到 72dp 之外。
+    //
     // 写法对齐全仓既有的自定义 Layout 先例 `FaviconRow`（ui/components/ui/Favicon.kt）：
     // measure 直接吃 constraints、layout 直接给算好的宽高、placeRelative 定位、
     // 用 zIndex 显式指定层叠（不依赖绘制顺序的隐式约定）。
+    // 首张在最上层 (zIndex 最大), 与「后发的压住先发的」的阅读顺序相反 ——
+    // 这里选择首张完整可见 (它是用户第一张想发的), 其余每张只露一条。
     Layout(
         modifier = modifier,
         content = {
@@ -526,9 +533,17 @@ private fun UserImageStack(
                         // 透明留白，叠起来会互相透出下层、读不出层次。Gallery 里仍是原图完整显示。
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .zIndex(index.toFloat())
+                            // 首张 (index 0) 最上层; 后面的每张依次压在更下层。
+                            .zIndex((urls.size - index).toFloat())
                             .size(IMAGE_STACK_THUMB_SIZE)
-                            .clip(MaterialTheme.shapes.medium),
+                            .clip(MaterialTheme.shapes.medium)
+                            // 每张缩略图一道极细的浅色描边: 重叠处靠它分清卡片边界,
+                            // 颜色取自当前主题 surface, 不写死颜色 (深浅主题下都成立)。
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                shape = MaterialTheme.shapes.medium,
+                            ),
                         gallery = urls,
                         galleryIndex = index,
                     )
@@ -539,10 +554,11 @@ private fun UserImageStack(
         val placeables = measurables.map { measurable -> measurable.measure(constraints) }
         val thumbPx = IMAGE_STACK_THUMB_SIZE.roundToPx()
         val revealPx = IMAGE_STACK_REVEAL.roundToPx()
-        val stackHeight = thumbPx + revealPx * (placeables.size - 1).coerceAtLeast(0)
-        layout(thumbPx, stackHeight) {
+        // 横向: 整组宽度 = 边长 + (张数-1) x 露出宽; 高度恒为边长。
+        val stackWidth = thumbPx + revealPx * (placeables.size - 1).coerceAtLeast(0)
+        layout(stackWidth, thumbPx) {
             placeables.fastForEachIndexed { index, placeable ->
-                placeable.placeRelative(x = 0, y = index * revealPx)
+                placeable.placeRelative(x = index * revealPx, y = 0)
             }
         }
     }
@@ -552,7 +568,7 @@ private fun UserImageStack(
 private val IMAGE_STACK_THUMB_SIZE = 72.dp
 
 /** 图片组里每张露出的高度：越小整组越紧凑。 */
-private val IMAGE_STACK_REVEAL = 20.dp
+private val IMAGE_STACK_REVEAL = 26.dp
 
 @OptIn(FlowPreview::class)
 @Composable
