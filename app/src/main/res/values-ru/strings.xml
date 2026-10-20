@@ -1084,4 +1084,9 @@
   <string name="chat_page_compress_pending_tools">Сначала обработайте ожидающие вызовы инструментов или сохраните последние сообщения, содержащие их</string>
   <string name="setting_mcp_page_allow_oauth">Разрешить OAuth</string>
   <string name="setting_mcp_page_allow_oauth_desc">Если сервер отвечает 401, подключение идёт по OAuth 2.1 (обнаружение метаданных, динамическая регистрация, авторизация в браузере, обновление токенов). Выключено — обычный URL или ручной заголовок Authorization.</string>
+  <string name="retry">Повторить</string>
+  <string name="setting_provider_page_models_not_fetched">Список моделей ещё не получен</string>
+  <string name="setting_provider_page_fetch_models">Получить модели</string>
+  <string name="setting_provider_page_discovered_count">Найдено моделей: %1$d · добавлено: %2$d</string>
+  <string name="setting_provider_page_fetch_failed">Не удалось получить список</string>
 </resources>

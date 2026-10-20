@@ -1281,4 +1281,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_compress_pending_tools">请先处理待审批的工具调用，或保留包含它的最近消息后再压缩</string>
   <string name="setting_mcp_page_allow_oauth">允许 OAuth 授权</string>
   <string name="setting_mcp_page_allow_oauth_desc">服务器返回 401 时按 MCP OAuth 2.1 流程连接（元数据发现、动态注册、浏览器授权、令牌刷新）。关闭则使用普通 URL 或手动 Authorization 请求头。</string>
+  <string name="retry">重试</string>
+  <string name="setting_provider_page_models_not_fetched">尚未拉取模型列表</string>
+  <string name="setting_provider_page_fetch_models">拉取模型</string>
+  <string name="setting_provider_page_discovered_count">发现 %1$d 个模型 · 已添加 %2$d 个</string>
+  <string name="setting_provider_page_fetch_failed">拉取失败</string>
 </resources>

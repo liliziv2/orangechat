@@ -1162,4 +1162,9 @@
   <string name="chat_page_compress_pending_tools">請先處理待處理的工具呼叫，或保留包含這些呼叫的近期訊息</string>
   <string name="setting_mcp_page_allow_oauth">允許 OAuth 授權</string>
   <string name="setting_mcp_page_allow_oauth_desc">伺服器回傳 401 時按 MCP OAuth 2.1 流程連線（中繼資料探索、動態註冊、瀏覽器授權、權杖重新整理）。關閉則使用普通 URL 或手動 Authorization 標頭。</string>
+  <string name="retry">重試</string>
+  <string name="setting_provider_page_models_not_fetched">尚未擷取模型清單</string>
+  <string name="setting_provider_page_fetch_models">擷取模型</string>
+  <string name="setting_provider_page_discovered_count">發現 %1$d 個模型 · 已新增 %2$d 個</string>
+  <string name="setting_provider_page_fetch_failed">擷取失敗</string>
 </resources>

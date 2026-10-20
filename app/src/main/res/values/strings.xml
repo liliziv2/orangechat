@@ -1284,4 +1284,9 @@
   <string name="chat_page_compress_pending_tools">Handle pending tool calls first, or keep the recent messages containing them when compressing</string>
   <string name="setting_mcp_page_allow_oauth">Allow OAuth authorization</string>
   <string name="setting_mcp_page_allow_oauth_desc">When the server returns 401, connect via the MCP OAuth 2.1 flow (metadata discovery, dynamic registration, browser authorization, token refresh). Turn off to use plain URL or manual Authorization headers.</string>
+  <string name="retry">Retry</string>
+  <string name="setting_provider_page_models_not_fetched">Model list not fetched yet</string>
+  <string name="setting_provider_page_fetch_models">Fetch models</string>
+  <string name="setting_provider_page_discovered_count">Discovered %1$d models · %2$d added</string>
+  <string name="setting_provider_page_fetch_failed">Fetch failed</string>
 </resources>

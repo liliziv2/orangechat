@@ -68,6 +68,7 @@ import me.rerere.rikkahub.ui.components.ui.SettingsRowDivider
 import me.rerere.rikkahub.ui.theme.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -466,17 +467,25 @@ private fun ModelList(
     onUpdateProvider: (ProviderSetting) -> Unit
 ) {
     val providerManager = koinInject<ProviderManager>()
-    val modelList by produceState(emptyList(), providerSetting) {
-        runCatching {
-            println("loading models...")
-            value = providerManager.getProviderByType(providerSetting)
+    // 远端模型发现状态: Idle(尚未拉取)/Loading/Success(可发现列表)/Error(简短原因)。
+    // 之前是 produceState 静默拉取, 成败都不可见 —— 用户必须点进「添加模型」的
+    // 底部弹窗才知道列表拉没拉下来。现在把状态放在页面顶部一眼可见。
+    var discoverState by remember(providerSetting.id) { mutableStateOf<UiState<List<Model>>>(UiState.Idle) }
+    var fetchAttempt by remember(providerSetting.id) { mutableStateOf(0) }
+
+    LaunchedEffect(providerSetting, fetchAttempt) {
+        discoverState = UiState.Loading
+        discoverState = runCatching {
+            providerManager.getProviderByType(providerSetting)
                 .listModels(providerSetting)
                 .sortedBy { it.modelId }
                 .toList()
-        }.onFailure {
-            it.printStackTrace()
-        }
+        }.fold(
+            onSuccess = { UiState.Success(it) },
+            onFailure = { UiState.Error(it) },
+        )
     }
+    val modelList = (discoverState as? UiState.Success)?.data ?: emptyList()
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -496,6 +505,16 @@ private fun ModelList(
             horizontalAlignment = Alignment.CenterHorizontally,
             state = lazyListState
         ) {
+            // 模型发现状态条: 远端可发现数量 vs 本地已添加数量分开交代, 不混淆。
+            // Loading 期间禁点刷新防重复触发; 失败给简短原因 + 重试; 全部字段
+            // 颜色取自当前主题, 不写死。
+            item(key = "discover_status") {
+                ModelDiscoverStatusBar(
+                    state = discoverState,
+                    addedCount = providerSetting.models.size,
+                    onRefresh = { fetchAttempt++ },
+                )
+            }
             // 模型列表
             if (providerSetting.models.isEmpty()) {
                 item {
@@ -754,6 +773,100 @@ private fun ModelSettingsForm(
                             onModelChange(model.copy(tools = tools))
                         }
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelDiscoverStatusBar(
+    state: UiState<List<Model>>,
+    addedCount: Int,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // 低干扰状态行: 不做成卡片, 只是一行小字 + 一颗小刷新钮。
+    // 文案随状态切换:
+    //   Idle    -> 尚未拉取 + 「拉取模型」
+    //   Loading -> 正在获取模型列表 (刷新钮停用防重复)
+    //   Success -> 发现 N 个模型 · 已添加 M 个 + 刷新
+    //   Error   -> 拉取失败 + 简短原因 (不含任何凭据) + 重试
+    //   getProviderByType 抛错 -> 当前提供商不支持自动发现, 引导手动添加
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            when (state) {
+                is UiState.Idle -> {
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_models_not_fetched),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onRefresh) {
+                        Text(stringResource(R.string.setting_provider_page_fetch_models))
+                    }
+                }
+
+                is UiState.Loading -> {
+                    LinearWavyProgressIndicator(
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onRefresh, enabled = false) {
+                        Icon(HugeIcons.Refresh03, contentDescription = null)
+                    }
+                }
+
+                is UiState.Success -> {
+                    Text(
+                        text = stringResource(
+                            R.string.setting_provider_page_discovered_count,
+                            state.data.size,
+                            addedCount,
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onRefresh) {
+                        Icon(
+                            HugeIcons.Refresh03,
+                            contentDescription = stringResource(R.string.setting_provider_page_fetch_models),
+                        )
+                    }
+                }
+
+                is UiState.Error -> {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.setting_provider_page_fetch_failed),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Text(
+                            // 简短原因: listModels 走 parseHttpErrorResponse 时消息以
+                            // "HTTP xxx: ..." 形态出现, 不含 API Key/鉴权头; 其他异常
+                            // 只取 message, 也不含凭据。
+                            text = state.error.message ?: state.error.javaClass.simpleName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    TextButton(onClick = onRefresh) {
+                        Text(stringResource(R.string.retry))
+                    }
                 }
             }
         }

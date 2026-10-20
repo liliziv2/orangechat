@@ -1084,4 +1084,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_page_compress_pending_tools">대기 중인 도구 호출을 먼저 처리하거나, 해당 호출이 포함된 최근 메시지를 유지하세요</string>
   <string name="setting_mcp_page_allow_oauth">OAuth 인증 허용</string>
   <string name="setting_mcp_page_allow_oauth_desc">서버가 401을 반환하면 MCP OAuth 2.1 흐름으로 연결합니다(메타데이터 탐색, 동적 등록, 브라우저 인증, 토큰 새로 고침). 끄면 일반 URL 또는 수동 Authorization 헤더를 사용합니다.</string>
+  <string name="retry">재시도</string>
+  <string name="setting_provider_page_models_not_fetched">모델 목록을 아직 가져오지 않았습니다</string>
+  <string name="setting_provider_page_fetch_models">모델 가져오기</string>
+  <string name="setting_provider_page_discovered_count">모델 %1$d개 발견 · 추가됨 %2$d개</string>
+  <string name="setting_provider_page_fetch_failed">가져오기 실패</string>
 </resources>
