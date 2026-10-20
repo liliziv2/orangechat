@@ -6,6 +6,9 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -677,9 +680,21 @@ fun ChatInput(
             }
 
             // Input area with optional background image
+            //
+            // 单行(胶囊) <-> 多行(卡片) 切换: animateContentSize 让高度与形状
+            // 平滑过渡, 不会在换行瞬间「跳」成大卡片。
+            // - 高度: 1 行 (64dp) -> 多行逐行增高, 尺寸变化走弹簧动画;
+            // - 形状: 胶囊(percent 50) <-> 28dp 圆角卡同步插值, 不会出现
+            //   「高度已经变大、圆角还是半圆」的中间帧。
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioNoBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
+                        ),
+                    )
                     .clip(containerShape)
                     .then(
                         if (useRealtimeBlur) Modifier.hazeEffect(

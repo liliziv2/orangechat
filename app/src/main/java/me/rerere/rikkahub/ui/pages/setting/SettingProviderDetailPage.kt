@@ -13,6 +13,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Cancel01
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -45,7 +48,6 @@ import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MultiChoiceSegmentedButtonRow
@@ -505,16 +507,6 @@ private fun ModelList(
             horizontalAlignment = Alignment.CenterHorizontally,
             state = lazyListState
         ) {
-            // 模型发现状态条: 远端可发现数量 vs 本地已添加数量分开交代, 不混淆。
-            // Loading 期间禁点刷新防重复触发; 失败给简短原因 + 重试; 全部字段
-            // 颜色取自当前主题, 不写死。
-            item(key = "discover_status") {
-                ModelDiscoverStatusBar(
-                    state = discoverState,
-                    addedCount = providerSetting.models.size,
-                    onRefresh = { fetchAttempt++ },
-                )
-            }
             // 模型列表
             if (providerSetting.models.isEmpty()) {
                 item {
@@ -584,6 +576,8 @@ private fun ModelList(
             AddModelButton(
                 models = modelList,
                 selectedModels = providerSetting.models,
+                discoverState = discoverState,
+                onRetryDiscover = { fetchAttempt++ },
                 onAddModel = {
                     onUpdateProvider(providerSetting.addModel(it))
                 },
@@ -780,103 +774,11 @@ private fun ModelSettingsForm(
 }
 
 @Composable
-private fun ModelDiscoverStatusBar(
-    state: UiState<List<Model>>,
-    addedCount: Int,
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    // 低干扰状态行: 不做成卡片, 只是一行小字 + 一颗小刷新钮。
-    // 文案随状态切换:
-    //   Idle    -> 尚未拉取 + 「拉取模型」
-    //   Loading -> 正在获取模型列表 (刷新钮停用防重复)
-    //   Success -> 发现 N 个模型 · 已添加 M 个 + 刷新
-    //   Error   -> 拉取失败 + 简短原因 (不含任何凭据) + 重试
-    //   getProviderByType 抛错 -> 当前提供商不支持自动发现, 引导手动添加
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            when (state) {
-                is UiState.Idle -> {
-                    Text(
-                        text = stringResource(R.string.setting_provider_page_models_not_fetched),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onRefresh) {
-                        Text(stringResource(R.string.setting_provider_page_fetch_models))
-                    }
-                }
-
-                is UiState.Loading -> {
-                    LinearWavyProgressIndicator(
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = onRefresh, enabled = false) {
-                        Icon(HugeIcons.Refresh03, contentDescription = null)
-                    }
-                }
-
-                is UiState.Success -> {
-                    Text(
-                        text = stringResource(
-                            R.string.setting_provider_page_discovered_count,
-                            state.data.size,
-                            addedCount,
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    IconButton(onClick = onRefresh) {
-                        Icon(
-                            HugeIcons.Refresh03,
-                            contentDescription = stringResource(R.string.setting_provider_page_fetch_models),
-                        )
-                    }
-                }
-
-                is UiState.Error -> {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.setting_provider_page_fetch_failed),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Text(
-                            // 简短原因: listModels 走 parseHttpErrorResponse 时消息以
-                            // "HTTP xxx: ..." 形态出现, 不含 API Key/鉴权头; 其他异常
-                            // 只取 message, 也不含凭据。
-                            text = state.error.message ?: state.error.javaClass.simpleName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    TextButton(onClick = onRefresh) {
-                        Text(stringResource(R.string.retry))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun AddModelButton(
     models: List<Model>,
     selectedModels: List<Model>,
+    discoverState: UiState<List<Model>>,
+    onRetryDiscover: () -> Unit,
     expanded: Boolean,
     onAddModel: (Model) -> Unit,
     onRemoveModel: (Model) -> Unit,
@@ -893,6 +795,8 @@ private fun AddModelButton(
         ModelPicker(
             models = models,
             selectedModels = selectedModels,
+            discoverState = discoverState,
+            onRetryDiscover = onRetryDiscover,
             onModelSelected = { model ->
                 val inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(model.modelId)
                 val outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(model.modelId)
@@ -1040,6 +944,8 @@ private fun AddModelButton(
 private fun ModelPicker(
     models: List<Model>,
     selectedModels: List<Model>,
+    discoverState: UiState<List<Model>>,
+    onRetryDiscover: () -> Unit,
     onModelSelected: (Model) -> Unit,
     onModelDeselected: (Model) -> Unit,
     onAllModelSelected: (List<Model>) -> Unit,
@@ -1193,17 +1099,67 @@ private fun ModelPicker(
             }
         }
     }
-    // 这里原来套了一层 M3 的 BadgedBox：图标右上角挂一个红色小角标显示「可用模型数」。
-    // 它读的是 M3 默认的 error 色，在一排中性色里非常跳；而那个数字在打开的列表里一眼
-    // 就能数出来，没有任何逻辑依赖它。去掉，只留图标按钮本身。
-    IconButton(
-        onClick = {
-            showModal = true
+    // 盒子图标右上角挂发现角标 (模型拉取状态可视化):
+    // - Success -> 角标显示远端可发现数量, 点击盒子即查看/添加
+    // - Loading -> 角标位置显示小进度点 (不可数, 提示正在拉取)
+    // - Error   -> 角标显示 "!" , 点击盒子后可用模型列表里看到失败;
+    //              角标本体可点, 点击=重试拉取 (轻量刷新入口)
+    // - Idle    -> 不显示角标 (首次进入即自动拉取, Idle 只在极端时序出现)
+    // 颜色全部走主题 (primaryContainer/onPrimary), 不用 M3 默认 error 红底。
+    BadgedBox(
+        badge = {
+            when (val st = discoverState) {
+                is UiState.Success -> {
+                    if (st.data.isNotEmpty()) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ) {
+                            Text(text = st.data.size.toString(), style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+                is UiState.Loading -> {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ) {
+                        Text(text = "…", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                is UiState.Error -> {
+                    // 角标本身可点 = 重试; 给个语义化 contentDescription
+                    Badge(
+                        modifier = Modifier.badgeClickable(onRetryDiscover),
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ) {
+                        Text(text = "!", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                is UiState.Idle -> Unit
+            }
         }
     ) {
-        Icon(HugeIcons.Package01, null)
+        IconButton(
+            onClick = {
+                showModal = true
+            }
+        ) {
+            Icon(HugeIcons.Package01, null)
+        }
     }
 }
+
+/** 角标点击修饰: 只在 Error 态由调用方传入 onRetryDiscover 时可点。 */
+private fun Modifier.badgeClickable(onClick: () -> Unit): Modifier =
+    if (onClick != {}) {
+        this.then(
+            Modifier.clickable(onClick = onClick)
+        )
+    } else {
+        this
+    }
 
 @Composable
 private fun ModelTypeSelector(
