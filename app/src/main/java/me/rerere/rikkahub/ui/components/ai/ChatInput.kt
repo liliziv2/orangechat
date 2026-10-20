@@ -897,51 +897,47 @@ fun ChatInput(
                     // 实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
                     // 内缩 10dp 后，发送圆右缘到胶囊边界恒为 10dp（单行态下缘与上缘同档，
                     // 因为正文区已收到 44dp、与 44dp 按钮盒齐平）—— 贴在右下角但不挤。
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(InputContainerPadding),
-                        verticalAlignment = if (isMultiLine) {
-                            Alignment.Bottom
-                        } else {
-                            Alignment.CenterVertically
-                        },
                     ) {
-                        // 左：「+」附件/扩展固定在最左，单行与多行一致。
-                        attachButton()
-
                         // 正文。**两态共用同一个调用点** —— 这是硬要求：
                         // 挪到另一个分支的调用点，Compose 会把它当成另一个 composable
                         // 销毁重建，输入焦点和光标位置一起丢，键盘会在切形态的瞬间收起。
-                        Column(modifier = Modifier.weight(1f)) {
-                            TextInputRow(
-                                state = state,
-                                onSendMessage = { sendMessage() },
-                                placeholder = inputPlaceholder,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = containerShape,
-                                singleLine = !isMultiLine,
-                                onMeasureLines = { lines ->
-                                    if (lines > 1) wrappedToSecondLine = true
-                                },
-                            )
+                        //
+                        // 验收基准（2026-10-20 截图）：文字与光标**左上对齐**起笔，
+                        // 长文本自然换行，文本区高度随内容增长、不挤压工具栏。
+                        // 旧结构把文本与按钮塞进同一个 Row + weight(1f)，TextField 被
+                        // 拉满按钮盒高度(44dp)，文字被垂直居中 —— 空行/单行时文字
+                        // 「浮」在中间、上下大片空白。现在文本区独立成块，从顶部起笔。
+                        TextInputRow(
+                            state = state,
+                            onSendMessage = { sendMessage() },
+                            placeholder = inputPlaceholder,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = containerShape,
+                            singleLine = !isMultiLine,
+                            onMeasureLines = { lines ->
+                                if (lines > 1) wrappedToSecondLine = true
+                            },
+                        )
 
-                            // 多行态：操作行（搜索/思考/语音/发送）落在正文下方，
-                            // 右对齐贴在行尾，发送仍在最右端；不随正文首行上下跳。
-                            if (isMultiLine) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    trailingActions()
-                                }
+                        // 底部工具栏独立一行常驻：「+」在最左，搜索/思考/语音/发送贴右。
+                        // 不再与文本区争空间 —— 文本长多高，工具栏都稳定在同一行，
+                        // 发送键始终在底部右端（截图基准）。
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            attachButton()
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                trailingActions()
                             }
-                        }
-
-                        // 单行态：功能组与正文同排，贴在行尾。
-                        if (!isMultiLine) {
-                            trailingActions()
                         }
                     }
                 }
@@ -1107,10 +1103,10 @@ private fun TextInputRow(
                 // 单行（胶囊）态反过来要**故意**给一个 44dp 下限（InputCapsuleHeight）：
                 // 正文区与 44dp 的操作按钮盒齐高；容器形状走 InputCapsuleShape（percent 50），
                 // 无论多高都读作一颗标准胶囊。
-                .heightIn(
-                    min = if (singleLine) InputCapsuleHeight else InputMinHeight,
-                    max = InputMaxHeight,
-                )
+                // 高度完全由内容决定: 1 行 = 行高 + contentPadding, 文字从顶部起笔。
+                // 旧版给单行 44dp 下限(与按钮盒齐高的旧结构遗留), 在新布局里会让
+                // 空输入时文字被垂直居中、上下留大片空白 —— 与验收截图相反。
+                .heightIn(max = InputMaxHeight)
                 // 绝对高度兜底：行数上限会随系统字体缩放漂移，这条不会。
                 // 超出的文字由 BasicTextField 自己内部滚动，不撑外壳。
                 .contentReceiver(receiveContentListener),
@@ -1160,14 +1156,10 @@ private fun TextInputRow(
             // 多行态同样收紧: 上下 16 -> 8dp (任务单要求「多行态上下留白收紧」),
             // 4 行正文 = 4×24 + 8×2 = 112dp 正好落在任务单给的候选值上;
             // 左右保持 16dp 不动, 长句阅读宽度不受影响。
-            // 起始位置 16 -> 14dp: 「+」按钮 44dp 盒子自带 (44-24)/2 = 10dp 图标留白,
-            // 再叠 16dp 文字起点会显得空; 收到 14dp 后文字更靠近 + , 阅读起点自然。
-            // 纵向维持上轮的 10/8dp 收紧成果。
-            contentPadding = if (singleLine) {
-                PaddingValues(top = 10.dp, bottom = 10.dp, start = 14.dp, end = 14.dp)
-            } else {
-                PaddingValues(top = 8.dp, bottom = 8.dp, start = 14.dp, end = 14.dp)
-            },
+            // 顶部起笔: 上 8dp / 下 4dp, 文字贴容器顶部, 光标与首字对齐;
+            // 左右 14dp 与工具栏对齐。截图基准里文字紧贴容器左上, 底部空白由
+            // 工具栏行承担, 不再由文本区承担。
+            contentPadding = PaddingValues(top = 8.dp, bottom = 4.dp, start = 14.dp, end = 14.dp),
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
