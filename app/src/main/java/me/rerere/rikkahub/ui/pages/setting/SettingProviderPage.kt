@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.net.Uri
+import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.DragDropHorizontal
@@ -12,6 +13,8 @@ import me.rerere.hugeicons.stroke.Cancel01
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -30,6 +34,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -485,39 +491,76 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
     }
 
     if (dialogState.isEditing) {
-        AlertDialog(
+        // 容器与「添加/编辑模型」弹窗统一成 ModalBottomSheet:
+        // 之前添加提供商走 AlertDialog, 字段在系统弹窗里排版挤、与模型配置页
+        // (底部抽屉 + TabRow + 底部按钮行) 两套视觉语言。现在同一套壳:
+        // 标题在上, 表单 weight(1f) 滚动, 取消/添加按钮行贴底。
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = rememberCoroutineScope()
+        ModalBottomSheet(
             onDismissRequest = {
                 dialogState.dismiss()
             },
-            title = {
-                Text(stringResource(R.string.setting_provider_page_add_provider))
-            },
-            text = {
-                dialogState.currentState?.let {
-                    ProviderConfigure(it) { newState ->
-                        dialogState.currentState = newState
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
+            sheetState = sheetState,
+            sheetGesturesEnabled = false,
+            dragHandle = {
+                IconButton(
                     onClick = {
-                        dialogState.confirm()
+                        scope.launch {
+                            sheetState.hide()
+                            dialogState.dismiss()
+                        }
                     }
                 ) {
-                    Text(stringResource(R.string.setting_provider_page_add))
+                    Icon(HugeIcons.ArrowDown01, null)
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        dialogState.dismiss()
-                    }
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.95f)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.setting_provider_page_add_provider),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Text(stringResource(R.string.cancel))
+                    dialogState.currentState?.let {
+                        ProviderConfigure(it) { newState ->
+                            dialogState.currentState = newState
+                        }
+                    }
                 }
-            },
-        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    TextButton(
+                        onClick = {
+                            dialogState.dismiss()
+                        }
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = {
+                            dialogState.confirm()
+                        }
+                    ) {
+                        Text(stringResource(R.string.setting_provider_page_add))
+                    }
+                }
+            }
+        }
     }
 }
 
