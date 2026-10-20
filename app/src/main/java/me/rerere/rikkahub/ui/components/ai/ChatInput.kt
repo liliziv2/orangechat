@@ -641,9 +641,7 @@ fun ChatInput(
                 .navigationBarsPadding()
                 // 输入区是一块独立的悬浮容器:与屏幕底部、左右边缘都留出空间,
                 // 让它读作「浮在页面上的输入组件」,而不是贴底的一行工具栏。
-                // 底部 12 -> 10dp: 输入容器本身已有 10dp 内边距, 外层再留 10dp 足够
-                // 「浮起」的呼吸感, 多出来的 2dp 在小屏上是可感知的拥挤。
-                .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // 附件预览与「编辑中」提示条留在输入容器之外（上方）。
@@ -710,8 +708,8 @@ fun ChatInput(
                         )
                     }
 
-                    // 「+」附件/扩展入口。两态共用同一份定义，固定排在输入栏最左侧，
-                    // 尺寸、图标、行为完全一致，不能各写一遍。
+                    // 「+」附件/扩展入口。两态共用同一份定义：位置不同（单行在正文左侧、
+                    // 多行在操作行最左），但尺寸、图标、行为必须完全一致，不能各写一遍。
                     val attachButton: @Composable () -> Unit = {
                         ActionIconButton(
                             size = CapsuleActionSize,
@@ -836,9 +834,9 @@ fun ChatInput(
                             enter = fadeIn() + scaleIn(),
                             exit = fadeOut() + scaleOut(),
                         ) {
-                            // 点击区 44dp；实心圆（SendButtonCircleSize）与箭头
-                            // （CapsuleActionIconSize）分别控制尺寸，圆略小于点击区，
-                            // 箭头 24dp 居中，不显得过大。
+                            // 点击区与实心圆同为 44dp：五个按钮共用同一条中心线、
+                            // 同一档视觉尺度。实心圆等于点击区（不再小一档），
+                            // 圆内的箭头图标仍是 24dp（CapsuleActionIconSize）。
                             Box(
                                 contentAlignment = Alignment.Center,
                                 modifier = Modifier
@@ -865,7 +863,7 @@ fun ChatInput(
                                     else -> MaterialTheme.colorScheme.onPrimary
                                 }
                                 Surface(
-                                    modifier = Modifier.size(SendButtonCircleSize),
+                                    modifier = Modifier.size(ActionButtonSize),
                                     shape = CircleShape,
                                     color = containerColor,
                                     content = {})
@@ -897,47 +895,58 @@ fun ChatInput(
                     // 实心圆距右边界只剩约 4dp，又压在圆角上，读作溢出。
                     // 内缩 10dp 后，发送圆右缘到胶囊边界恒为 10dp（单行态下缘与上缘同档，
                     // 因为正文区已收到 44dp、与 44dp 按钮盒齐平）—— 贴在右下角但不挤。
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(InputContainerPadding),
+                        verticalAlignment = if (isMultiLine) {
+                            Alignment.Bottom
+                        } else {
+                            Alignment.CenterVertically
+                        },
                     ) {
+                        // 单行态：「+」直接排在正文左边。
+                        if (!isMultiLine) {
+                            attachButton()
+                        }
+
                         // 正文。**两态共用同一个调用点** —— 这是硬要求：
                         // 挪到另一个分支的调用点，Compose 会把它当成另一个 composable
                         // 销毁重建，输入焦点和光标位置一起丢，键盘会在切形态的瞬间收起。
-                        //
-                        // 验收基准（2026-10-20 截图）：文字与光标**左上对齐**起笔，
-                        // 长文本自然换行，文本区高度随内容增长、不挤压工具栏。
-                        // 旧结构把文本与按钮塞进同一个 Row + weight(1f)，TextField 被
-                        // 拉满按钮盒高度(44dp)，文字被垂直居中 —— 空行/单行时文字
-                        // 「浮」在中间、上下大片空白。现在文本区独立成块，从顶部起笔。
-                        TextInputRow(
-                            state = state,
-                            onSendMessage = { sendMessage() },
-                            placeholder = inputPlaceholder,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = containerShape,
-                            singleLine = !isMultiLine,
-                            onMeasureLines = { lines ->
-                                if (lines > 1) wrappedToSecondLine = true
-                            },
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            TextInputRow(
+                                state = state,
+                                onSendMessage = { sendMessage() },
+                                placeholder = inputPlaceholder,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = containerShape,
+                                singleLine = !isMultiLine,
+                                onMeasureLines = { lines ->
+                                    if (lines > 1) wrappedToSecondLine = true
+                                },
+                            )
 
-                        // 底部工具栏独立一行常驻：「+」在最左，搜索/思考/语音/发送贴右。
-                        // 不再与文本区争空间 —— 文本长多高，工具栏都稳定在同一行，
-                        // 发送键始终在底部右端（截图基准）。
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            attachButton()
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(0.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                trailingActions()
+                            // 单行态不渲染这一行 —— 按钮与正文同排（图中样式）。
+                            // 换行之后操作行才落在正文**下方**（P1 结构），
+                            // 固定在容器底部，不随正文首行位置上下跳。
+                            //
+                            // 行高由 44dp 的按钮盒子决定（= CapsuleActionSize），没有额外
+                            // 内边距 —— 五个按钮的中心线因此始终重合在同一条水平线上。
+                            if (isMultiLine) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    attachButton()
+                                    Spacer(Modifier.weight(1f))
+                                    trailingActions()
+                                }
                             }
+                        }
+
+                        // 单行态：功能组与正文同排，贴在行尾。
+                        if (!isMultiLine) {
+                            trailingActions()
                         }
                     }
                 }
@@ -1103,10 +1112,10 @@ private fun TextInputRow(
                 // 单行（胶囊）态反过来要**故意**给一个 44dp 下限（InputCapsuleHeight）：
                 // 正文区与 44dp 的操作按钮盒齐高；容器形状走 InputCapsuleShape（percent 50），
                 // 无论多高都读作一颗标准胶囊。
-                // 高度完全由内容决定: 1 行 = 行高 + contentPadding, 文字从顶部起笔。
-                // 旧版给单行 44dp 下限(与按钮盒齐高的旧结构遗留), 在新布局里会让
-                // 空输入时文字被垂直居中、上下留大片空白 —— 与验收截图相反。
-                .heightIn(max = InputMaxHeight)
+                .heightIn(
+                    min = if (singleLine) InputCapsuleHeight else InputMinHeight,
+                    max = InputMaxHeight,
+                )
                 // 绝对高度兜底：行数上限会随系统字体缩放漂移，这条不会。
                 // 超出的文字由 BasicTextField 自己内部滚动，不撑外壳。
                 .contentReceiver(receiveContentListener),
@@ -1126,8 +1135,8 @@ private fun TextInputRow(
                     style = InputTextStyle,
                 )
             },
-            // 上限 4 行：多行态内边距上下 8dp 时, 4 行 = 4×24 + 8×2 = 112dp,
-            // 落在任务单「最大 112dp」候选值上。超出的文字在编辑区内部滚动。
+            // 上限从 5 行收到 4 行：5 行时外壳约 152–188dp（随字体缩放），已经超出
+            // 「最大 120–140dp」；4 行固定 128dp。超出的文字在编辑区内部滚动。
             //
             // **正文恒为 MultiLine，不再按两态在 SingleLine / MultiLine 之间切。**
             // 原来单行态走 SingleLine，代价是长句在框内**横向滚动**：光标移到句尾时
@@ -1152,14 +1161,20 @@ private fun TextInputRow(
                 }
             },
             // 单行（胶囊）态的上下内边距从 M3 默认的 16dp 收到 10dp：
-            // 1 行正文（24dp 行高）因此占 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平。
-            // 多行态同样收紧: 上下 16 -> 8dp (任务单要求「多行态上下留白收紧」),
-            // 4 行正文 = 4×24 + 8×2 = 112dp 正好落在任务单给的候选值上;
-            // 左右保持 16dp 不动, 长句阅读宽度不受影响。
-            // 顶部起笔: 上 8dp / 下 4dp, 文字贴容器顶部, 光标与首字对齐;
-            // 左右 14dp 与工具栏对齐。截图基准里文字紧贴容器左上, 底部空白由
-            // 工具栏行承担, 不再由文本区承担。
-            contentPadding = PaddingValues(top = 8.dp, bottom = 4.dp, start = 14.dp, end = 14.dp),
+            // 1 行正文（24dp 行高）因此占 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平，
+            // 文字不再「浮」在正文区中间。容器总高
+            // max(44, 44) + 10×2 = 64dp，是用户点名的单行目标高度。
+            // 多行态保持 M3 的默认值（左右上下各 16dp，= TextFieldDefaults
+            // .contentPaddingWithoutLabel()）—— 不硬编码，避免随 M3 版本漂移。
+            contentPadding = if (singleLine) {
+                // 纵向 12 -> 10dp：正文行高从 20sp 提到 24sp（见 InputTextStyle），
+                // 1 行正文 = 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平 ——
+                // 胶囊总高仍是 44 + 10×2 = 64dp，**一点没变**。
+                // 只动纵向：左右仍是 16dp，长句的阅读宽度不受影响。
+                PaddingValues(top = 10.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
+            } else {
+                TextFieldDefaults.contentPaddingWithoutLabel()
+            },
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
@@ -1244,15 +1259,7 @@ private val InputContainerPadding = 10.dp
  * 与点击区同为 44dp：五个按钮共用同一条中心线、同一档视觉尺度 ——
  * 实心圆不再比点击区小一档。圆内箭头图标仍是 24dp（CapsuleActionIconSize）。
  */
-// 点击区 44dp: 五个按钮 (+/搜索/思考/语音/发送) 共用, 操作行高度恒 44dp。
-// (ActionButtonSize 是它历史上在发送按钮处的名字, 现在统一引用同一个常量,
-// 消除任务单点名的「多套互相冲突的尺寸定义」。
-private val CapsuleActionSize = 44.dp
-private val ActionButtonSize = CapsuleActionSize
-// 发送实心圆: 以思考灯泡/搜索的 24dp 图标墨迹为视觉重量基准 —— 圆径 36dp 时
-// 箭头墨迹与 24dp 图标在 44dp 盒内的视觉重量一致 (任务单: 以灯泡为参考调发送键),
-// 实心圆仍是操作行唯一强调色元素, 点击区仍是 44dp。
-private val SendButtonCircleSize = 36.dp
+private val ActionButtonSize = 44.dp
 
 /**
  * 操作行里**每一个**按钮的点击区尺寸(+ / 语音 / 搜索 / 思考 / 发送)。
@@ -1266,8 +1273,9 @@ private val SendButtonCircleSize = 36.dp
  * 五个按钮因此共用同一条中心线。盒子之间的间距留白交给容器内边距
  * （[InputContainerPadding]，10dp）—— 不再叠加 padding 或 spacedBy。
  *
- * 实心发送圆与它同大（见 [CapsuleActionSize]，也是 44dp），居中其中。
+ * 实心发送圆与它同大（见 [ActionButtonSize]，也是 44dp），居中其中。
  */
+private val CapsuleActionSize = 44.dp
 
 /**
  * 操作行内联功能按钮的**图标**尺寸(+ / 搜索 / 思考 / 语音 / 发送)。
