@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
@@ -40,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
@@ -530,6 +534,31 @@ private fun ChatPageContent(
 // 同时压低顶栏右侧的存在感（用户本轮的主诉求是「上方偏重」）。
 private val TopBarActionIconSize = 22.dp
 
+/**
+ * 顶栏右侧操作按钮的统一外壳: 圆形 + 细描边 + 半透明 surface 底。
+ * 日间/夜间自动跟随主题 (surfaceContainerHighest alpha 0.5 / outlineVariant 描边),
+ * 不写死颜色。图标尺寸/着色由 content 决定。
+ */
+@Composable
+private fun RoundTonalAction(
+    onClick: () -> Unit,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun TopBar(
     settings: Settings,
@@ -552,7 +581,6 @@ private fun TopBar(
     }
     // 双头像版式下标题区被头像挤窄，所以只留助手名一行，模型名和提供商名都不显示。
     // 改名入口同时挂在头像和标题上。
-    val topBarDualAvatar = settings.displaySetting.chatAvatarMode == ChatAvatarMode.SIDE &&
         settings.displaySetting.showTopBarDualAvatar
     val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
     val editTitleLabel = stringResource(R.string.chat_page_edit_title)
@@ -571,58 +599,43 @@ private fun TopBar(
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!bigScreen) {
-                    IconButton(
-                        onClick = {
-                            scope.launch { drawerState.open() }
-                        }
-                    ) {
-                        Icon(HugeIcons.Menu03, "Messages")
+            // 只留侧边栏入口 (菜单)。返回键去掉: 返回 = 关会话/回列表,
+            // 系统手势与侧栏都可达, 顶栏不需要第三个出口。
+            if (!bigScreen) {
+                IconButton(
+                    onClick = {
+                        scope.launch { drawerState.open() }
                     }
-                }
-                // 侧边头像版式下顺带在顶栏摆一对叠压头像，跟消息里的头像同一套素材
-                if (topBarDualAvatar) {
-                    ChatTopBarDualAvatar(
-                        model = settings.getCurrentChatModel(),
-                        assistant = settings.getCurrentAssistant(),
-                        modifier = Modifier
-                            .padding(start = if (bigScreen) 12.dp else 0.dp, end = 4.dp)
-                            .clip(RoundedCornerShape(50))
-                            .clickable(onClickLabel = editTitleLabel, onClick = openTitleEdit),
-                    )
+                ) {
+                    Icon(HugeIcons.Menu03, "Messages")
                 }
             }
+            // 顶栏双头像移除: 与侧边栏顶部双头像重复 (本轮改到侧边栏),
+            // 顶栏只保留标题与副标题。
         },
         title = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            // 标题**相对整个顶栏真居中**: M3 TopAppBar 的 title 槽是从
+            // navigationIcon 之后开始的, fillMaxWidth 只会居中于「剩余空间」,
+            // 左边有菜单钮时整体偏右。改成 BoxWithConstraints 满宽叠加:
+            // 标题层居中于整条顶栏, 两层不互相挤占。
+            // 标题过长单行省略; 点击改标题入口保留。
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val assistant = settings.getCurrentAssistant()
                 val model = settings.getCurrentChatModel()
                 val assistantName = assistant.name.ifBlank {
                     stringResource(R.string.assistant_page_default_assistant)
                 }
-                // 普通模式：第一行是会话名，点它改标题。
-                //
-                // 双头像模式**不再单独占一行标题**（「栖」那一行整条取消）：左边已经有一对
-                // 叠压头像，再来一行助手名会让顶栏上方偏重，而名字在第二行里本来就有。
-                // 改名入口没丢 —— 双头像本身可点（navigationIcon 里的 ChatTopBarDualAvatar，
-                // onClick = openTitleEdit）。
-                if (!topBarDualAvatar) {
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.titleMedium,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClickLabel = editTitleLabel, onClick = openTitleEdit),
-                    )
-                }
+                Text(
+                    text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleMedium,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClickLabel = editTitleLabel, onClick = openTitleEdit),
+                    textAlign = TextAlign.Center,
+                )
                 // 第二行：助手名 · 当前模型。**整行可点，打开模型选择**。
-                //
-                // 模型 chip 从输入框上方挪走之后，模型信息全仓只在顶栏这一行出现一次，
-                // 同时承担切换入口（用户本轮的要求）。它不是按钮，读作一行上下文，
-                // 所以不套 Surface、不加图标。
                 Text(
                     text = if (model != null) "$assistantName · ${model.displayName}" else assistantName,
                     maxLines = 1,
@@ -632,34 +645,29 @@ private fun TopBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showModelPicker = true },
+                    textAlign = TextAlign.Center,
                 )
             }
         },
         actions = {
-            IconButton(
-                onClick = {
-                    onVoiceCall()
-                }
-            ) {
+            // 右侧操作: 圆形描边 + 半透明背景 (日/夜自动随主题 surface 系颜色),
+            // 图标数量控制为 语音 + 更多 两颗。
+            RoundTonalAction(onClick = onVoiceCall, contentDescription = "Voice Call") {
                 Icon(
                     imageVector = HugeIcons.Voice,
-                    contentDescription = "Voice Call",
+                    contentDescription = null,
                     modifier = Modifier.size(TopBarActionIconSize),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            // 次要开关（如预览模式）收进溢出菜单，保持图标行只有抽屉/语音/更多。
+            // 次要开关（如预览模式）收进溢出菜单，保持图标行只有语音/更多。
             // 「新建聊天」不再放在这里：侧栏已经有「新建」，同一个动作不需要两个入口。
             Box {
-                IconButton(
-                    onClick = {
-                        showOverflowMenu = true
-                    }
-                ) {
+                RoundTonalAction(onClick = { showOverflowMenu = true }, contentDescription = "更多") {
                     Icon(
                         imageVector = HugeIcons.MoreVertical,
-                        contentDescription = "更多",
+                        contentDescription = null,
                         modifier = Modifier.size(TopBarActionIconSize),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
