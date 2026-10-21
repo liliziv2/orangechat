@@ -752,152 +752,58 @@ fun ChatInput(
                     // "cannot be called in this context with an implicit receiver"（批 27 CI 就挂在这）。
                     // 两处调用点都直接写在 Row 的 content 里，接收者天然可用。
                     val trailingActions: @Composable RowScope.() -> Unit = {
-                        // 搜索
-                        val enableSearchMsg = stringResource(R.string.web_search_enabled)
-                        val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                        val chatModel = settings.getCurrentChatModel()
-                        Box(
-                            modifier = Modifier.size(CapsuleActionSize),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            SearchPickerButton(
-                                enableSearch = enableSearch,
-                                settings = settings,
-                                iconSize = CapsuleActionIconSize,
-                                onToggleSearch = { enabled ->
-                                    onToggleSearch(enabled)
-                                    toaster.show(
-                                        message = if (enabled) enableSearchMsg else disableSearchMsg,
-                                        duration = 1.seconds,
-                                        type = if (enabled) {
-                                            ToastType.Success
-                                        } else {
-                                            ToastType.Normal
-                                        }
-                                    )
-                                },
-                                onUpdateSearchService = onUpdateSearchService,
-                                model = chatModel,
-                            )
-                        }
-
-                        // 思考/调整
-                        val model = settings.getCurrentChatModel()
-                        if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
-                            Box(
-                                modifier = Modifier.size(CapsuleActionSize),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                ReasoningButton(
-                                    reasoningLevel = assistant.reasoningLevel,
-                                    onUpdateReasoningLevel = {
-                                        onUpdateAssistant(assistant.copy(reasoningLevel = it))
-                                    },
-                                    onlyIcon = true,
-                                    iconSize = CapsuleActionIconSize,
-                                )
-                            }
-                        }
-
-                        // 语音：固定在发送左边。通话进行中禁用，避免两路麦克风冲突。
-                        if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive) {
-                            ActionIconButton(
-                                size = CapsuleActionSize,
-                                onClick = {
-                                    when (asrState.status) {
-                                        ASRStatus.Listening -> {
-                                            asr.stop()
-                                        }
-
-                                        ASRStatus.Idle, ASRStatus.Error -> {
-                                            if (!asrPermission.allRequiredPermissionsGranted) {
-                                                asrPermission.requestPermissions()
-                                            } else {
-                                                voiceMessageMode = true
-                                                asr.start { transcript ->
-                                                    // Ignore transcript in voice message mode
-                                                }
-                                            }
-                                        }
-
-                                        ASRStatus.Connecting, ASRStatus.Stopping -> {}
-                                    }
-                                }
-                            ) {
-                                if (asrState.isRecording) {
-                                    androidx.compose.material3.CircularProgressIndicator(
-                                        modifier = Modifier.size(CapsuleActionIconSize),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = HugeIcons.Voice,
-                                        contentDescription = "Voice",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(CapsuleActionIconSize)
-                                    )
-                                }
-                            }
-                        }
-
-                        // 发送：整条容器唯一使用主题强调色的实心按钮，固定在操作行最右端。
+                        // 发送: 底部工具栏唯一右侧按钮。
+                        // (搜索/思考改为输入框上方按需状态标记, 语音按钮本轮移除 ——
+                        //  语音通话入口仍在顶栏, 录音条功能保留但无按钮触发路径,
+                        //  如需恢复可在助手扩展面板补回)
                         // 空输入态降低透明度而不是换成灰色，保持可辨识但仍读作不可用。
-                        // 点击发送 / 长按无回答 / 生成中转取消，三种行为与原来完全一致。
-                        AnimatedVisibility(
-                            visible = !asrState.isRecording,
-                            enter = fadeIn() + scaleIn(),
-                            exit = fadeOut() + scaleOut(),
+                        // 点击发送 / 长按无回答 / 生成中转取消，行为与原来完全一致。
+                        // 点击区与实心圆同为 44dp，圆内箭头 24dp —— 尺寸不动。
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(CapsuleActionSize)
+                                .clip(CircleShape)
+                                .combinedClickable(
+                                    enabled = loading || !state.isEmpty(),
+                                    onClick = {
+                                        dismissExpand()
+                                        sendMessage()
+                                    }, onLongClick = {
+                                        dismissExpand()
+                                        sendMessageWithoutAnswer()
+                                    }
+                                )
                         ) {
-                            // 点击区与实心圆同为 44dp：五个按钮共用同一条中心线、
-                            // 同一档视觉尺度。实心圆等于点击区（不再小一档），
-                            // 圆内的箭头图标仍是 24dp（CapsuleActionIconSize）。
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(CapsuleActionSize)
-                                    .clip(CircleShape)
-                                    .combinedClickable(
-                                        enabled = loading || !state.isEmpty(),
-                                        onClick = {
-                                            dismissExpand()
-                                            sendMessage()
-                                        }, onLongClick = {
-                                            dismissExpand()
-                                            sendMessageWithoutAnswer()
-                                        }
-                                    )
-                            ) {
-                                val containerColor = when {
-                                    loading -> MaterialTheme.colorScheme.errorContainer
-                                    state.isEmpty() -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                                    else -> MaterialTheme.colorScheme.primary
-                                }
-                                val contentColor = when {
-                                    loading -> MaterialTheme.colorScheme.onErrorContainer
-                                    else -> MaterialTheme.colorScheme.onPrimary
-                                }
-                                Surface(
-                                    modifier = Modifier.size(ActionButtonSize),
-                                    shape = CircleShape,
-                                    color = containerColor,
-                                    content = {})
-                                if (loading) {
-                                    KeepScreenOn()
-                                    Icon(
-                                        imageVector = HugeIcons.Cancel01,
-                                        contentDescription = stringResource(R.string.stop),
-                                        tint = contentColor,
-                                        modifier = Modifier.size(CapsuleActionIconSize)
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = HugeIcons.ArrowUp02,
-                                        contentDescription = stringResource(R.string.send),
-                                        tint = contentColor,
-                                        modifier = Modifier.size(CapsuleActionIconSize)
-                                    )
-                                }
+                            val containerColor = when {
+                                loading -> MaterialTheme.colorScheme.errorContainer
+                                state.isEmpty() -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                            val contentColor = when {
+                                loading -> MaterialTheme.colorScheme.onErrorContainer
+                                else -> MaterialTheme.colorScheme.onPrimary
+                            }
+                            Surface(
+                                modifier = Modifier.size(ActionButtonSize),
+                                shape = CircleShape,
+                                color = containerColor,
+                                content = {})
+                            if (loading) {
+                                KeepScreenOn()
+                                Icon(
+                                    imageVector = HugeIcons.Cancel01,
+                                    contentDescription = stringResource(R.string.stop),
+                                    tint = contentColor,
+                                    modifier = Modifier.size(CapsuleActionIconSize)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = HugeIcons.ArrowUp02,
+                                    contentDescription = stringResource(R.string.send),
+                                    tint = contentColor,
+                                    modifier = Modifier.size(CapsuleActionIconSize)
+                                )
                             }
                         }
                     }
