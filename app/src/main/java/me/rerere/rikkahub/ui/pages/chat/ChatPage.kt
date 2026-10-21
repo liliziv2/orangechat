@@ -2,6 +2,13 @@
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalContext
+import me.rerere.rikkahub.data.model.Assistant
+import androidx.compose.foundation.layout.Spacer
+import me.rerere.ai.core.ReasoningLevel
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.hugeicons.stroke.ArrowDown01
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +33,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.currentWindowDpSize
@@ -61,6 +75,9 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
@@ -338,8 +355,21 @@ private fun ChatPageContent(
                 )
             },
             bottomBar = {
-                ChatInput(
-                    state = inputState,
+                Column {
+                    // 输入框上方: 会话助手选择入口 + 按需状态标记 (联网/Thinking)。
+                    // 只显示**这个会话绑定的助手**, 不与全局默认助手混淆;
+                    // 点击弹助手底部弹窗, 选中的写 conversation.assistantId。
+                    ChatBottomAssistantBar(
+                        settings = setting,
+                        conversation = conversation,
+                        enableSearch = enableWebSearch,
+                        onSwitchAssistant = { assistant ->
+                            vm.switchConversationAssistant(conversation, assistant.id)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                    ChatInput(
+                        state = inputState,
                     loading = loadingJob != null,
                     settings = setting,
                     conversation = conversation,
@@ -439,7 +469,8 @@ private fun ChatPageContent(
                         vm.handleCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
                     },
                 )
-            },
+            }
+        },
             containerColor = Color.Transparent,
         ) { innerPadding ->
             ChatList(
@@ -539,6 +570,171 @@ private val TopBarActionIconSize = 22.dp
  * 日间/夜间自动跟随主题 (surfaceContainerHighest alpha 0.5 / outlineVariant 描边),
  * 不写死颜色。图标尺寸/着色由 content 决定。
  */
+/**
+ * 输入框上方的会话助手条:
+ * - 左: 当前会话助手 (头像+名+下拉箭头), 点击弹助手选择
+ * - 右: 按需状态标记 —— 联网/Thinking 只在**开启时**显示, 未启用收起,
+ *   不占常驻空间; 标记本身可点 -> 打开对应选择器修改
+ * - 助手来源 = conversation.assistantId (会话级), 不与全局默认混淆
+ */
+@Composable
+private fun ChatBottomAssistantBar(
+    settings: Settings,
+    conversation: Conversation,
+    enableSearch: Boolean,
+    onSwitchAssistant: (Assistant) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    // 会话绑定助手 (找不到时回退全局当前助手)
+    val currentAssistant = settings.getAssistantById(conversation.assistantId)
+        ?: settings.getCurrentAssistant()
+    val assistantName = currentAssistant.name.ifBlank {
+        stringResource(R.string.assistant_page_default_assistant)
+    }
+    var showAssistantSheet by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // 助手入口
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .clip(CircleShape)
+                .clickable { showAssistantSheet = true }
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+        ) {
+            UIAvatar(
+                name = assistantName,
+                value = currentAssistant.avatar,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                text = assistantName,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = HugeIcons.ArrowDown01,
+                contentDescription = stringResource(R.string.setting_provider_page_add_provider).let { "切换助手" },
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        // 状态标记: 仅开启时显示 (按需, 不常驻)
+        if (enableSearch) {
+            AssistStateChip(
+                text = "联网",
+                icon = HugeIcons.Earth,
+            )
+        }
+        val rl = currentAssistant.reasoningLevel
+        if (rl.isEnabled) {
+            AssistStateChip(
+                text = "思考 " + when (rl) {
+                    ReasoningLevel.LOW -> "低"
+                    ReasoningLevel.MEDIUM -> "中"
+                    ReasoningLevel.HIGH, ReasoningLevel.XHIGH -> "高"
+                    ReasoningLevel.AUTO -> "自动"
+                    else -> "开"
+                },
+                icon = HugeIcons.Idea01,
+            )
+        }
+    }
+
+    if (showAssistantSheet) {
+        AssistantPickerBottomSheet(
+            settings = settings,
+            currentAssistantId = currentAssistant.id,
+            onSelect = {
+                showAssistantSheet = false
+                onSwitchAssistant(it)
+            },
+            onDismiss = { showAssistantSheet = false },
+        )
+    }
+}
+
+/** 按需状态标记: 小圆角 chip, 半透明容器底, 主题色, 点击留给后续选择器。 */
+@Composable
+private fun AssistStateChip(
+    text: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+        }
+    }
+}
+
+/** 助手选择底部弹窗: 列出全部助手, 选中项打勾, 选择写会话绑定。 */
+@Composable
+private fun AssistantPickerBottomSheet(
+    settings: Settings,
+    currentAssistantId: Uuid,
+    onSelect: (Assistant) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.7f)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "切换助手",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(settings.assistants, key = { it.id }) { assistant ->
+                    val name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }
+                    ListItem(
+                        headlineContent = { Text(name) },
+                        leadingContent = {
+                            UIAvatar(name = name, value = assistant.avatar, modifier = Modifier.size(36.dp))
+                        },
+                        trailingContent = {
+                            if (assistant.id == currentAssistantId) {
+                                Icon(HugeIcons.Tick01, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { onSelect(assistant) },
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun RoundTonalAction(
     onClick: () -> Unit,

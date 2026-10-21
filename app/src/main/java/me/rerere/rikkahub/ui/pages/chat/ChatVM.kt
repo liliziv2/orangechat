@@ -269,6 +269,23 @@ class ChatVM(
         }
     }
 
+    /**
+     * 切换**当前会话**绑定的助手 (只改 conversation.assistantId, 不动全局 assistantId)。
+     * 区别于 settingsStore.updateAssistant (那是全局默认助手): 从会话内切换助手
+     * 不应影响用户在其他会话/新会话的默认助手。
+     */
+    fun switchConversationAssistant(conversation: Conversation, targetAssistantId: Uuid) {
+        viewModelScope.launch {
+            if (conversation.assistantId == targetAssistantId) return@launch
+            val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
+            val updated = conversationFull.copy(assistantId = targetAssistantId)
+            if (conversation.id == _conversationId) {
+                chatService.saveConversation(_conversationId, updated)
+            } else {
+                conversationRepo.updateConversation(updated)
+            }
+        }
+    }
     fun moveConversationToAssistant(conversation: Conversation, targetAssistantId: Uuid) {
         viewModelScope.launch {
             val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
