@@ -1,24 +1,31 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.net.Uri
+import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.DragDropHorizontal
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Cancel01
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -30,6 +37,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,6 +62,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,8 +97,6 @@ import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.ImageUtils
 import org.koin.androidx.compose.koinViewModel
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlin.uuid.Uuid
@@ -97,12 +109,6 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var searchQuery by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
-    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
-        val newProviders = settings.providers.toMutableList().apply {
-            add(to.index, removeAt(from.index))
-        }
-        vm.updateSettings(settings.copy(providers = newProviders))
-    }
 
     val filteredProviders = remember(settings.providers, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -221,42 +227,23 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 state = lazyListState,
             ) {
                 itemsIndexed(filteredProviders, key = { _, it -> it.id }) { index, provider ->
-                    ReorderableItem(
-                        state = reorderableState,
-                        key = provider.id
-                    ) { isDragging ->
-                        ProviderItem(
-                            modifier = Modifier
-                                .scale(if (isDragging) 0.95f else 1f)
-                                .fillMaxWidth()
-                                .animateItem(),
-                            provider = provider,
-                            showDivider = index > 0,
-                            dragHandle = {
-                                val haptic = LocalHapticFeedback.current
-                                IconButton(
-                                    onClick = {},
-                                    modifier = Modifier
-                                        .longPressDraggableHandle(
-                                            onDragStarted = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                            },
-                                            onDragStopped = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                            }
-                                        )
-                                ) {
-                                    Icon(
-                                        imageVector = HugeIcons.DragDropHorizontal,
-                                        contentDescription = null
-                                    )
-                                }
-                            },
-                            onClick = {
-                                navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
-                            }
-                        )
-                    }
+                    // 右滑删除替代六点把手: 排序调整移除 (低频操作, 搜索已可定位),
+                    // 删除改为行内手势直达, 不再需要先进详情页找删除按钮。
+                    ProviderItem(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateItem(),
+                        provider = provider,
+                        showDivider = index > 0,
+                        onDelete = {
+                            vm.updateSettings(
+                                settings.copy(providers = settings.providers - provider)
+                            )
+                        },
+                        onClick = {
+                            navController.navigate(Screen.SettingProviderDetail(providerId = provider.id.toString()))
+                        }
+                    )
                 }
             }
         }
@@ -485,39 +472,76 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
     }
 
     if (dialogState.isEditing) {
-        AlertDialog(
+        // 容器与「添加/编辑模型」弹窗统一成 ModalBottomSheet:
+        // 之前添加提供商走 AlertDialog, 字段在系统弹窗里排版挤、与模型配置页
+        // (底部抽屉 + TabRow + 底部按钮行) 两套视觉语言。现在同一套壳:
+        // 标题在上, 表单 weight(1f) 滚动, 取消/添加按钮行贴底。
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = rememberCoroutineScope()
+        ModalBottomSheet(
             onDismissRequest = {
                 dialogState.dismiss()
             },
-            title = {
-                Text(stringResource(R.string.setting_provider_page_add_provider))
-            },
-            text = {
-                dialogState.currentState?.let {
-                    ProviderConfigure(it) { newState ->
-                        dialogState.currentState = newState
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
+            sheetState = sheetState,
+            sheetGesturesEnabled = false,
+            dragHandle = {
+                IconButton(
                     onClick = {
-                        dialogState.confirm()
+                        scope.launch {
+                            sheetState.hide()
+                            dialogState.dismiss()
+                        }
                     }
                 ) {
-                    Text(stringResource(R.string.setting_provider_page_add))
+                    Icon(HugeIcons.ArrowDown01, null)
                 }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        dialogState.dismiss()
-                    }
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.95f)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.setting_provider_page_add_provider),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Text(stringResource(R.string.cancel))
+                    dialogState.currentState?.let {
+                        ProviderConfigure(it) { newState ->
+                            dialogState.currentState = newState
+                        }
+                    }
                 }
-            },
-        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    TextButton(
+                        onClick = {
+                            dialogState.dismiss()
+                        }
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = {
+                            dialogState.confirm()
+                        }
+                    ) {
+                        Text(stringResource(R.string.setting_provider_page_add))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -526,7 +550,7 @@ private fun ProviderItem(
     provider: ProviderSetting,
     modifier: Modifier = Modifier,
     showDivider: Boolean = false,
-    dragHandle: @Composable () -> Unit,
+    onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
     // 一整行，不是一张卡。
@@ -536,17 +560,103 @@ private fun ProviderItem(
     // —— 满屏红底是设置页里最重的信号，而「这个提供商没启用」只是一条状态，不值得
     // 一整块红。现在与模型页同一套语言：一行一个提供商、无卡面、无底色，
     // 左图标 / 中名称+次级信息 / 右拖拽，行间一根发丝分割线。
-    Column(modifier = modifier.fillMaxWidth()) {
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = ProviderRowDividerAlpha),
-            )
+    // 右滑删除: 列表项向左滑露出删除底色 (ErrorContainer + 删除图标),
+    // 越过阈值松手 -> 弹确认对话框, 确认后才真正删除。
+    // 重要数据 (提供商带 apiKey 与模型配置) 不能一滑就没, 确认一步不能省。
+    // 手势冲突: SwipeToDismissBox 只消费水平拖动, 列表纵向滚动与点击进详情
+    // (内层 clickable) 均不受影响; 拖动排序已随六点把手移除 (改由详情页内调整)。
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val positionThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val dismissState = remember {
+        SwipeToDismissBoxState(
+            initialValue = SwipeToDismissBoxValue.Settled,
+            positionalThreshold = positionThreshold,
+        )
+    }
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+            // 不自动落回 Settled: 停在露出态, 等用户确认/取消后再复位
+            showDeleteConfirm = true
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    }
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirm = false
+            },
+            title = {
+                Text(stringResource(R.string.confirm_delete))
+            },
+            text = {
+                Text(stringResource(R.string.setting_provider_page_delete_dialog_text))
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        onDelete()
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        )
+    }
+    LaunchedEffect(showDeleteConfirm) {
+        // 对话框关闭(取消/完成)后把滑动状态复位, 列表项回到正常位
+        if (!showDeleteConfirm &&
+            dismissState.currentValue != SwipeToDismissBoxValue.Settled &&
+            dismissState.targetValue != SwipeToDismissBoxValue.Settled
         ) {
+            dismissState.reset()
+        }
+    }
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .padding(horizontal = 20.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Delete01,
+                    contentDescription = stringResource(R.string.delete),
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        },
+        enableDismissFromStartToEnd = false,
+        modifier = modifier,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (showDivider) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = ProviderRowDividerAlpha),
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // 划走后停在露出态时, 点行先复位滑动而不是进详情
+                    .background(MaterialTheme.colorScheme.background),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             // 点这一块进详情（拖拽把手在它外面，所以拖拽不会误触导航）。
             Row(
                 modifier = Modifier
@@ -617,8 +727,7 @@ private fun ProviderItem(
                 }
             }
 
-            // 右侧：拖拽入口，位置与行为都不变。
-            dragHandle()
+        }
         }
     }
 }

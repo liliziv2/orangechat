@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Switch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,7 +43,7 @@ fun ProviderConfigure(
     onEdit: (provider: ProviderSetting) -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier
     ) {
         // Type
@@ -255,7 +256,7 @@ private fun ColumnScope.ProviderConfigureOpenAI(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
+        Switch(
             checked = provider.enabled,
             onCheckedChange = {
                 onEdit(provider.copy(enabled = it))
@@ -317,7 +318,7 @@ private fun ColumnScope.ProviderConfigureOpenAI(
     ) {
         Text(stringResource(id = R.string.setting_provider_page_response_api), modifier = Modifier.weight(1f))
         val responseAPIWarning = stringResource(id = R.string.setting_provider_page_response_api_warning)
-        Checkbox(
+        Switch(
             checked = provider.useResponseApi,
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
@@ -344,7 +345,7 @@ private fun ColumnScope.ProviderConfigureClaude(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
+        Switch(
             checked = provider.enabled,
             onCheckedChange = {
                 onEdit(provider.copy(enabled = it))
@@ -395,7 +396,7 @@ private fun ColumnScope.ProviderConfigureClaude(
             stringResource(id = R.string.setting_provider_page_claude_prompt_caching),
             modifier = Modifier.weight(1f)
         )
-        Checkbox(
+        Switch(
             checked = provider.promptCaching,
             onCheckedChange = {
                 onEdit(provider.copy(promptCaching = it))
@@ -480,7 +481,7 @@ private fun ColumnScope.ProviderConfigureGoogle(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
+        Switch(
             checked = provider.enabled,
             onCheckedChange = {
                 onEdit(provider.copy(enabled = it))
@@ -503,7 +504,7 @@ private fun ColumnScope.ProviderConfigureGoogle(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(stringResource(id = R.string.setting_provider_page_vertex_ai), modifier = Modifier.weight(1f))
-        Checkbox(
+        Switch(
             checked = provider.vertexAI,
             onCheckedChange = {
                 onEdit(provider.copy(vertexAI = it))
@@ -552,7 +553,7 @@ private fun ColumnScope.ProviderConfigureGoogle(
                 stringResource(id = R.string.setting_provider_page_use_service_account),
                 modifier = Modifier.weight(1f)
             )
-            Checkbox(
+            Switch(
                 checked = provider.useServiceAccount,
                 onCheckedChange = {
                     onEdit(provider.copy(useServiceAccount = it))
