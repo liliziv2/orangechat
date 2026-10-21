@@ -92,7 +92,6 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
@@ -397,30 +396,6 @@ fun ChatDrawerContent(
                 onMoveToFolder = {
                     conversationToMoveFolder = it
                     showMoveToFolderSheet = true
-                }
-            )
-
-            // 助手选择器
-            AssistantPicker(
-                settings = settings,
-                onUpdateSettings = {
-                    vm.updateSettings(it)
-                    scope.launch {
-                        val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
-                            Uuid.random()
-                        } else {
-                            repo.getConversationsOfAssistant(it.assistantId)
-                                .first()
-                                .firstOrNull()
-                                ?.id ?: Uuid.random()
-                        }
-                        navigateToChatPage(navigator = navController, chatId = id)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                onClickSetting = {
-                    val currentAssistantId = settings.assistantId
-                    navController.navigate(Screen.AssistantDetail(id = currentAssistantId.toString()))
                 }
             )
 
