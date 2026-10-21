@@ -4,7 +4,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import me.rerere.rikkahub.ui.theme.presets.ClaudeThemePreset
 import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
-import me.rerere.rikkahub.ui.theme.presets.custom.AliceThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.CreamRoseThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.HarborThemePreset
 
@@ -26,7 +25,6 @@ val PresetThemes by lazy {
     listOf(
         MinimalThemePreset,
         HarborThemePreset,
-        AliceThemePreset,
         CreamRoseThemePreset,
         ClaudeThemePreset,
     )

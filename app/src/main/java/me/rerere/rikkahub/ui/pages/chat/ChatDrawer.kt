@@ -262,53 +262,22 @@ fun ChatDrawerContent(
                 onClick = { navController.navigate(Screen.Backup) },
             )
 
-            // 双头像头部: 渺渺(用户) | 栖(助手) —— 从顶栏挪到这里,
-            // 顶栏不再重复。沿用 ChatTopBarDualAvatar 素材与状态逻辑,
-            // 不新建身份管理; 昵称可点改名, 助手名进助手选择。
+            // 顶部身份区: 头像组 + 设置同一行 (垂直居中), 昵称/问候下一层 ——
+            // 层级: 头像 (视觉主体) -> 名字 -> 问候。设置与头像组同行右对齐,
+            // 不掉到头像下面。边距对齐侧栏 16dp 节奏。
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 ChatTopBarDualAvatar(
                     model = settings.getCurrentChatModel(),
                     assistant = settings.getCurrentAssistant(),
-                    size = 34.dp,
-                    overlap = 10.dp,
+                    size = 40.dp,
+                    overlap = 9.dp,
                 )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.clickable {
-                                nicknameEditState.open(settings.displaySetting.userNickname)
-                            },
-                        )
-                        Text(text = "|", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outlineVariant)
-                        Text(
-                            text = settings.getCurrentAssistant().name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Greeting(style = MaterialTheme.typography.labelMedium)
-                }
-            }
-
-            // 设置入口: 保留在此 (低频常驻), 与双头像身份区不同层级 ——
-            // 身份区展示「我是谁/对方是谁」, 这颗是功能入口, 不再重复显示头像/昵称/问候。
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
+                Spacer(Modifier.weight(1f))
                 Icon(
                     imageVector = HugeIcons.Settings03,
                     contentDescription = stringResource(R.string.settings),
@@ -319,6 +288,37 @@ fun ChatDrawerContent(
                         .padding(8.dp)
                         .size(22.dp),
                 )
+            }
+            // 名字行 + 问候行: 头像组下方一层, 与头像组左对齐
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false).clickable {
+                            nicknameEditState.open(settings.displaySetting.userNickname)
+                        },
+                    )
+                    Text(text = "·", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(
+                        text = settings.getCurrentAssistant().name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+                Greeting(style = MaterialTheme.typography.labelMedium)
             }
 
             // 搜索入口：保留在顶部，但去掉原来那块 surfaceContainerLow 实底，

@@ -154,20 +154,8 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                             }
                         }
                     )
-                    if (sideMode) {
-                        item(
-                            headlineContent = { Text("顶栏双头像") },
-                            supportingContent = { Text("在聊天页顶栏并排显示对方和自己的头像") },
-                            trailingContent = {
-                                Switch(
-                                    checked = displaySetting.showTopBarDualAvatar,
-                                    onCheckedChange = {
-                                        updateDisplaySetting(displaySetting.copy(showTopBarDualAvatar = it))
-                                    }
-                                )
-                            },
-                        )
-                    }
+                    // 「顶栏双头像」开关已移除: 顶栏双头像功能删除, 双头像只保留在侧栏顶部
+                    // (DisplaySetting.showTopBarDualAvatar 字段为持久化设置, 保留以兼容旧数据)
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },

@@ -7,6 +7,7 @@ import me.rerere.rikkahub.data.model.Assistant
 import androidx.compose.foundation.layout.Spacer
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.core.ReasoningLevel
+import me.rerere.rikkahub.ui.components.ui.MaterialActionSurface
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.hugeicons.stroke.ArrowDown01
 import androidx.compose.foundation.layout.Arrangement
@@ -604,15 +605,17 @@ private fun ChatBottomAssistantBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // 助手入口
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        // 助手入口: 同一材质外壳 (胶囊), 不再裸露
+        MaterialActionSurface(
             modifier = Modifier
-                .clip(CircleShape)
-                .clickable { showAssistantSheet = true }
-                .padding(horizontal = 6.dp, vertical = 4.dp),
+                .clickable { showAssistantSheet = true },
+            contentAlignment = Alignment.CenterStart,
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
             UIAvatar(
                 name = assistantName,
                 value = currentAssistant.avatar,
@@ -625,12 +628,13 @@ private fun ChatBottomAssistantBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Icon(
-                imageVector = HugeIcons.ArrowDown01,
-                contentDescription = stringResource(R.string.setting_provider_page_add_provider).let { "切换助手" },
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+                Icon(
+                    imageVector = HugeIcons.ArrowDown01,
+                    contentDescription = "切换助手",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(Modifier.weight(1f))
@@ -680,18 +684,18 @@ private fun AssistStateChip(
     icon: ImageVector,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    MaterialActionSurface(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+        contentAlignment = Alignment.CenterStart,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -750,14 +754,12 @@ private fun RoundTonalAction(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Box(
+    // 材质统一: FLAT 轻底 / TRANSLUCENT 半透明+发丝描边 / GLASS 静态回退,
+    // 与气泡同一套 LocalMaterialMode 规则 (MaterialActionSurface)
+    MaterialActionSurface(
         modifier = modifier
             .size(38.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f))
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
     ) {
         content()
     }
@@ -783,9 +785,6 @@ private fun TopBar(
     val titleState = useEditState<String> {
         onUpdateTitle(it)
     }
-    // 双头像版式下标题区被头像挤窄，所以只留助手名一行，模型名和提供商名都不显示。
-    // 改名入口同时挂在头像和标题上。
-        settings.displaySetting.showTopBarDualAvatar
     val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
     val editTitleLabel = stringResource(R.string.chat_page_edit_title)
     val openTitleEdit: () -> Unit = {

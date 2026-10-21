@@ -457,7 +457,7 @@ class RouteActivity : ComponentActivity() {
                                         )
                                     } else {
                                         // 日间：**4 段**（top 覆盖 → accent 过渡 → bottom 反白 → bottom）。
-                                        // 这是三个带底图主题的公共结构，alice / creamrose 同构。
+                                        // 这是带底图主题的公共结构，creamrose 同构。
                                         listOf(
                                             Color(harborScrim.top.toLong()),
                                             Color(harborScrim.accent.toLong()).copy(alpha = 0.12f),
@@ -473,55 +473,6 @@ class RouteActivity : ComponentActivity() {
                                         .background(Brush.verticalGradient(harborGradient))
                                 }
 
-                                "alice" -> {
-                                    // 苹果爱丽丝与 Harbor 共用同一张底图和铺图逻辑，
-                                    // 只替换上层 scrim；这样两者的玻璃/层级效果完全一致。
-                                    //
-                                    // 与港口的区分点（用户点名要求「夜间背景底色要跟港口区分开」）：
-                                    // 港口夜间 scrim 是冷蓝 #141A22（h≈268），
-                                    // 爱丽丝夜间用**深靛蓝** #1A1428（h≈305）—— 同属冷调，
-                                    // 但色相偏紫，ΔE76 ≈ 11，与港口一眼分得开。
-                                    //
-                                    // ⚠️ 这里曾用过暖红 scrim（#201418 → #2A100E → #2A1016），
-                                    // 用户真机反馈「不像一组主题」。根因是**色温打架**：本主题
-                                    // 夜间的 UI 是一整套蓝紫（bg #171B22 h≈272、输入框 #252B34
-                                    // h≈269、AI 气泡 #293C49 h≈251），暖红底图铺在下面、冷紫
-                                    // 卡片贴在上面，同屏色相差 76 度 —— 显脏。scrim 必须与 UI
-                                    // 同色温，所以回到冷调家族。
-                                    //
-                                    // 日间也是**与港口同构的 4 段**（top → accent → bottom → bottom），
-                                    // 不再是自己那套 3 段半透明薄雾 —— 用户点名「日间要跟港口一样有渐变」。
-                                    val alicePainter = painterResource(
-                                        id = R.drawable.harbor_chat_bg
-                                    )
-                                    val aliceScrim = if (LocalDarkMode.current) {
-                                        listOf(
-                                            // 夜间：**单层、两点、连续**（与 harbor / creamrose 同一套结构）。
-                                            // 色号 #1A1428（深靛蓝，h≈305）—— 与港口的冷蓝 #141A22
-                                            // （h≈268）同为冷调但色相偏紫，ΔE76 ≈ 11 分得开；更关键的
-                                            // 是它跟本主题夜间的蓝紫 UI 同一色温，不再出现「冷紫卡片
-                                            // 贴在暖红底上」的脏感。
-                                            // alpha 沿用 0.62→0.72，底图透出约三成，
-                                            // 页面按「底图可见优先」整体偏亮。
-                                            Color(0xFF1A1428).copy(alpha = 0.62f),
-                                            Color(0xFF1A1428).copy(alpha = 0.72f),
-                                        )
-                                    } else {
-                                        val s = THEME_BACKGROUND_SCRIM.getValue("alice")
-                                        listOf(
-                                            Color(s.top.toLong()),
-                                            Color(s.accent.toLong()).copy(alpha = 0.12f),
-                                            Color(s.bottom.toLong()).copy(alpha = 0.10f),
-                                            Color(s.bottom.toLong()),
-                                        )
-                                    }
-                                    base
-                                        .paint(
-                                            painter = alicePainter,
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                        .background(Brush.verticalGradient(aliceScrim))
-                                }
 
                                 "creamrose" -> {
                                     // 奶油玫瑰与 Harbor 共用同一张底图和铺图逻辑，
