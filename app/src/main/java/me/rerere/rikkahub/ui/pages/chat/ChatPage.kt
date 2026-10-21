@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
 import me.rerere.rikkahub.data.model.Assistant
 import androidx.compose.foundation.layout.Spacer
+import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -96,6 +97,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.VoiceCallService
+import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ModelSelectorSheet
 import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
@@ -293,6 +295,18 @@ private fun ChatPageContent(
     onClearAllErrors: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+
+    // 会话内助手配置写回: 按助手 id 更新 settings.assistants 并落盘 (思考强度等),
+    // ChatBottomAssistantBar 与 ChatInput 共用同一来源。
+    val onUpdateAssistant: (Assistant) -> Unit = { updatedAssistant ->
+        vm.updateSettings(
+            setting.copy(
+                assistants = setting.assistants.map { a ->
+                    if (a.id == updatedAssistant.id) updatedAssistant else a
+                }
+            )
+        )
+    }
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
 
@@ -366,6 +380,7 @@ private fun ChatPageContent(
                         onSwitchAssistant = { assistant ->
                             vm.switchConversationAssistant(conversation, assistant.id)
                         },
+                        onUpdateAssistant = onUpdateAssistant,
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
                     ChatInput(
@@ -445,19 +460,7 @@ private fun ChatPageContent(
                         }
                         inputState.clearInput()
                     },
-                    onUpdateAssistant = {
-                        vm.updateSettings(
-                            setting.copy(
-                                assistants = setting.assistants.map { assistant ->
-                                    if (assistant.id == it.id) {
-                                        it
-                                    } else {
-                                        assistant
-                                    }
-                                }
-                            )
-                        )
-                    },
+                    onUpdateAssistant = onUpdateAssistant,
                     onUpdateSearchService = { index ->
                         vm.updateSettings(
                             setting.copy(
@@ -583,6 +586,7 @@ private fun ChatBottomAssistantBar(
     conversation: Conversation,
     enableSearch: Boolean,
     onSwitchAssistant: (Assistant) -> Unit,
+    onUpdateAssistant: (Assistant) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -630,24 +634,27 @@ private fun ChatBottomAssistantBar(
 
         Spacer(Modifier.weight(1f))
 
-        // 状态标记: 仅开启时显示 (按需, 不常驻)
+        // 状态标记: 按需显示 —— 联网开启才显示「联网」。
         if (enableSearch) {
             AssistStateChip(
                 text = "联网",
                 icon = HugeIcons.Earth,
             )
         }
-        val rl = currentAssistant.reasoningLevel
-        if (rl.isEnabled) {
-            AssistStateChip(
-                text = "思考 " + when (rl) {
-                    ReasoningLevel.LOW -> "低"
-                    ReasoningLevel.MEDIUM -> "中"
-                    ReasoningLevel.HIGH, ReasoningLevel.XHIGH -> "高"
-                    ReasoningLevel.AUTO -> "自动"
-                    else -> "开"
+
+        // 思考强度: 当前会话绑定助手的档位; 模型支持 REASONING 才显示入口,
+        // 隐藏时设置仍生效 (GenerationHandler 侧按 assistant.reasoningLevel 取)。
+        // 点击整块弹 ReasoningPicker, 档位选择后经 onUpdateAssistant 写回
+        // settings.assistants (按 id 落盘) —— 离开再进会话读取同一份, 状态保持。
+        val chatModel = settings.getCurrentChatModel()
+        if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
+            ReasoningButton(
+                reasoningLevel = currentAssistant.reasoningLevel,
+                onUpdateReasoningLevel = { level ->
+                    onUpdateAssistant(currentAssistant.copy(reasoningLevel = level))
                 },
-                icon = HugeIcons.Idea01,
+                onlyIcon = false,
+                iconSize = 14.dp,
             )
         }
     }
