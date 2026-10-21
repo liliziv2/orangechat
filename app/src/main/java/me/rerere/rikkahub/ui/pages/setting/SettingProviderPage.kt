@@ -625,19 +625,28 @@ private fun ProviderItem(
     }
     SwipeToDismissBox(
         state = dismissState,
+        // 静止(Settled)时背景完全透明 —— 只有用户向左滑才露出删除底色与图标,
+        // 列表正常状态下不存在常驻粉红/红色背景。
         backgroundContent = {
+            val revealing = dismissState.targetValue == SwipeToDismissBoxValue.EndToStart ||
+                dismissState.currentValue == SwipeToDismissBoxValue.EndToStart
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.errorContainer)
+                    .background(
+                        if (revealing) MaterialTheme.colorScheme.errorContainer
+                        else Color.Transparent
+                    )
                     .padding(horizontal = 20.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    imageVector = HugeIcons.Delete01,
-                    contentDescription = stringResource(R.string.delete),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
+                if (revealing) {
+                    Icon(
+                        imageVector = HugeIcons.Delete01,
+                        contentDescription = stringResource(R.string.delete),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
             }
         },
         enableDismissFromStartToEnd = false,
