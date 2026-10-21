@@ -79,6 +79,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Idea01
+import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
@@ -817,34 +818,21 @@ private fun TopBar(
             // 顶栏只保留标题与副标题。
         },
         title = {
-            // 标题**相对整个顶栏真居中**: M3 TopAppBar 的 title 槽是从
-            // navigationIcon 之后开始的, fillMaxWidth 只会居中于「剩余空间」,
-            // 左边有菜单钮时整体偏右。改成 BoxWithConstraints 满宽叠加:
-            // 标题层居中于整条顶栏, 两层不互相挤占。
-            // 标题过长单行省略; 点击改标题入口保留。
+            // 主标题只显示「助手名 · 当前会话模型」(handoff P0): 会话名不再占主标题,
+            // 会话重命名收进更多菜单。标题相对整条顶栏居中, 过长单行省略;
+            // 读取**当前会话绑定的**助手/模型, 不用全局默认代替。
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                val assistant = settings.getCurrentAssistant()
-                val model = settings.getCurrentChatModel()
-                val assistantName = assistant.name.ifBlank {
+                val sessionAssistant = settings.getAssistantById(conversation.assistantId)
+                    ?: settings.getCurrentAssistant()
+                val sessionModel = settings.getCurrentChatModel()
+                val assistantName = sessionAssistant.name.ifBlank {
                     stringResource(R.string.assistant_page_default_assistant)
                 }
                 Text(
-                    text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                    text = if (sessionModel != null) "$assistantName · ${sessionModel.displayName}" else assistantName,
                     maxLines = 1,
                     style = MaterialTheme.typography.titleMedium,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClickLabel = editTitleLabel, onClick = openTitleEdit),
-                    textAlign = TextAlign.Center,
-                )
-                // 第二行：助手名 · 当前模型。**整行可点，打开模型选择**。
-                Text(
-                    text = if (model != null) "$assistantName · ${model.displayName}" else assistantName,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showModelPicker = true },
@@ -895,6 +883,16 @@ private fun TopBar(
                         }
                     )
                     // 收尾：总结成记忆后开新会话。空会话没什么可总结的，所以禁用。
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_page_edit_title)) },
+                        leadingIcon = {
+                            Icon(HugeIcons.PencilEdit01, contentDescription = null)
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            openTitleEdit()
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_page_closeout)) },
                         leadingIcon = {
