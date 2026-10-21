@@ -124,10 +124,15 @@ fun WebView(
                 Log.d(TAG, "AndroidView: Resetting WebView")
             },
             onRelease = {
+                // 释放顺序: 先停加载、清接口/客户端, 再从父容器摘除, 最后 destroy。
+                // 直接 destroy 不摘父容器会触发 GLFunctorDrawable / tile memory 闪退
+                // (渲染线程还在持有已销毁实例的 functor)。
                 it.resetState(state.interfaces, clearClients = true)
+                (it.parent as? android.view.ViewGroup)?.removeView(it)
                 if (state.webView === it) {
                     state.webView = null
                 }
+                it.destroy()
                 Log.d(TAG, "AndroidView: Releasing WebView")
             },
             update = { webView ->

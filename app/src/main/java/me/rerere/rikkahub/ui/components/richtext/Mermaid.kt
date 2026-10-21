@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -73,13 +74,21 @@ fun Mermaid(
     val height = with(density) {
         contentHeight.toDp()
     }
+    // 释放门控: onRelease 后 JS 线程仍可能有在途回调, 不能再写 Compose state
+    var webViewReleased by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        onDispose { webViewReleased = true }
+    }
     val jsInterface = remember {
         MermaidInterface(
             onHeightChanged = { height ->
-                // 需要乘以density
-                // https://stackoverflow.com/questions/43394498/how-to-get-the-full-height-of-in-android-webview
-                contentHeight = (height * density.density).toInt()
-                mermaidHeightCache.put(code, contentHeight)
+                if (webViewReleased) return@MermaidInterface
+                // JS bridge 回调来自 WebView 的 JS 线程, 必须切回主线程改 Compose state
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (webViewReleased) return@post
+                    contentHeight = (height * density.density).toInt()
+                    mermaidHeightCache.put(code, contentHeight)
+                }
             },
             onExportImage = { base64Image ->
                 runCatching {
