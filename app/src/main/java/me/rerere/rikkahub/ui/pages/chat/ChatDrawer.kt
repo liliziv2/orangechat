@@ -85,6 +85,9 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
+import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
@@ -259,6 +262,45 @@ fun ChatDrawerContent(
                 settings = settings,
                 onClick = { navController.navigate(Screen.Backup) },
             )
+
+            // 双头像头部: 渺渺(用户) | 栖(助手) —— 从顶栏挪到这里,
+            // 顶栏不再重复。沿用 ChatTopBarDualAvatar 素材与状态逻辑,
+            // 不新建身份管理; 昵称可点改名, 助手名进助手选择。
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ChatTopBarDualAvatar(
+                    model = settings.getCurrentChatModel(),
+                    assistant = settings.getCurrentAssistant(),
+                    size = 34.dp,
+                    overlap = 10.dp,
+                )
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable {
+                                nicknameEditState.open(settings.displaySetting.userNickname)
+                            },
+                        )
+                        Text(text = "|", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outlineVariant)
+                        Text(
+                            text = settings.getCurrentAssistant().name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                            style = MaterialTheme.typography.titleSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Greeting(style = MaterialTheme.typography.labelMedium)
+                }
+            }
 
             // 用户头像和昵称自定义区域
             Row(
