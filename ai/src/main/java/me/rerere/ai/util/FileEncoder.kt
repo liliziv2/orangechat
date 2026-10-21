@@ -139,17 +139,47 @@ private fun File.compressAndEncode(
     )
     options.inJustDecodeBounds = false
 
-    val bitmap = BitmapFactory.decodeFile(absolutePath, options)
+    var bitmap = BitmapFactory.decodeFile(absolutePath, options)
         ?: throw IllegalArgumentException("Failed to decode image: $absolutePath")
-    val normalizedBitmap = normalizeByExif(bitmap)
+    var normalizedBitmap = normalizeByExif(bitmap)
 
     return try {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        // 强制使用 JPEG 格式，因为很多提供商不支持 webp
-        Base64OutputStream(byteArrayOutputStream, Base64.NO_WRAP).use { base64Stream ->
-            normalizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, base64Stream)
+        // 编码后若超过 [IMAGE_MAX_BYTES] (中转站请求体限制), 逐步降采样重编,
+        // 直到达标或降到最小尺寸 —— 否则上游直接 400, 用户只看到泛化错误。
+        var current = normalizedBitmap
+        var encoded: String
+        var attemptQuality = quality
+        while (true) {
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            // 强制使用 JPEG 格式，因为很多提供商不支持 webp
+            Base64OutputStream(byteArrayOutputStream, Base64.NO_WRAP).use { base64Stream ->
+                current.compress(Bitmap.CompressFormat.JPEG, attemptQuality, base64Stream)
+            }
+            val bytes = byteArrayOutputStream.toByteArray()
+            val estimatedBase64Bytes = (bytes.size * BASE64_INFLATION).toLong()
+            if (estimatedBase64Bytes <= IMAGE_MAX_BYTES || current.width <= 128 || current.height <= 128) {
+                encoded = byteArrayOutputStream.toString(Charsets.ISO_8859_1.name())
+                break
+            }
+            // 先降质量 85 -> 70 -> 55, 再减半边长
+            val nextQuality = when (attemptQuality) {
+                quality -> 70
+                70 -> 55
+                else -> 55
+            }
+            if (nextQuality == attemptQuality) {
+                current = Bitmap.createScaledBitmap(
+                    current,
+                    (current.width / 2).coerceAtLeast(128),
+                    (current.height / 2).coerceAtLeast(128),
+                    true,
+                )
+                attemptQuality = quality
+            } else {
+                attemptQuality = nextQuality
+            }
         }
-        Pair(byteArrayOutputStream.toString(Charsets.ISO_8859_1.name()), "image/jpeg")
+        Pair(encoded, "image/jpeg")
     } finally {
         if (normalizedBitmap !== bitmap) {
             normalizedBitmap.recycle()
@@ -223,6 +253,19 @@ internal fun calculateImageInSampleSize(
     }
     return inSampleSize
 }
+
+/**
+ * 单张图片编码后的最大字节数 (data URL 里的 base64 部分)。
+ *
+ * 大量 OpenAI 兼容中转站对请求体有 4~10MB 的硬限制, 一张 16MP 照片
+ * JPEG q85 通常就有 4~8MB, base64 再膨胀 4/3 后轻松超限 —— 上游会直接
+ * 400 (请求体过大), 用户只看到一条无法理解的错误。
+ * 压缩到不超过 [IMAGE_MAX_BYTES] 基本能覆盖所有上游限制。
+ */
+internal const val IMAGE_MAX_BYTES = 3 * 1024 * 1024L // 3MB
+
+/** base64 膨胀系数 (4/3) 再留一点余量。 */
+private const val BASE64_INFLATION = 1.4f
 
 private fun File.guessMimeType(): Result<String> = runCatching {
     inputStream().use { input ->

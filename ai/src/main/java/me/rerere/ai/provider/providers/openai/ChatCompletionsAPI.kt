@@ -832,10 +832,14 @@ class ChatCompletionsAPI(
 
             // 模型不支持图片时, 先过滤掉 Image part, 避免发送 image_url 触发 "Model only support text input"
             val parts = if (supportsImage) message.parts else message.parts.filter { it !is UIMessagePart.Image }
+            // 可发送 (文本/图片) 的 part 计数: 全部编码失败或无可发内容时避免 content:[]
             if (parts.isOnlyTextPart()) {
                 put("content", parts.filterIsInstance<UIMessagePart.Text>().first().text)
             } else {
-                putJsonArray("content") {
+                // 先在局部构建 content, 编码失败的图片会被跳过;
+                // 若最终为空数组 (如唯一一张图编码失败), 回退为空字符串文本 ——
+                // content:[] 会被上游直接 400。
+                val contentItems = buildJsonArray {
                     parts.forEach { part ->
                         when (part) {
                             is UIMessagePart.Text -> {
@@ -846,23 +850,27 @@ class ChatCompletionsAPI(
                             }
 
                             is UIMessagePart.Image -> {
-                                add(buildJsonObject {
-                                    part.encodeBase64().onSuccess { encodedImage ->
+                                // 编码失败 (文件被删/格式不支持/读取错误) 时跳过该图,
+                                // 不生成 text:"" 空块 —— 那同样会 400。
+                                val encodedImage = part.encodeBase64().getOrNull()
+                                if (encodedImage != null) {
+                                    add(buildJsonObject {
                                         put("type", "image_url")
                                         put("image_url", buildJsonObject {
                                             put("url", encodedImage.base64)
                                         })
-                                    }.onFailure {
-                                        it.printStackTrace()
-                                        put("type", "text")
-                                        put("text", "")
-                                    }
-                                })
+                                    })
+                                }
                             }
 
                             else -> {}
                         }
                     }
+                }
+                if (contentItems.isEmpty()) {
+                    put("content", "")
+                } else {
+                    put("content", contentItems)
                 }
             }
         })
