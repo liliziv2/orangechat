@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.ui.components.ui.MaterialActionSurface
+import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
+import me.rerere.rikkahub.ui.theme.LocalMaterialMode
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.hugeicons.stroke.ArrowDown01
 import androidx.compose.foundation.layout.Arrangement
@@ -104,7 +106,6 @@ import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ai.SearchPickerButton
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ModelSelectorSheet
-import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -768,14 +769,34 @@ private fun RoundTonalAction(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    // 材质统一: FLAT 轻底 / TRANSLUCENT 半透明+发丝描边 / GLASS 静态回退,
-    // 与气泡同一套 LocalMaterialMode 规则 (MaterialActionSurface)
+    // 视觉融合 (清单 B)：不再是一枚独立的「白色实底圆盘」——
+    //   1. 外壳容器色从 surfaceContainerHighest 降到 surfaceContainer 系，
+    //      与聊天背景只差半档，按钮先「沉」进页面；
+    //   2. 底色带透明度，让背景材质/聊天背景图透一点进来；
+    //      玻璃/半透明模式下的发丝描边由 MaterialActionSurface 提供；
+    //   3. 内层不再画纯白实底，图标着色沿用 onSurfaceVariant。
+    // 尺寸 (38dp)、热区、图标比例 (22dp) 与间距完全不动 —— 只动视觉。
+    val fusedContainer = when (LocalMaterialMode.current) {
+        DisplayMaterialMode.TRANSLUCENT,
+        DisplayMaterialMode.GLASS ->
+            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.45f)
+        DisplayMaterialMode.FLAT,
+        DisplayMaterialMode.FOLLOW_THEME ->
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+    }
     MaterialActionSurface(
         modifier = modifier
             .size(38.dp)
             .clickable(onClick = onClick),
     ) {
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(fusedContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            content()
+        }
     }
 }
 
