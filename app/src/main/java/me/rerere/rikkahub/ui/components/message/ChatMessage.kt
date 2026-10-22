@@ -1298,11 +1298,16 @@ private fun BubbleSurface(
     // 注意不要沿用设置里的字段名（bubbleCornerRadius 是 DisplaySettings 的属性），
     // 这里必须是一个独立的局部值。
     val clampedCornerRadius = cornerRadius.coerceIn(6.dp, 14.dp)
+    // 崩溃防御 (Corner size in Px can't be negative, bottomEnd=-0.75px):
+    // 每个角 coerceAtLeast(0.dp) —— 系数相乘 (x0.25) 或动画插值在极端尺寸下
+    // 可能落负, createOutline 会直接抛 IllegalArgumentException 崩主线程。
+    // coerceIn(6,14) 已保证本值非负, 这里对派生值兜底。
+    val bottomCorner = (clampedCornerRadius * 0.25f).coerceAtLeast(0.dp)
     val shape = if (isUser) {
         RoundedCornerShape(
             topStart = clampedCornerRadius,
             topEnd = clampedCornerRadius,
-            bottomEnd = clampedCornerRadius * 0.25f,
+            bottomEnd = bottomCorner,
             bottomStart = clampedCornerRadius,
         )
     } else {
@@ -1310,7 +1315,7 @@ private fun BubbleSurface(
             topStart = clampedCornerRadius,
             topEnd = clampedCornerRadius,
             bottomEnd = clampedCornerRadius,
-            bottomStart = clampedCornerRadius * 0.25f,
+            bottomStart = bottomCorner,
         )
     }
     val bubbleLayoutDirection = LocalLayoutDirection.current
@@ -1743,11 +1748,12 @@ internal fun VoiceMessageBubble(
     // 注意不要沿用设置里的字段名（bubbleCornerRadius 是 DisplaySettings 的属性），
     // 这里必须是一个独立的局部值。
     val clampedCornerRadius = cornerRadius.coerceIn(6.dp, 14.dp)
+    val bottomCorner = (clampedCornerRadius * 0.25f).coerceAtLeast(0.dp)
     val shape = if (isUser) {
         RoundedCornerShape(
             topStart = clampedCornerRadius,
             topEnd = clampedCornerRadius,
-            bottomEnd = clampedCornerRadius * 0.25f,
+            bottomEnd = bottomCorner,
             bottomStart = clampedCornerRadius,
         )
     } else {
@@ -1755,7 +1761,7 @@ internal fun VoiceMessageBubble(
             topStart = clampedCornerRadius,
             topEnd = clampedCornerRadius,
             bottomEnd = clampedCornerRadius,
-            bottomStart = clampedCornerRadius * 0.25f,
+            bottomStart = bottomCorner,
         )
     }
     val resolvedColor = bubbleColor ?: if (isUser) {
