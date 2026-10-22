@@ -3,6 +3,7 @@
 import androidx.activity.ComponentActivity
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asImageBitmap
@@ -62,6 +64,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -112,6 +115,9 @@ import me.rerere.rikkahub.vocabulary.data.VocabularyRepository
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
+
+/** 纪念卡圆角：比 DrawerItemSurface(12dp) 大一档的对话面板圆角。 */
+private val MemorialCardShape = RoundedCornerShape(22.dp)
 
 @Composable
 fun ChatDrawerContent(
@@ -262,87 +268,21 @@ fun ChatDrawerContent(
                 onClick = { navController.navigate(Screen.Backup) },
             )
 
-            // 顶部身份区: 头像组 + 设置同一行 (垂直居中), 昵称/问候下一层 ——
-            // 层级: 头像 (视觉主体) -> 名字 -> 问候。设置与头像组同行右对齐,
-            // 不掉到头像下面。边距对齐侧栏 16dp 节奏。
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ChatTopBarDualAvatar(
-                    model = settings.getCurrentChatModel(),
-                    assistant = settings.getCurrentAssistant(),
-                    size = 40.dp,
-                    overlap = 9.dp,
-                )
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    imageVector = HugeIcons.Settings03,
-                    contentDescription = stringResource(R.string.settings),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { navController.navigate(Screen.Setting) }
-                        .padding(8.dp)
-                        .size(22.dp),
-                )
-            }
-            // 名字行 + 问候行: 头像组下方一层, 与头像组左对齐
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    // 名字顺序与头像一致: 栖(助手)在前、渺渺(用户)在后
-                    Text(
-                        text = settings.getCurrentAssistant().name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Text(text = "·", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outlineVariant)
-                    Text(
-                        text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false).clickable {
-                            nicknameEditState.open(settings.displaySetting.userNickname)
-                        },
-                    )
-                }
-                Greeting(style = MaterialTheme.typography.labelMedium)
-            }
-
-            // 搜索入口：保留在顶部，但去掉原来那块 surfaceContainerLow 实底，
-            // 收成一条轻量搜索行 —— 搜索是「找东西」，不是「去一个页面」。
-            DrawerSearchRow(
-                onClick = { navController.navigate(Screen.MessageSearch) },
-                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                materialMode = settings.displaySetting.materialMode,
+            // ============ 纪念卡（侧栏顶部唯一身份区）============
+            // 只重做这一块：柔和水纹底 + 半透明面板 + 细边框圆角。
+            // 材质完全跟主题（不新增配色体系），卡片内部收拢：
+            // 双头像(渺渺左/栖右) + 装饰数字 + 动态问候 + 右上设置 + 卡片内搜索/背单词。
+            // 卡片以下（分隔线/文件夹/会话列表/底部栏）保持回退版本原样。
+            DrawerMemorialCard(
+                settings = settings,
+                vocabularyBookCount = vocabularyBooks.size,
+                vocabularyDueCount = vocabularyDue,
+                onOpenSettings = { navController.navigate(Screen.Setting) },
+                onEditNickname = { nicknameEditState.open(settings.displaySetting.userNickname) },
+                onSearch = { navController.navigate(Screen.MessageSearch) },
+                onVocabulary = { navController.navigate(Screen.VocabularyList) },
             )
-
-            // 背单词入口。放在搜索下面，和它同一层级 —— 都是「去另一个地方」，
-            // 不是会话操作，所以不该混进下面的文件夹/会话列表。
-            //
-            // 空词库时**也显示**：这是唯一入口，藏起来的话第一次用的人根本找不到。
-            // 这时候小字改成「导入词库开始背词」，顺手把第一步说清楚。
-            DrawerVocabularyRow(
-                bookCount = vocabularyBooks.size,
-                dueCount = vocabularyDue,
-                onClick = { navController.navigate(Screen.VocabularyList) },
-                drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-            )
-
-            // 分隔线：把顶部的「搜索」和下面的「会话列表」分成两层。
+            // 分隔线：把顶部的「纪念卡」和下面的「会话列表」分成两层。
             //
             // 侧栏已收成纯聊天导航：功能目录整块移除，只留「搜索聊天 + 会话列表 +
             // 新建 + 收藏 + 统计」。被移走的功能改由设置页进入，页面本身没有动：
@@ -740,6 +680,170 @@ fun ChatDrawerContent(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 侧栏顶部「纪念卡」：参考图定稿的圆角面板 —— 柔和水纹/花瓣渐变底、
+ * 半透明浅色面板、细边框。内容只有三行：
+ *   1. 双头像（渺渺在左、栖在右）+ 中间装饰数字 + 右上角设置入口
+ *   2. 按当地时间变化的问候语（早上好/中午好/下午好/晚上好/夜深了）
+ *   3. 「搜索聊天」「背单词」两个卡内入口
+ *
+ * 约束：
+ * - 配色全部来自主题（primary/tertiary/onSurface 系），不写死颜色；
+ * - 水纹只是极淡的径向渐变（alpha <= 0.10），不引入图片资源；
+ * - 中间数字 8 纯装饰，不代表真实相识天数；
+ * - 头像渲染复用 [ChatTopBarDualAvatar]（对方在左/自己在右，与聊天消息方向一致）。
+ */
+@Composable
+private fun DrawerMemorialCard(
+    settings: Settings,
+    vocabularyBookCount: Int,
+    vocabularyDueCount: Int,
+    onOpenSettings: () -> Unit,
+    onEditNickname: () -> Unit,
+    onSearch: () -> Unit,
+    onVocabulary: () -> Unit,
+) {
+    val containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+    val outlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // 水纹/花瓣背景：两团错位的径向渐变，全部从主题色派生。
+        // 画在面板之前 -> 被半透明面板罩住后只剩一层柔和色晕。
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(MemorialCardShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                            Color.Transparent,
+                        ),
+                        center = Offset(x = 0.16f, y = 0.1f),
+                        radius = 620f,
+                    )
+                )
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f),
+                            Color.Transparent,
+                        ),
+                        center = Offset(x = 0.92f, y = 0.85f),
+                        radius = 560f,
+                    )
+                ),
+        )
+        Surface(
+            onClick = onEditNickname,
+            shape = MemorialCardShape,
+            color = containerColor,
+            border = BorderStroke(1.dp, outlineColor),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                // ---- 行 1：双头像 + 装饰数字 + 右上设置 ----
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 左：渺渺 = 用户；右：栖 = 助手（ChatTopBarDualAvatar 的固定顺序）
+                    ChatTopBarDualAvatar(
+                        model = settings.getCurrentChatModel(),
+                        assistant = settings.getCurrentAssistant(),
+                        size = 42.dp,
+                        overlap = 10.dp,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = "8",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        imageVector = HugeIcons.Settings03,
+                        contentDescription = stringResource(R.string.settings),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable(onClick = onOpenSettings)
+                            .padding(6.dp)
+                            .size(20.dp),
+                    )
+                }
+                // ---- 行 2：动态问候语（保留 Greeting 的时段逻辑）----
+                Greeting(style = MaterialTheme.typography.titleMedium)
+                // ---- 行 3：搜索 / 背单词（卡内入口，卡外不再重复）----
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MemorialCardPill(
+                        icon = HugeIcons.Search01,
+                        label = stringResource(R.string.chat_page_search_chats),
+                        onClick = onSearch,
+                        modifier = Modifier.weight(1f),
+                    )
+                    MemorialCardPill(
+                        icon = HugeIcons.Book01,
+                        label = stringResource(R.string.vocabulary_page_title),
+                        trailing = when {
+                            vocabularyDueCount > 0 -> stringResource(R.string.vocabulary_drawer_due, vocabularyDueCount)
+                            vocabularyBookCount > 0 -> stringResource(R.string.vocabulary_drawer_books, vocabularyBookCount)
+                            else -> stringResource(R.string.vocabulary_drawer_import_hint)
+                        },
+                        onClick = onVocabulary,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 纪念卡内部的小入口 pill：onSurface 6% 实底 + 主题文字色，不参与材质模式表演。 */
+@Composable
+private fun MemorialCardPill(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailing: String? = null,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            if (trailing != null) {
+                Text(
+                    text = trailing,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
