@@ -300,6 +300,15 @@ fun ChatDrawerContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    // 名字顺序与头像一致: 栖(助手)在前、渺渺(用户)在后
+                    Text(
+                        text = settings.getCurrentAssistant().name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text(text = "·", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outlineVariant)
                     Text(
                         text = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
                         style = MaterialTheme.typography.titleSmall,
@@ -308,14 +317,6 @@ fun ChatDrawerContent(
                         modifier = Modifier.weight(1f, fill = false).clickable {
                             nicknameEditState.open(settings.displaySetting.userNickname)
                         },
-                    )
-                    Text(text = "·", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.outlineVariant)
-                    Text(
-                        text = settings.getCurrentAssistant().name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
                     )
                 }
                 Greeting(style = MaterialTheme.typography.labelMedium)

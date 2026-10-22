@@ -80,6 +80,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Idea01
+import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -100,6 +101,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.VoiceCallService
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.ai.SearchPickerButton
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ModelSelectorSheet
 import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
@@ -309,6 +311,12 @@ private fun ChatPageContent(
             )
         )
     }
+    val onToggleSearchFn: (Boolean) -> Unit = { enabled ->
+        vm.updateSettings(setting.copy(enableWebSearch = enabled))
+    }
+    val onUpdateSearchServiceFn: (Int) -> Unit = { index ->
+        vm.updateSettings(setting.copy(searchServiceSelected = index))
+    }
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
 
@@ -383,6 +391,8 @@ private fun ChatPageContent(
                             vm.switchConversationAssistant(conversation, assistant.id)
                         },
                         onUpdateAssistant = onUpdateAssistant,
+                        onToggleSearch = onToggleSearchFn,
+                        onUpdateSearchService = onUpdateSearchServiceFn,
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
                     ChatInput(
@@ -589,6 +599,8 @@ private fun ChatBottomAssistantBar(
     enableSearch: Boolean,
     onSwitchAssistant: (Assistant) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
+    onToggleSearch: (Boolean) -> Unit,
+    onUpdateSearchService: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -639,19 +651,21 @@ private fun ChatBottomAssistantBar(
 
         Spacer(Modifier.weight(1f))
 
-        // 状态标记: 按需显示 —— 联网开启才显示「联网」。
-        if (enableSearch) {
-            AssistStateChip(
-                text = "联网",
-                icon = HugeIcons.Earth,
-            )
-        }
-
-        // 思考强度: 当前会话绑定助手的档位; 模型支持 REASONING 才显示入口,
-        // 隐藏时设置仍生效 (GenerationHandler 侧按 assistant.reasoningLevel 取)。
-        // 点击整块弹 ReasoningPicker, 档位选择后经 onUpdateAssistant 写回
-        // settings.assistants (按 id 落盘) —— 离开再进会话读取同一份, 状态保持。
+        // 右侧功能组 (常驻可点, 统一材质):
+        // - 联网搜索: SearchPickerButton (含开关与搜索引擎选择), 恢复常驻入口
+        //   (根因: 上一轮把按钮从输入框删掉后只剩只读 chip, 开关不可达)
+        // - Thinking: ReasoningButton (档位选择器), 只在模型支持 REASONING 时显示
+        //   (隐藏时设置仍生效)。
+        // 两者样式/尺寸/材质由各自组件 + MaterialActionSurface 规则统一。
         val chatModel = settings.getCurrentChatModel()
+        SearchPickerButton(
+            enableSearch = enableSearch,
+            settings = settings,
+            iconSize = 18.dp,
+            onToggleSearch = onToggleSearch,
+            onUpdateSearchService = onUpdateSearchService,
+            model = chatModel,
+        )
         if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
             ReasoningButton(
                 reasoningLevel = currentAssistant.reasoningLevel,
@@ -659,7 +673,7 @@ private fun ChatBottomAssistantBar(
                     onUpdateAssistant(currentAssistant.copy(reasoningLevel = level))
                 },
                 onlyIcon = false,
-                iconSize = 14.dp,
+                iconSize = 18.dp,
             )
         }
     }
@@ -817,27 +831,8 @@ private fun TopBar(
             // 顶栏只保留标题与副标题。
         },
         title = {
-            // 主标题只显示「助手名 · 当前会话模型」(handoff P0): 会话名不再占主标题,
-            // 会话重命名收进更多菜单。标题相对整条顶栏居中, 过长单行省略;
-            // 读取**当前会话绑定的**助手/模型, 不用全局默认代替。
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                val sessionAssistant = settings.getAssistantById(conversation.assistantId)
-                    ?: settings.getCurrentAssistant()
-                val sessionModel = settings.getCurrentChatModel()
-                val assistantName = sessionAssistant.name.ifBlank {
-                    stringResource(R.string.assistant_page_default_assistant)
-                }
-                Text(
-                    text = if (sessionModel != null) "$assistantName · ${sessionModel.displayName}" else assistantName,
-                    maxLines = 1,
-                    style = MaterialTheme.typography.titleMedium,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showModelPicker = true },
-                    textAlign = TextAlign.Center,
-                )
-            }
+            // handoff 新要求: 顶栏不显示「栖 · 模型名」也不显示会话标题,
+            // 视觉上只有三个按钮 (菜单/语音/更多)。模型切换入更多菜单。
         },
         actions = {
             // 右侧操作: 圆形描边 + 半透明背景 (日/夜自动随主题 surface 系颜色),
@@ -882,6 +877,16 @@ private fun TopBar(
                         }
                     )
                     // 收尾：总结成记忆后开新会话。空会话没什么可总结的，所以禁用。
+                    DropdownMenuItem(
+                        text = { Text("切换模型") },
+                        leadingIcon = {
+                            Icon(HugeIcons.Package01, contentDescription = null)
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            showModelPicker = true
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_page_edit_title)) },
                         leadingIcon = {
