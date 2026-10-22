@@ -102,8 +102,6 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.VoiceCallService
-import me.rerere.rikkahub.ui.components.ai.ReasoningButton
-import me.rerere.rikkahub.ui.components.ai.SearchPickerButton
 import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.ModelSelectorSheet
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -312,12 +310,6 @@ private fun ChatPageContent(
             )
         )
     }
-    val onToggleSearchFn: (Boolean) -> Unit = { enabled ->
-        vm.updateSettings(setting.copy(enableWebSearch = enabled))
-    }
-    val onUpdateSearchServiceFn: (Int) -> Unit = { index ->
-        vm.updateSettings(setting.copy(searchServiceSelected = index))
-    }
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
 
@@ -387,13 +379,10 @@ private fun ChatPageContent(
                     ChatBottomAssistantBar(
                         settings = setting,
                         conversation = conversation,
-                        enableSearch = enableWebSearch,
                         onSwitchAssistant = { assistant ->
                             vm.switchConversationAssistant(conversation, assistant.id)
                         },
                         onUpdateAssistant = onUpdateAssistant,
-                        onToggleSearch = onToggleSearchFn,
-                        onUpdateSearchService = onUpdateSearchServiceFn,
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
                     ChatInput(
@@ -411,6 +400,11 @@ private fun ChatPageContent(
                     onToggleSearch = {
                         vm.updateSettings(setting.copy(enableWebSearch = !enableWebSearch))
                     },
+                    reasoningLevel = setting.getCurrentAssistant().reasoningLevel,
+                    onUpdateReasoningLevel = { level ->
+                        onUpdateAssistant(setting.getCurrentAssistant().copy(reasoningLevel = level))
+                    },
+                    showReasoningButton = currentChatModel?.abilities?.contains(ModelAbility.REASONING) == true,
                     onSendClick = {
                         if (currentChatModel == null) {
                             toaster.show("请先选择模型", type = ToastType.Error)
@@ -589,19 +583,16 @@ private val TopBarActionIconSize = 22.dp
 /**
  * 输入框上方的会话助手条:
  * - 左: 当前会话助手 (头像+名+下拉箭头), 点击弹助手选择
- * - 右: 按需状态标记 —— 联网/Thinking 只在**开启时**显示, 未启用收起,
- *   不占常驻空间; 标记本身可点 -> 打开对应选择器修改
  * - 助手来源 = conversation.assistantId (会话级), 不与全局默认混淆
+ *
+ * 清单 C: 联网/Thinking 已收回输入框内部, 助手条不再携带任何状态按钮。
  */
 @Composable
 private fun ChatBottomAssistantBar(
     settings: Settings,
     conversation: Conversation,
-    enableSearch: Boolean,
     onSwitchAssistant: (Assistant) -> Unit,
     onUpdateAssistant: (Assistant) -> Unit,
-    onToggleSearch: (Boolean) -> Unit,
-    onUpdateSearchService: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -650,33 +641,9 @@ private fun ChatBottomAssistantBar(
             }
         }
 
-        Spacer(Modifier.weight(1f))
-
-        // 右侧功能组 (常驻可点, 统一材质):
-        // - 联网搜索: SearchPickerButton (含开关与搜索引擎选择), 恢复常驻入口
-        //   (根因: 上一轮把按钮从输入框删掉后只剩只读 chip, 开关不可达)
-        // - Thinking: ReasoningButton (档位选择器), 只在模型支持 REASONING 时显示
-        //   (隐藏时设置仍生效)。
-        // 两者样式/尺寸/材质由各自组件 + MaterialActionSurface 规则统一。
-        val chatModel = settings.getCurrentChatModel()
-        SearchPickerButton(
-            enableSearch = enableSearch,
-            settings = settings,
-            iconSize = 18.dp,
-            onToggleSearch = onToggleSearch,
-            onUpdateSearchService = onUpdateSearchService,
-            model = chatModel,
-        )
-        if (chatModel?.abilities?.contains(ModelAbility.REASONING) == true) {
-            ReasoningButton(
-                reasoningLevel = currentAssistant.reasoningLevel,
-                onUpdateReasoningLevel = { level ->
-                    onUpdateAssistant(currentAssistant.copy(reasoningLevel = level))
-                },
-                onlyIcon = false,
-                iconSize = 18.dp,
-            )
-        }
+        // 清单 C：联网/Thinking 不再放这条助手条上 ——
+        // 两者已收回输入框内部 (搜索贴发送侧、思考贴 + 侧)，
+        // 助手条只负责「这是谁」的身份标识，输入框上方不再叠一排按钮。
     }
 
     if (showAssistantSheet) {

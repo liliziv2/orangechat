@@ -104,6 +104,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
@@ -154,6 +155,11 @@ fun ChatInput(
     hazeState: HazeState,
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
+    // 清单 C：思考档位入口回到输入框内部 (贴 + 侧)。
+    // showReasoningButton=false 时整个按钮隐藏，但档位设置仍随助手生效。
+    reasoningLevel: ReasoningLevel,
+    onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
+    showReasoningButton: Boolean = false,
     modifier: Modifier = Modifier,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
@@ -751,11 +757,35 @@ fun ChatInput(
                     // ColumnScope 版却拿不到接收者，直接报
                     // "cannot be called in this context with an implicit receiver"（批 27 CI 就挂在这）。
                     // 两处调用点都直接写在 Row 的 content 里，接收者天然可用。
+                    // 清单 C：搜索入口回到输入框内部、贴发送侧。
+                    // ToggleSurface + 现有 SearchPicker 状态路径原样复用，
+                    // 不另起第二套状态；图标 20dp 与 + / 发送同档。
+                    val searchButton: @Composable () -> Unit = {
+                        SearchPickerButton(
+                            enableSearch = enableSearch,
+                            settings = settings,
+                            iconSize = 20.dp,
+                            onToggleSearch = onToggleSearch,
+                            onUpdateSearchService = onUpdateSearchService,
+                            model = settings.getCurrentChatModel(),
+                        )
+                    }
+                    // 清单 C：思考档位入口回到输入框内部、贴 + 侧。
+                    // 只在模型支持 REASONING 时显示；选择器/保存路径复用 ReasoningButton。
+                    val reasoningButton: @Composable () -> Unit = {
+                        if (showReasoningButton) {
+                            ReasoningButton(
+                                reasoningLevel = reasoningLevel,
+                                onUpdateReasoningLevel = onUpdateReasoningLevel,
+                                onlyIcon = true,
+                                iconSize = 20.dp,
+                            )
+                        }
+                    }
                     val trailingActions: @Composable RowScope.() -> Unit = {
-                        // 发送: 底部工具栏唯一右侧按钮。
-                        // (搜索/思考改为输入框上方按需状态标记, 语音按钮本轮移除 ——
-                        //  语音通话入口仍在顶栏, 录音条功能保留但无按钮触发路径,
-                        //  如需恢复可在助手扩展面板补回)
+                        reasoningButton()
+                        searchButton()
+                        // 发送：底部工具栏唯一右侧实心按钮。
                         // 空输入态降低透明度而不是换成灰色，保持可辨识但仍读作不可用。
                         // 点击发送 / 长按无回答 / 生成中转取消，行为与原来完全一致。
                         // 点击区与实心圆同为 44dp，圆内箭头 24dp —— 尺寸不动。
@@ -826,9 +856,10 @@ fun ChatInput(
                             Alignment.CenterVertically
                         },
                     ) {
-                        // 单行态：「+」直接排在正文左边。
+                        // 单行态：「+」直接排在正文左边，思考入口紧随其后 (清单 C)。
                         if (!isMultiLine) {
                             attachButton()
+                            reasoningButton()
                         }
 
                         // 正文。**两态共用同一个调用点** —— 这是硬要求：
@@ -859,6 +890,7 @@ fun ChatInput(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     attachButton()
+                                    reasoningButton()
                                     Spacer(Modifier.weight(1f))
                                     trailingActions()
                                 }
