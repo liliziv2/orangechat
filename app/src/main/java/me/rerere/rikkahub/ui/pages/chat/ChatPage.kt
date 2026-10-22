@@ -837,9 +837,11 @@ private fun TopBar(
         actions = {
             // 右侧操作: 圆形描边 + 半透明背景 (日/夜自动随主题 surface 系颜色),
             // 图标数量控制为 语音 + 更多 两颗。
-            RoundTonalAction(onClick = onVoiceCall, contentDescription = "Voice Call") {
+            // 切换模型: 顶栏常驻按钮 (handoff 任务4最新节), 打开既有模型选择弹窗。
+            // 语音电话移入更多菜单, 顶栏不再常驻语音。
+            RoundTonalAction(onClick = { showModelPicker = true }, contentDescription = "切换模型") {
                 Icon(
-                    imageVector = HugeIcons.Voice,
+                    imageVector = HugeIcons.Package01,
                     contentDescription = null,
                     modifier = Modifier.size(TopBarActionIconSize),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -878,13 +880,13 @@ private fun TopBar(
                     )
                     // 收尾：总结成记忆后开新会话。空会话没什么可总结的，所以禁用。
                     DropdownMenuItem(
-                        text = { Text("切换模型") },
+                        text = { Text("语音电话") },
                         leadingIcon = {
-                            Icon(HugeIcons.Package01, contentDescription = null)
+                            Icon(HugeIcons.Voice, contentDescription = null)
                         },
                         onClick = {
                             showOverflowMenu = false
-                            showModelPicker = true
+                            onVoiceCall()
                         }
                     )
                     DropdownMenuItem(
