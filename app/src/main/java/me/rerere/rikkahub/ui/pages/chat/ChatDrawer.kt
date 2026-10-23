@@ -280,16 +280,8 @@ fun ChatDrawerContent(
             // 材质完全跟主题（不新增配色体系），卡片内部收拢：
             // 双头像(渺渺左/栖右) + 装饰数字 + 动态问候 + 右上设置 + 卡片内搜索/背单词。
             // 卡片以下（分隔线/文件夹/会话列表/底部栏）保持回退版本原样。
-            // 相识天数：侧栏最早一条对话日期 -> 今天，自动抓取、随数据变化。
-            val memorialDays by remember {
-                repo.getDaysSinceFirstConversation()
-            }.collectAsStateWithLifecycle(initialValue = null)
-
             DrawerMemorialCard(
                 settings = settings,
-                daysCount = memorialDays,
-                vocabularyBookCount = vocabularyBooks.size,
-                vocabularyDueCount = vocabularyDue,
                 onOpenSettings = { navController.navigate(Screen.Setting) },
                 onAssistantClick = { navController.navigate(Screen.AssistantDetail(settings.assistantId.toString())) },
                 onSearch = { navController.navigate(Screen.MessageSearch) },
@@ -716,9 +708,6 @@ fun ChatDrawerContent(
 @Composable
 private fun DrawerMemorialCard(
     settings: Settings,
-    daysCount: Int?,
-    vocabularyBookCount: Int,
-    vocabularyDueCount: Int,
     onOpenSettings: () -> Unit,
     onAssistantClick: () -> Unit,
     onSearch: () -> Unit,
@@ -881,11 +870,6 @@ private fun DrawerMemorialCard(
                     MemorialCardPill(
                         icon = HugeIcons.Book01,
                         label = stringResource(R.string.vocabulary_page_title),
-                        trailing = when {
-                            vocabularyDueCount > 0 -> stringResource(R.string.vocabulary_drawer_due, vocabularyDueCount)
-                            vocabularyBookCount > 0 -> stringResource(R.string.vocabulary_drawer_books, vocabularyBookCount)
-                            else -> stringResource(R.string.vocabulary_drawer_import_hint)
-                        },
                         onClick = onVocabulary,
                         modifier = Modifier.weight(1f),
                     )
@@ -902,7 +886,6 @@ private fun MemorialCardPill(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    trailing: String? = null,
 ) {
     Surface(
         onClick = onClick,
@@ -929,19 +912,9 @@ private fun MemorialCardPill(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (trailing != null) {
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = trailing,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
         }
     }
+}
 }
 
 /**

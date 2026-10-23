@@ -83,7 +83,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Idea01
-import me.rerere.hugeicons.stroke.Package01
+import me.rerere.hugeicons.stroke.ArrowLeftRight
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -576,7 +576,7 @@ private fun ChatPageContent(
 // 读起来比语音「重」一圈 —— 这就是三点显得突兀的来源。
 // 所以把两者都显式收到 22dp：规格从「隐式默认」变成「同一套显式常量」，
 // 同时压低顶栏右侧的存在感（用户本轮的主诉求是「上方偏重」）。
-private val TopBarActionIconSize = 22.dp
+private val TopBarActionIconSize = 24.dp
 
 /**
  * 顶栏右侧操作按钮的统一外壳: 圆形 + 细描边 + 半透明 surface 底。
@@ -739,36 +739,12 @@ private fun RoundTonalAction(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    // 视觉融合 (清单 B)：不再是一枚独立的「白色实底圆盘」——
-    //   1. 外壳容器色从 surfaceContainerHighest 降到 surfaceContainer 系，
-    //      与聊天背景只差半档，按钮先「沉」进页面；
-    //   2. 底色带透明度，让背景材质/聊天背景图透一点进来；
-    //      玻璃/半透明模式下的发丝描边由 MaterialActionSurface 提供；
-    //   3. 内层不再画纯白实底，图标着色沿用 onSurfaceVariant。
-    // 尺寸 (38dp)、热区、图标比例 (22dp) 与间距完全不动 —— 只动视觉。
-    // 视觉再压一档（清单3）：底板透明度 0.45/0.5 -> 0.28/0.32，
-    // 白色实底感消失，只剩一层接近背景的轻透明罩；
-    // 描边交回 MaterialActionSurface 的发丝线（玻璃/半透明模式）。
-    // 尺寸/热区/排列/左侧菜单按钮全都不动。
-    val fusedContainer = when (LocalMaterialMode.current) {
-        DisplayMaterialMode.TRANSLUCENT,
-        DisplayMaterialMode.GLASS ->
-            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.28f)
-        DisplayMaterialMode.FLAT,
-        DisplayMaterialMode.FOLLOW_THEME ->
-            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.32f)
-    }
-    MaterialActionSurface(
-        modifier = modifier
-            .size(38.dp)
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(fusedContainer),
-            contentAlignment = Alignment.Center,
-        ) {
+    // 末轮定稿（规格图）：顶栏三入口统一裸图标。
+    // 无底板/无描边/无阴影，IconButton 自带 48dp 热区；
+    // 图标 24dp、onSurfaceVariant 着色，与左侧菜单钮视觉重量一致。
+    // 功能与排列不变。
+    IconButton(onClick = onClick, modifier = modifier.size(48.dp)) {
+        Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
             content()
         }
     }
@@ -834,9 +810,10 @@ private fun TopBar(
             // 图标数量控制为 语音 + 更多 两颗。
             // 切换模型: 顶栏常驻按钮 (handoff 任务4最新节), 打开既有模型选择弹窗。
             // 语音电话移入更多菜单, 顶栏不再常驻语音。
+            // 换模型: 双向切换箭头 (规格图), 替代易混的 Package01。
             RoundTonalAction(onClick = { showModelPicker = true }, contentDescription = "切换模型") {
                 Icon(
-                    imageVector = HugeIcons.Package01,
+                    imageVector = HugeIcons.ArrowLeftRight,
                     contentDescription = null,
                     modifier = Modifier.size(TopBarActionIconSize),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,

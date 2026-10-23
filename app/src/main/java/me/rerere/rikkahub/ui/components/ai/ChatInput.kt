@@ -764,6 +764,7 @@ fun ChatInput(
                                 onUpdateReasoningLevel = onUpdateReasoningLevel,
                                 onlyIcon = true,
                                 iconSize = 20.dp,
+                                modifier = Modifier.size(40.dp),
                             )
                         }
                     }
@@ -1120,10 +1121,12 @@ private fun TextInputRow(
                 // 纵向 12 -> 10dp：正文行高从 20sp 提到 24sp（见 InputTextStyle），
                 // 1 行正文 = 24 + 10×2 = 44dp，与 44dp 的操作按钮盒齐平 ——
                 // 胶囊总高仍是 44 + 10×2 = 64dp，**一点没变**。
-                // 只动纵向：左右仍是 16dp，长句的阅读宽度不受影响。
-                PaddingValues(top = 10.dp, bottom = 10.dp, start = 16.dp, end = 16.dp)
+                // 左 16 -> 4dp（末轮规格图：文字起点尽量靠左，不留大空白；
+                // 右侧留 8dp 给搜索/发送前的呼吸位）。
+                PaddingValues(top = 10.dp, bottom = 10.dp, start = 4.dp, end = 8.dp)
             } else {
-                TextFieldDefaults.contentPaddingWithoutLabel()
+                // 多行态同步收左距，展开后文字同样贴左起点。
+                PaddingValues(top = 16.dp, bottom = 16.dp, start = 4.dp, end = 8.dp)
             },
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
