@@ -98,6 +98,10 @@ interface ConversationDAO {
             "GROUP BY day"
     )
     suspend fun getConversationCountPerDay(startMillis: Long): List<ConversationDayCount>
+
+    /** 全表最早一条对话的创建时间（纪念卡「相识天数」用）。没有对话时返回 null。 */
+    @Query("SELECT MIN(create_at) FROM conversationentity")
+    fun getEarliestCreateAt(): kotlinx.coroutines.flow.Flow<Long?>
 }
 
 data class ConversationDayCount(val day: String, val count: Int)

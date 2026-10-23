@@ -400,11 +400,6 @@ private fun ChatPageContent(
                     onToggleSearch = {
                         vm.updateSettings(setting.copy(enableWebSearch = !enableWebSearch))
                     },
-                    reasoningLevel = setting.getCurrentAssistant().reasoningLevel,
-                    onUpdateReasoningLevel = { level ->
-                        onUpdateAssistant(setting.getCurrentAssistant().copy(reasoningLevel = level))
-                    },
-                    showReasoningButton = currentChatModel?.abilities?.contains(ModelAbility.REASONING) == true,
                     onSendClick = {
                         if (currentChatModel == null) {
                             toaster.show("请先选择模型", type = ToastType.Error)

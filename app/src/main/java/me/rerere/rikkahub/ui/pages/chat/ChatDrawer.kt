@@ -72,6 +72,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Book01
@@ -89,15 +90,17 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
-import me.rerere.rikkahub.ui.components.message.ChatTopBarDualAvatar
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.message.ChatMessageSideAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.Navigator
@@ -273,14 +276,28 @@ fun ChatDrawerContent(
             // 材质完全跟主题（不新增配色体系），卡片内部收拢：
             // 双头像(渺渺左/栖右) + 装饰数字 + 动态问候 + 右上设置 + 卡片内搜索/背单词。
             // 卡片以下（分隔线/文件夹/会话列表/底部栏）保持回退版本原样。
+            // 相识天数：侧栏最早一条对话日期 -> 今天，自动抓取、随数据变化。
+            val memorialDays by remember {
+                repo.getDaysSinceFirstConversation()
+            }.collectAsStateWithLifecycle(initialValue = null)
+
             DrawerMemorialCard(
                 settings = settings,
+                daysCount = memorialDays,
                 vocabularyBookCount = vocabularyBooks.size,
                 vocabularyDueCount = vocabularyDue,
                 onOpenSettings = { navController.navigate(Screen.Setting) },
                 onEditNickname = { nicknameEditState.open(settings.displaySetting.userNickname) },
+                onAssistantClick = { navController.navigate(Screen.AssistantDetail(settings.assistantId.toString())) },
                 onSearch = { navController.navigate(Screen.MessageSearch) },
                 onVocabulary = { navController.navigate(Screen.VocabularyList) },
+                onUpdateUserAvatar = { avatar ->
+                    vm.updateSettings(
+                        settings.copy(
+                            displaySetting = settings.displaySetting.copy(userAvatar = avatar)
+                        )
+                    )
+                },
             )
             // 分隔线：把顶部的「纪念卡」和下面的「会话列表」分成两层。
             //
@@ -686,33 +703,34 @@ fun ChatDrawerContent(
 }
 
 /**
- * 侧栏顶部「纪念卡」：参考图定稿的圆角面板 —— 柔和水纹/花瓣渐变底、
- * 半透明浅色面板、细边框。内容只有三行：
- *   1. 双头像（渺渺在左、栖在右）+ 中间装饰数字 + 右上角设置入口
- *   2. 按当地时间变化的问候语（早上好/中午好/下午好/晚上好/夜深了）
- *   3. 「搜索聊天」「背单词」两个卡内入口
- *
- * 约束：
- * - 配色全部来自主题（primary/tertiary/onSurface 系），不写死颜色；
- * - 水纹只是极淡的径向渐变（alpha <= 0.10），不引入图片资源；
- * - 中间数字 8 纯装饰，不代表真实相识天数；
- * - 头像渲染复用 [ChatTopBarDualAvatar]（对方在左/自己在右，与聊天消息方向一致）。
+ * 侧栏顶部「纪念卡」（按参考图 1000454425 重做）：
+ *   - 左上：两枚**分开**的圆头像（左 = 渺渺/用户，右 = 栖/助手），各自可点——
+ *     用户头像弹原有「更换头像」对话框（图片/emoji/URL/重置），
+ *     助手头像直达该助手的设置页 (AssistantDetail)。
+ *   - 中上：装饰数字 = 相识天数，自动抓取侧栏最早对话日期到今天，不写死。
+ *   - 右上：设置入口。
+ *   - 中部：随当地时间变化的问候语。
+ *   - 底部：搜索聊天 / 背单词 两个卡内入口。
+ * 材质跟主题（primaryContainer 面板 + 主题色径向水纹 + 细边框），不新增配色。
  */
 @Composable
 private fun DrawerMemorialCard(
     settings: Settings,
+    daysCount: Int?,
     vocabularyBookCount: Int,
     vocabularyDueCount: Int,
     onOpenSettings: () -> Unit,
     onEditNickname: () -> Unit,
+    onAssistantClick: () -> Unit,
     onSearch: () -> Unit,
     onVocabulary: () -> Unit,
+    onUpdateUserAvatar: (Avatar) -> Unit,
 ) {
     val containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
     val outlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    val currentAssistant = settings.getCurrentAssistant()
     Box(modifier = Modifier.fillMaxWidth()) {
         // 水纹/花瓣背景：两团错位的径向渐变，全部从主题色派生。
-        // 画在面板之前 -> 被半透明面板罩住后只剩一层柔和色晕。
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -749,20 +767,35 @@ private fun DrawerMemorialCard(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                // ---- 行 1：双头像 + 装饰数字 + 右上设置 ----
+                // ---- 行 1：两枚分开的头像 + 中间装饰数字 + 右上设置 ----
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 左：渺渺 = 用户；右：栖 = 助手（ChatTopBarDualAvatar 的固定顺序）
-                    ChatTopBarDualAvatar(
-                        model = settings.getCurrentChatModel(),
-                        assistant = settings.getCurrentAssistant(),
-                        size = 42.dp,
-                        overlap = 10.dp,
+                    // 左：渺渺 = 用户。点击弹原生「更换头像」对话框（onUpdate 走 UIAvatar 内置逻辑）。
+                    UIAvatar(
+                        name = settings.displaySetting.userNickname,
+                        value = settings.displaySetting.userAvatar,
+                        modifier = Modifier.size(44.dp),
+                        onUpdate = onUpdateUserAvatar,
                     )
+                    Spacer(Modifier.width(10.dp))
+                    // 右：栖 = 助手。点击直达助手设置页。
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onAssistantClick),
+                    ) {
+                        ChatMessageSideAvatar(
+                            role = MessageRole.ASSISTANT,
+                            model = settings.getCurrentChatModel(),
+                            assistant = currentAssistant,
+                            size = 44.dp,
+                        )
+                    }
                     Spacer(Modifier.weight(1f))
+                    // 装饰数字：相识天数（最早对话 -> 今天，自动抓取）。未加载完先空着。
                     Text(
-                        text = "8",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontStyle = FontStyle.Italic,
+                        text = daysCount?.toString() ?: "",
+                        style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f),
                     )
                     Spacer(Modifier.weight(1f))

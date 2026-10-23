@@ -54,6 +54,23 @@ class ConversationRepository(
         }
     }
 
+    /**
+     * 「相识天数」：侧栏最早一条对话的日期 -> 今天的自然日差 +1（当天 = 第 1 天）。
+     * 侧栏纪念卡的装饰数字，随新对话自动变化，不写死。
+     */
+    fun getDaysSinceFirstConversation(): Flow<Int> {
+        return conversationDAO.getEarliestCreateAt().map { earliest ->
+            if (earliest == null || earliest <= 0L) {
+                1
+            } else {
+                val zone = java.time.ZoneId.systemDefault()
+                val firstDay = java.time.Instant.ofEpochMilli(earliest).atZone(zone).toLocalDate()
+                val today = java.time.LocalDate.now(zone)
+                ((today.toEpochDay() - firstDay.toEpochDay()).toInt() + 1).coerceAtLeast(1)
+            }
+        }
+    }
+
     fun getConversationsOfAssistant(assistantId: Uuid): Flow<List<Conversation>> {
         return conversationDAO
             .getConversationsOfAssistant(assistantId.toString())
