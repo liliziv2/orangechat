@@ -155,6 +155,10 @@ fun ChatInput(
     hazeState: HazeState,
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
+    // 思考档位入口：参考图定稿回输入框内、紧挨「+」；模型不支持时隐藏（设置仍生效）。
+    reasoningLevel: ReasoningLevel,
+    onUpdateReasoningLevel: (ReasoningLevel) -> Unit,
+    showReasoningButton: Boolean = false,
     modifier: Modifier = Modifier,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
@@ -752,7 +756,18 @@ fun ChatInput(
                     // ColumnScope 版却拿不到接收者，直接报
                     // "cannot be called in this context with an implicit receiver"（批 27 CI 就挂在这）。
                     // 两处调用点都直接写在 Row 的 content 里，接收者天然可用。
-                    // 清单 C：搜索入口回到输入框内部、贴发送侧。
+                    // 参考图定稿：推理入口紧挨「+」（选择器/保存复用 ReasoningButton，不另起状态）。
+                    val reasoningButton: @Composable () -> Unit = {
+                        if (showReasoningButton) {
+                            ReasoningButton(
+                                reasoningLevel = reasoningLevel,
+                                onUpdateReasoningLevel = onUpdateReasoningLevel,
+                                onlyIcon = true,
+                                iconSize = 20.dp,
+                            )
+                        }
+                    }
+                    // 联网搜索入口：贴发送侧。
                     // ToggleSurface + 现有 SearchPicker 状态路径原样复用，
                     // 不另起第二套状态；图标 20dp 与 + / 发送同档。
                     val searchButton: @Composable () -> Unit = {
@@ -838,9 +853,10 @@ fun ChatInput(
                             Alignment.CenterVertically
                         },
                     ) {
-                        // 单行态：「+」直接排在正文左边 (用户定稿：左侧只有 +)。
+                        // 单行态：「+」在最左，推理入口紧随（参考图：+ 💡）。
                         if (!isMultiLine) {
                             attachButton()
+                            reasoningButton()
                         }
 
                         // 正文。**两态共用同一个调用点** —— 这是硬要求：
@@ -871,6 +887,7 @@ fun ChatInput(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     attachButton()
+                                    reasoningButton()
                                     Spacer(Modifier.weight(1f))
                                     trailingActions()
                                 }

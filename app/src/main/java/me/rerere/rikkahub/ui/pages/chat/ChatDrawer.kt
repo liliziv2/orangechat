@@ -67,6 +67,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.flow.collectLatest
@@ -85,6 +86,7 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Sun03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
@@ -287,7 +289,6 @@ fun ChatDrawerContent(
                 vocabularyBookCount = vocabularyBooks.size,
                 vocabularyDueCount = vocabularyDue,
                 onOpenSettings = { navController.navigate(Screen.Setting) },
-                onEditNickname = { nicknameEditState.open(settings.displaySetting.userNickname) },
                 onAssistantClick = { navController.navigate(Screen.AssistantDetail(settings.assistantId.toString())) },
                 onSearch = { navController.navigate(Screen.MessageSearch) },
                 onVocabulary = { navController.navigate(Screen.VocabularyList) },
@@ -299,7 +300,7 @@ fun ChatDrawerContent(
                     )
                 },
             )
-            // 分隔线：把顶部的「纪念卡」和下面的「会话列表」分成两层。
+            // 分隔线            // 分隔线：把顶部的「纪念卡」和下面的「会话列表」分成两层。
             //
             // 侧栏已收成纯聊天导航：功能目录整块移除，只留「搜索聊天 + 会话列表 +
             // 新建 + 收藏 + 统计」。被移走的功能改由设置页进入，页面本身没有动：
@@ -703,15 +704,12 @@ fun ChatDrawerContent(
 }
 
 /**
- * 侧栏顶部「纪念卡」（按参考图 1000454425 重做）：
- *   - 左上：两枚**分开**的圆头像（左 = 渺渺/用户，右 = 栖/助手），各自可点——
- *     用户头像弹原有「更换头像」对话框（图片/emoji/URL/重置），
- *     助手头像直达该助手的设置页 (AssistantDetail)。
- *   - 中上：装饰数字 = 相识天数，自动抓取侧栏最早对话日期到今天，不写死。
- *   - 右上：设置入口。
- *   - 中部：随当地时间变化的问候语。
- *   - 底部：搜索聊天 / 背单词 两个卡内入口。
- * 材质跟主题（primaryContainer 面板 + 主题色径向水纹 + 细边框），不新增配色。
+ * 侧栏顶部「纪念卡」（按参考图 1000454428 定稿重做）：
+ *   行1: 两枚分开圆头像（左渺渺/用户，右栖/助手），各自可点（换头像/助手设置），右上设置
+ *   行2: 中间大装饰数字（相识天数，自动抓取）+ 头像下名字行 + ♡ DAYS TOGETHER ♡ 装饰
+ *   行3: 动态问候语（早上好/中午好/下午好/晚上好/夜深了 + 主题色小太阳）
+ *   行4: 细分隔线 + 「搜索聊天｜背单词」双列卡内入口
+ * 卡片下方一概不动。配色全走主题，不新增配色体系。
  */
 @Composable
 private fun DrawerMemorialCard(
@@ -720,7 +718,6 @@ private fun DrawerMemorialCard(
     vocabularyBookCount: Int,
     vocabularyDueCount: Int,
     onOpenSettings: () -> Unit,
-    onEditNickname: () -> Unit,
     onAssistantClick: () -> Unit,
     onSearch: () -> Unit,
     onVocabulary: () -> Unit,
@@ -729,8 +726,14 @@ private fun DrawerMemorialCard(
     val containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
     val outlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
     val currentAssistant = settings.getCurrentAssistant()
+    val assistantName = currentAssistant.name.ifBlank {
+        stringResource(R.string.assistant_page_default_assistant)
+    }
+    val userName = settings.displaySetting.userNickname.ifBlank {
+        stringResource(R.string.user_default_name)
+    }
     Box(modifier = Modifier.fillMaxWidth()) {
-        // 水纹/花瓣背景：两团错位的径向渐变，全部从主题色派生。
+        // 水纹/花瓣背景：两团错位径向渐变，主题色派生，被半透明面板罩住只剩色晕。
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -757,63 +760,115 @@ private fun DrawerMemorialCard(
                 ),
         )
         Surface(
-            onClick = onEditNickname,
             shape = MemorialCardShape,
             color = containerColor,
             border = BorderStroke(1.dp, outlineColor),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // ---- 行 1：两枚分开的头像 + 中间装饰数字 + 右上设置 ----
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // 左：渺渺 = 用户。点击弹原生「更换头像」对话框（onUpdate 走 UIAvatar 内置逻辑）。
-                    UIAvatar(
-                        name = settings.displaySetting.userNickname,
-                        value = settings.displaySetting.userAvatar,
-                        modifier = Modifier.size(44.dp),
-                        onUpdate = onUpdateUserAvatar,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    // 右：栖 = 助手。点击直达助手设置页。
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onAssistantClick),
-                    ) {
-                        ChatMessageSideAvatar(
-                            role = MessageRole.ASSISTANT,
-                            model = settings.getCurrentChatModel(),
-                            assistant = currentAssistant,
-                            size = 44.dp,
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    // 装饰数字：相识天数（最早对话 -> 今天，自动抓取）。未加载完先空着。
-                    Text(
-                        text = daysCount?.toString() ?: "",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f),
-                    )
-                    Spacer(Modifier.weight(1f))
+                // ---- 行 1：双头像 + 中间装饰数字 + 右上设置 ----
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Icon(
                         imageVector = HugeIcons.Settings03,
                         contentDescription = stringResource(R.string.settings),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
+                            .align(Alignment.TopEnd)
                             .clip(CircleShape)
                             .clickable(onClick = onOpenSettings)
                             .padding(6.dp)
                             .size(20.dp),
                     )
+                    Row(
+                        modifier = Modifier.align(Alignment.Center),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // 左：渺渺 = 用户。点击弹原有「更换头像」对话框。
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            UIAvatar(
+                                name = settings.displaySetting.userNickname,
+                                value = settings.displaySetting.userAvatar,
+                                modifier = Modifier.size(52.dp),
+                                onUpdate = onUpdateUserAvatar,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = userName,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Spacer(Modifier.width(18.dp))
+                        // 中：装饰数字 = 相识天数（最早对话 -> 今天，自动抓取）。
+                        Text(
+                            text = daysCount?.toString() ?: "",
+                            style = MaterialTheme.typography.displaySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                            modifier = Modifier.padding(bottom = 18.dp),
+                        )
+                        Spacer(Modifier.width(18.dp))
+                        // 右：栖 = 助手。点击直达助手设置页。
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onAssistantClick),
+                            ) {
+                                ChatMessageSideAvatar(
+                                    role = MessageRole.ASSISTANT,
+                                    model = settings.getCurrentChatModel(),
+                                    assistant = currentAssistant,
+                                    size = 52.dp,
+                                )
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = assistantName,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
-                // ---- 行 2：动态问候语（保留 Greeting 的时段逻辑）----
-                Greeting(style = MaterialTheme.typography.titleMedium)
-                // ---- 行 3：搜索 / 背单词（卡内入口，卡外不再重复）----
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // ---- 行 2：英文装饰文案 ♡ DAYS TOGETHER ♡ ----
+                Text(
+                    text = "♡  D A Y S  T O G E T H E R  ♡",
+                    style = MaterialTheme.typography.labelSmall,
+                    letterSpacing = 1.5.sp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                // ---- 行 3：动态问候语 + 主题色小太阳 ----
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 4.dp),
+                ) {
+                    Greeting(style = MaterialTheme.typography.titleMedium)
+                    Icon(
+                        imageVector = HugeIcons.Sun03,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                // ---- 行 4：分隔线 + 双列卡内入口 ----
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp, bottom = 10.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)),
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
                     MemorialCardPill(
                         icon = HugeIcons.Search01,
                         label = stringResource(R.string.chat_page_search_chats),
@@ -837,7 +892,7 @@ private fun DrawerMemorialCard(
     }
 }
 
-/** 纪念卡内部的小入口 pill：onSurface 6% 实底 + 主题文字色，不参与材质模式表演。 */
+/** 纪念卡内部的小入口 pill：onSurface 6% 实底 + 主题文字色，居中排布。 */
 @Composable
 private fun MemorialCardPill(
     icon: ImageVector,
@@ -848,35 +903,39 @@ private fun MemorialCardPill(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(50),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(20.dp),
             )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            if (trailing != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = trailing,
-                    style = MaterialTheme.typography.labelSmall,
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (trailing != null) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = trailing,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
