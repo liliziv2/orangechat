@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,6 +60,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -300,7 +302,7 @@ fun ChatDrawerContent(
                     )
                 },
             )
-            // 分隔线            // 分隔线：把顶部的「纪念卡」和下面的「会话列表」分成两层。
+            // 分隔线：把顶部的「纪念卡」和下面的「会话列表」分成两层。
             //
             // 侧栏已收成纯聊天导航：功能目录整块移除，只留「搜索聊天 + 会话列表 +
             // 新建 + 收藏 + 统计」。被移走的功能改由设置页进入，页面本身没有动：
@@ -804,13 +806,14 @@ private fun DrawerMemorialCard(
                             )
                         }
                         Spacer(Modifier.width(18.dp))
-                        // 中：装饰数字 = 相识天数（最早对话 -> 今天，自动抓取）。
-                        Text(
-                            text = daysCount?.toString() ?: "",
-                            style = MaterialTheme.typography.displaySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                            modifier = Modifier.padding(bottom = 18.dp),
-                        )
+                        // 中：四瓣花装饰（细线描边，呼应水纹/花瓣背景）。
+                        // 纯装饰，不承载任何统计数据。
+                        Box(modifier = Modifier.padding(bottom = 14.dp)) {
+                            FourPetalFlower(
+                                size = 40.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
+                            )
+                        }
                         Spacer(Modifier.width(18.dp))
                         // 右：栖 = 助手。点击直达助手设置页。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -840,7 +843,7 @@ private fun DrawerMemorialCard(
                 }
                 // ---- 行 2：英文装饰文案 ♡ DAYS TOGETHER ♡ ----
                 Text(
-                    text = "♡  D A Y S  T O G E T H E R  ♡",
+                    text = "♡  S I D E  B Y  S I D E  ♡",
                     style = MaterialTheme.typography.labelSmall,
                     letterSpacing = 1.5.sp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
@@ -938,6 +941,53 @@ private fun MemorialCardPill(
                 }
             }
         }
+    }
+}
+
+/**
+ * 四瓣花装饰：四片细线花瓣 + 中心小圆点，线条纤细，
+ * 呼应纪念卡的水纹/花瓣背景。纯装饰元素。
+ */
+@Composable
+private fun FourPetalFlower(
+    size: androidx.compose.ui.unit.Dp,
+    color: Color,
+) {
+    Canvas(modifier = Modifier.size(size)) {
+        val c = Offset(x = this.size.width / 2f, y = this.size.height / 2f)
+        val r = this.size.minDimension / 2f
+        val petal = r * 0.62f
+        // 四片花瓣：上下左右，用三次贝塞尔画细长水滴瓣
+        val petalPath = androidx.compose.ui.graphics.Path()
+        fun petalAt(angleDeg: Float) {
+            val rad = Math.toRadians(angleDeg.toDouble())
+            val dx = Math.cos(rad).toFloat()
+            val dy = Math.sin(rad).toFloat()
+            val tipX = c.x + dx * petal
+            val tipY = c.y + dy * petal
+            val sideX = dy * (petal * 0.34f)
+            val sideY = -dx * (petal * 0.34f)
+            petalPath.reset()
+            petalPath.moveTo(c.x, c.y)
+            petalPath.cubicTo(
+                c.x + sideX - dx * petal * 0.18f, c.y + sideY - dy * petal * 0.18f,
+                tipX - dx * petal * 0.22f, tipY - dy * petal * 0.22f,
+                tipX, tipY,
+            )
+            petalPath.cubicTo(
+                tipX + dx * petal * 0.22f, tipY + dy * petal * 0.22f,
+                c.x + sideX + dx * petal * 0.18f, c.y + sideY + dy * petal * 0.18f,
+                c.x, c.y,
+            )
+            petalPath.close()
+            drawPath(petalPath, color = color, style = Stroke(width = 1.2.dp.toPx()))
+        }
+        petalAt(0f)    // 右
+        petalAt(90f)   // 下
+        petalAt(180f)  // 左
+        petalAt(270f)  // 上
+        // 中心小圆点
+        drawCircle(color = color, radius = r * 0.09f, center = c, style = Stroke(width = 1.2.dp.toPx()))
     }
 }
 
@@ -1050,110 +1100,6 @@ private fun BoxScope.DrawerItemGlassLayers(
                 shape = shape,
             )
     )
-}
-
-@Composable
-private fun DrawerSearchRow(
-    onClick: () -> Unit,
-    drawerItemAlpha: Float,
-    materialMode: DisplayMaterialMode,
-) {
-    DrawerItemSurface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-        drawerItemAlpha = drawerItemAlpha,
-        materialMode = DisplayMaterialMode.FLAT,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Icon(
-                imageVector = HugeIcons.Search01,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(
-                text = stringResource(R.string.chat_page_search_chats),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-/**
- * 侧栏的「背单词」入口行。形状/尺寸/底色都跟 [DrawerSearchRow] 对齐 ——
- * 两者是同一层级的「去另一个地方」，视觉上不该分家。
- *
- * 右侧小字给的是**当下最该知道的那个数**：
- *   有到期的 → 「N 词待复习」
- *   没到期的 → 「N 个词库」
- *   一本都没有 → 「导入词库开始背词」
- */
-@Composable
-private fun DrawerVocabularyRow(
-    bookCount: Int,
-    dueCount: Int,
-    onClick: () -> Unit,
-    drawerItemAlpha: Float,
-) {
-    val trailing = when {
-        dueCount > 0 -> stringResource(R.string.vocabulary_drawer_due, dueCount)
-        bookCount > 0 -> stringResource(R.string.vocabulary_drawer_books, bookCount)
-        else -> stringResource(R.string.vocabulary_drawer_import_hint)
-    }
-
-    DrawerItemSurface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-        drawerItemAlpha = drawerItemAlpha,
-        materialMode = DisplayMaterialMode.FLAT,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Icon(
-                imageVector = HugeIcons.Book01,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(
-                text = stringResource(R.string.vocabulary_page_title),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = trailing,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
 }
 
 /** 侧栏底部的无底色图标按钮（聊天历史 / 收藏 / 统计 / 菜单）。 */

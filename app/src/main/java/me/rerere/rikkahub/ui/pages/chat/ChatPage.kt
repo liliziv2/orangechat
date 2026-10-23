@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -385,6 +386,8 @@ private fun ChatPageContent(
                         onUpdateAssistant = onUpdateAssistant,
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
+                    // 助手选择胶囊与输入框拉开一档距离（+8dp，真机视觉再微调）。
+                    Spacer(Modifier.height(8.dp))
                     ChatInput(
                         state = inputState,
                     loading = loadingJob != null,
@@ -743,13 +746,17 @@ private fun RoundTonalAction(
     //      玻璃/半透明模式下的发丝描边由 MaterialActionSurface 提供；
     //   3. 内层不再画纯白实底，图标着色沿用 onSurfaceVariant。
     // 尺寸 (38dp)、热区、图标比例 (22dp) 与间距完全不动 —— 只动视觉。
+    // 视觉再压一档（清单3）：底板透明度 0.45/0.5 -> 0.28/0.32，
+    // 白色实底感消失，只剩一层接近背景的轻透明罩；
+    // 描边交回 MaterialActionSurface 的发丝线（玻璃/半透明模式）。
+    // 尺寸/热区/排列/左侧菜单按钮全都不动。
     val fusedContainer = when (LocalMaterialMode.current) {
         DisplayMaterialMode.TRANSLUCENT,
         DisplayMaterialMode.GLASS ->
-            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.45f)
+            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.28f)
         DisplayMaterialMode.FLAT,
         DisplayMaterialMode.FOLLOW_THEME ->
-            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.32f)
     }
     MaterialActionSurface(
         modifier = modifier
