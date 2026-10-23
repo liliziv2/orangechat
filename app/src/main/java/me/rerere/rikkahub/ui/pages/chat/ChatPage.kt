@@ -612,10 +612,12 @@ private fun ChatBottomAssistantBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // 助手入口: 同一材质外壳 (胶囊), 不再裸露
+        // 助手入口: 与输入框统一轮廓/描边 —— 药丸形 (percent 50)，
+        // 描边走 materialModeBorderStroke()（1dp、alpha 0.07，与输入框边框同源）。
         MaterialActionSurface(
             modifier = Modifier
                 .clickable { showAssistantSheet = true },
+            shape = RoundedCornerShape(percent = 50),
             contentAlignment = Alignment.CenterStart,
         ) {
             Row(

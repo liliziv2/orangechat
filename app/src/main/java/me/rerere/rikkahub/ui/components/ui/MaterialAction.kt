@@ -68,7 +68,8 @@ fun MaterialActionSurface(
             .background(containerColor)
             .then(
                 if (borderColor != null) {
-                    Modifier.border(0.5.dp, borderColor, shape)
+                    // 与输入框边框同规格（1dp / onSurface 0.07），轮廓质感一致。
+                    Modifier.border(1.dp, borderColor, shape)
                 } else {
                     Modifier
                 }
