@@ -241,6 +241,21 @@ fun ChatDrawerContent(
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // 内容防串层遮罩（最后修复）：抽屉容器是半透明的（drawerSurfaceOpacity 控制），
+            // 底下聊天列表的文字会直接透进卡片区域造成「文字叠文字」。
+            // 在背景图之上、内容之下垫一层主题色 scrim：
+            //   scrim alpha = 1 - drawerSurfaceAlpha  => 滑杆拉到 100% 时 scrim 为 0（纯玻璃），
+            //   拉到 60% 时 scrim 0.4，把穿透文字压到不可读但背景材质还在。
+            // 不改 ModalDrawerSheet 的容器 alpha，不动全局透明度设置。
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainer.copy(
+                            alpha = (1f - drawerSurfaceAlpha).coerceIn(0f, 0.55f)
+                        )
+                    ),
+            )
             // 侧边栏背景图（最底层）
             val drawerBgPath = settings.displaySetting.drawerBackgroundPath
             if (drawerBgPath.isNotEmpty()) {
@@ -304,27 +319,31 @@ fun ChatDrawerContent(
             // 图像生成 / AI 翻译 / Mini Apps / 记忆库 不再出现在侧栏。
             DrawerDivider()
 
-            // 清单 §2/§4：无文件夹 -> [聊天][新建对话]；有文件夹 -> [聊天][文件夹][新建对话]。
-            // 文件夹入口点击后在横向 chips 间切换（LazyRow 可滚动），不竖排。
-            if (folders.isEmpty()) {
-                FolderBar(
-                    folders = emptyList(),
-                    selectedFolderId = selectedFolderId,
-                    onSelect = { drawerVm.selectFolder(it) },
-                    onCreate = { showCreateFolderDialog = true },
-                    onRename = { folderToRename = it },
-                    onDelete = { folderToDelete = it },
-                )
-            } else {
-                FolderBar(
-                    folders = folders,
-                    selectedFolderId = selectedFolderId,
-                    onSelect = { drawerVm.selectFolder(it) },
-                    onCreate = { showCreateFolderDialog = true },
-                    onRename = { folderToRename = it },
-                    onDelete = { folderToDelete = it },
-                )
-            }
+            // 侧栏最后修复：恢复聊天管理入口。
+            //   无文件夹：[聊天][新建]
+            //   有文件夹：[聊天][文件夹][新建]（文件夹入口在新建之前）
+            // 具体文件夹走横向 chips（LazyRow 可滚动），不竖排。
+            FolderBar(
+                folders = folders,
+                selectedFolderId = selectedFolderId,
+                onSelect = { drawerVm.selectFolder(it) },
+                onCreate = { showCreateFolderDialog = true },
+                onNewChat = {
+                    scope.launch {
+                        val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
+                            Uuid.random()
+                        } else {
+                            repo.getConversationsOfAssistant(settings.assistantId)
+                                .first()
+                                .firstOrNull()
+                                ?.id ?: Uuid.random()
+                        }
+                        navigateToChatPage(navigator = navController, chatId = id)
+                    }
+                },
+                onRename = { folderToRename = it },
+                onDelete = { folderToDelete = it },
+            )
 
             ConversationList(
                 current = current,
@@ -790,7 +809,34 @@ private fun DrawerMemorialCard(
                         modifier = Modifier.align(Alignment.Center),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 左：栖 = 助手（清单 §2 定稿：栖在左、渺渺在右）。点击直达助手设置页。
+                        // 左：渺渺 = 用户（最后定稿：渺渺在左、栖在右）。点击弹「更换头像」。
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            UIAvatar(
+                                name = settings.displaySetting.userNickname,
+                                value = settings.displaySetting.userAvatar,
+                                modifier = Modifier.size(52.dp),
+                                onUpdate = onUpdateUserAvatar,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = userName,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Spacer(Modifier.width(18.dp))
+                        // 中：四瓣花装饰（细线描边，呼应水纹/花瓣背景）。
+                        // 纯装饰，不承载任何统计数据。
+                        Box(modifier = Modifier.padding(bottom = 14.dp)) {
+                            FourPetalFlower(
+                                size = 40.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
+                            )
+                        }
+                        Spacer(Modifier.width(18.dp))
+                        // 右：栖 = 助手（与名字同数据源绑定）。点击直达助手设置页。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
@@ -810,33 +856,6 @@ private fun DrawerMemorialCard(
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 text = assistantName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Spacer(Modifier.width(18.dp))
-                        // 中：四瓣花装饰（细线描边，呼应水纹/花瓣背景）。
-                        // 纯装饰，不承载任何统计数据。
-                        Box(modifier = Modifier.padding(bottom = 14.dp)) {
-                            FourPetalFlower(
-                                size = 40.dp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
-                            )
-                        }
-                        Spacer(Modifier.width(18.dp))
-                        // 右：渺渺 = 用户。点击弹原有「更换头像」对话框。
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            UIAvatar(
-                                name = settings.displaySetting.userNickname,
-                                value = settings.displaySetting.userAvatar,
-                                modifier = Modifier.size(52.dp),
-                                onUpdate = onUpdateUserAvatar,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = userName,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -875,7 +894,10 @@ private fun DrawerMemorialCard(
                         .height(1.dp)
                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)),
                 )
-                Row(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     MemorialCardPill(
                         icon = HugeIcons.Search01,
                         label = stringResource(R.string.chat_page_search_chats),
@@ -1140,9 +1162,15 @@ private fun FolderBar(
     selectedFolderId: Uuid?,
     onSelect: (Uuid?) -> Unit,
     onCreate: () -> Unit,
+    onNewChat: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
 ) {
+    // 侧栏最后修复：恢复聊天管理入口，条件式三段：
+    //   无文件夹：[聊天] [新建]
+    //   有文件夹：[聊天] [文件夹▾] [新建]  —— 点[文件夹▾]横向展开具体文件夹 chips
+    // 具体文件夹横向滚动，不竖排；长按重命名/删除保留。
+    var showFolderChips by remember { mutableStateOf(false) }
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -1150,6 +1178,7 @@ private fun FolderBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // [聊天]：全部会话
         item {
             FolderChip(
                 label = stringResource(R.string.chat_page_folder_default),
@@ -1158,55 +1187,67 @@ private fun FolderBar(
                 onLongClick = {},
             )
         }
-        items(folders) { folder ->
-            var menuExpanded by remember { mutableStateOf(false) }
-            Box {
-                FolderChip(
-                    label = folder.name,
-                    icon = HugeIcons.Folder01,
-                    selected = selectedFolderId == folder.id,
-                    onClick = { onSelect(folder.id) },
-                    onLongClick = { menuExpanded = true },
-                )
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    border = materialModeBorderStroke(),
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_rename)) },
-                        leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
-                        onClick = {
-                            onRename(folder)
-                            menuExpanded = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_delete)) },
-                        leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                        onClick = {
-                            onDelete(folder)
-                            menuExpanded = false
-                        }
-                    )
-                }
-            }
-        }
-        // 新建文件夹入口只在已有文件夹时出现（基础态保持 [聊天] 极简）。
+        // [文件夹▾]：只有存在用户文件夹时出现，紧邻[新建]之前
         if (folders.isNotEmpty()) {
             item {
                 FolderChip(
                     label = stringResource(R.string.chat_page_folder_add),
-                    icon = HugeIcons.FolderAdd,
-                    selected = false,
-                    onClick = onCreate,
+                    icon = HugeIcons.Folder01,
+                    selected = showFolderChips || selectedFolderId != null,
+                    onClick = { showFolderChips = !showFolderChips },
                     onLongClick = {},
                 )
             }
         }
+        // [新建]：常驻，新建对话（与底栏同一逻辑）
+        item {
+            FolderChip(
+                label = stringResource(R.string.chat_page_new_chat),
+                icon = HugeIcons.MessageAdd01,
+                selected = false,
+                onClick = onNewChat,
+                onLongClick = {},
+            )
+        }
+        // 具体文件夹 chips：横向滚动，点[文件夹▾]展开；长按重命名/删除
+        if (folders.isNotEmpty() && showFolderChips) {
+            items(folders) { folder ->
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    FolderChip(
+                        label = folder.name,
+                        icon = HugeIcons.Folder01,
+                        selected = selectedFolderId == folder.id,
+                        onClick = { onSelect(folder.id) },
+                        onLongClick = { menuExpanded = true },
+                    )
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        border = materialModeBorderStroke(),
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_rename)) },
+                            leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
+                            onClick = {
+                                onRename(folder)
+                                menuExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.chat_page_delete)) },
+                            leadingIcon = { Icon(HugeIcons.Delete01, null) },
+                            onClick = {
+                                onDelete(folder)
+                                menuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
-
 @Composable
 private fun FolderChip(
     label: String,
