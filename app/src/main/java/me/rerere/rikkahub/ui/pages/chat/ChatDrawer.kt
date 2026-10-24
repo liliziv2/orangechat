@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,7 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sun03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.theme.GLASS_BACKGROUND_THEMES
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
@@ -195,27 +197,28 @@ fun ChatDrawerContent(
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
-    val drawerSurfaceAlpha =
-        (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0.6f, 1f)
-    // ---- Bug1 修复：抽屉必须有独立且足够遮挡的底板 ----
+    // ---- 侧栏表面分层（材质系统重修 §五）----
     //
-    // 旧实现让 ModalDrawerSheet 的容器 alpha = surfaceContainer.alpha(0.82) × 滑杆，
-    // 滑杆 60% 时实际只有 0.49 不透明度 ⇒ 底层聊天正文直接透过纪念卡与列表。
-    // 旧版还有一层「1 - 滑杆」的反向 scrim，两者叠加后总不透明度几乎恒定，
-    // 于是滑杆看起来「拉了没反应」。这两处都拆掉，改为单一、单调的底板。
+    // 历史问题：
+    //   1) 容器 alpha = surfaceContainer.alpha(0.82) × 滑杆 ⇒ 60% 时只有 0.49，透出聊天正文；
+    //   2) 另有一层「1 - 滑杆」的反向 scrim，与容器互补 ⇒ 总不透明度几乎恒定，滑杆看起来失效；
+    //   3) 随后改成 0.90~0.98 的窄区间底板 ⇒ 滑杆依然几乎看不出变化（任务单点名）。
     //
-    // 底板 alpha 映射（滑杆 60%..100% → 下方区间），保证任何档位都读得清：
-    //   普通材质（FLAT / FOLLOW_THEME）：0.94 .. 1.00
-    //   玻璃 / 半透明材质：          0.90 .. 0.98（保留一点透，但不透字）
-    // 滑杆仍然有效（单调递增），全局透明度功能未被关闭。
-    val glassyDrawer =
-        settings.displaySetting.materialMode == DisplayMaterialMode.GLASS ||
-            settings.displaySetting.materialMode == DisplayMaterialMode.TRANSLUCENT
-    val drawerBackingAlpha = if (glassyDrawer) {
-        0.90f + 0.08f * drawerSurfaceAlpha
-    } else {
-        0.94f + 0.06f * drawerSurfaceAlpha
-    }
+    // 现在的分层（自下而上，全部画在 ModalDrawerSheet 内部）：
+    //   L0 主题底图（港口/奶油玫瑰等带图主题，按侧栏区域 Crop 绘制）
+    //   L1 主题 scrim（把底图压到可读对比度，同时挡住底层聊天正文）
+    //   L2 用户自定义侧栏背景图（若设置了）
+    //   L3 侧栏表面色（alpha = drawerSurfaceAlpha，滑杆直接、连续、可预测）
+    //   L4 纪念卡 / 文件夹 / 会话列表 / 底栏等内容
+    //
+    // 关键点：L1 是**不透明来源**（底图 + scrim 本身不透明），因此聊天正文无法穿透；
+    // L3 只叠在 L1/L2 之上调「表面感的强弱」，滑杆怎么拉都不会露出底下的聊天页面。
+    val drawerSurfaceAlphaRaw =
+        (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0f, 1f)
+    // 侧栏表面层 alpha：滑杆 0..100 → 0..0.92。
+    // 上限留 0.08 余量，让主题底图在最不透时仍能留一点点氛围（而不是彻底变纯色块）。
+    val drawerSurfaceLayerAlpha = drawerSurfaceAlphaRaw * 0.92f
+    val drawerThemeId = settings.themeId
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = when (settings.displaySetting.materialMode) {
         DisplayMaterialMode.TRANSLUCENT,
@@ -254,30 +257,38 @@ fun ChatDrawerContent(
             // `encodeDefaults = true`，已装机用户的 preferences[DISPLAY_SETTING] 里一定存着
             // `"drawerSurfaceOpacity":100.0`，改默认值对他们完全无效。只有在合成层动手才
             // 真的改变行为。
-            // 容器只做极淡的材质染色：真正的遮挡由内部底板负责，
-            // 避免「容器 0.49 + 反向 scrim」那种叠加导致滑杆失效的旧问题。
-            MaterialTheme.colorScheme.surfaceContainer.copy(
-                alpha = 0.55f * drawerSurfaceAlpha
-            ),
+            // 容器只做极淡染色，且**不再与滑杆相乘**（避免同一数值多层重复相乘）。
+            // 真正的遮挡由内部 L0/L1 层负责，表面感由 L3 层按滑杆连续调节。
+            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.30f),
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // ---- Bug1 修复：抽屉自有底板（绘制顺序最底，先于背景图与内容）----
-            //
-            // 这一层负责「挡住底层聊天正文」。它用主题色的**不透明 RGB**，只调 alpha，
-            // 因此不会像容器那样继承 surfaceContainer 自带的 0.82 透明度。
-            // 层级（自下而上）：底板 -> 用户背景图 -> 卡片/列表等内容。
-            // 纪念卡自身的玻璃质感不受影响（它画在底板之上）。
+            // ---- L0：主题底图（带图主题才有；按侧栏区域 Crop 绘制）----
+            // 复用 RouteActivity 用的同一张资源，不新增图片，也不改主页面背景。
+            if (drawerThemeId in GLASS_BACKGROUND_THEMES) {
+                Image(
+                    painter = painterResource(id = R.drawable.harbor_chat_bg),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.55f,
+                )
+            }
+            // ---- L1：主题 scrim（不透明来源，负责挡住底层聊天正文）----
+            // 带图主题用主题 scrim 色；普通主题直接用页面背景色。
+            // 这一层是**不透明**的，所以侧栏任何滑杆档位下都不会透出聊天消息。
+            val scrimColor = when (drawerThemeId) {
+                in GLASS_BACKGROUND_THEMES -> MaterialTheme.colorScheme.surfaceContainer
+                else -> MaterialTheme.colorScheme.surface
+            }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceContainer.copy(
-                            alpha = drawerBackingAlpha
-                        )
-                    ),
+                    .background(scrimColor),
             )
-            // 侧边栏背景图（在底板之上，保证用户图片仍可见）
+            // ---- L2：用户自定义侧栏背景图（可选，叠在 scrim 之上）----
+            // 旧行为保留：用户设了图就显示，alpha 0.15 保持克制。
+            // 侧边栏背景图
             val drawerBgPath = settings.displaySetting.drawerBackgroundPath
             if (drawerBgPath.isNotEmpty()) {
                 val bgFile = java.io.File(drawerBgPath)
@@ -298,6 +309,19 @@ fun ChatDrawerContent(
                 }
             }
 
+            // ---- L3：侧栏表面层（drawerSurfaceOpacity 直接、连续控制）----
+            // 叠在 L1/L2 之上：滑杆越高表面越实、主题氛围越淡；越低则底图/scrim 越明显。
+            // 因为 L1 本身不透明，所以无论滑杆拉到多低，聊天正文都不会穿透。
+            // 同时这里**不再**用「1 - 滑杆」的反向补偿，滑杆语义单一可预测。
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainer.copy(
+                            alpha = drawerSurfaceLayerAlpha
+                        )
+                    ),
+            )
             Column(
                 modifier = Modifier.padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1041,13 +1065,15 @@ private fun DrawerItemSurface(
     content: @Composable () -> Unit,
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurface
-    val backgroundColor = when (materialMode) {
-        DisplayMaterialMode.FLAT,
-        DisplayMaterialMode.FOLLOW_THEME -> color
-
-        DisplayMaterialMode.TRANSLUCENT,
-        DisplayMaterialMode.GLASS -> color.copy(alpha = drawerItemAlpha)
-    }
+    // 侧栏元素透明度（drawerItemAlpha）在三种材质下都必须生效。
+    //
+    // 旧实现里 FLAT / FOLLOW_THEME 直接 return color，滑块在平面模式下完全失效，
+    // 这正是「某模式完全忽略滑块」的问题。现在统一乘上滑块；
+    // 三种模式的差别只体现在装饰层（描边、玻璃高光），不体现在滑块是否起作用。
+    //
+    // 乘的是「color 已有 alpha × 滑块」，而不是把 alpha 覆盖成滑块值，
+    // 避免把极淡底色变成不透明块。
+    val backgroundColor = color.copy(alpha = color.alpha * drawerItemAlpha)
     val borderColor = when (materialMode) {
         DisplayMaterialMode.TRANSLUCENT -> contentColor.copy(alpha = 0.05f * drawerItemAlpha)
         DisplayMaterialMode.GLASS -> contentColor.copy(alpha = 0.04f * drawerItemAlpha)
