@@ -475,8 +475,14 @@ private fun ModelList(
     var discoverState by remember(providerSetting.id) { mutableStateOf<UiState<List<Model>>>(UiState.Idle) }
     var fetchAttempt by remember(providerSetting.id) { mutableStateOf(0) }
 
-    LaunchedEffect(providerSetting, fetchAttempt) {
-        discoverState = UiState.Loading
+    // Bug2 修复（1/3）：拉取的触发条件只取「真正影响远端结果」的字段。
+    // 旧 key 是整个 providerSetting 数据类实例 —— 每次 addModel/delModel 都会产生
+    // 新实例 ⇒ key 变化 ⇒ effect 重跑 ⇒ 列表被清空 ⇒ 再走一遍网络，这就是闪白的根因。
+    val fetchKey = "${providerSetting.id}|${providerSetting::class.simpleName}"
+    LaunchedEffect(fetchKey, fetchAttempt) {
+        // Bug2 修复（2/3）：加载中**不清空**已有列表，只标记 loading。
+        // 旧代码 discoverState = Loading 会让 modelList 立刻变 emptyList → 整块闪白。
+        discoverState = (discoverState as? UiState.Success) ?: UiState.Loading
         discoverState = runCatching {
             providerManager.getProviderByType(providerSetting)
                 .listModels(providerSetting)

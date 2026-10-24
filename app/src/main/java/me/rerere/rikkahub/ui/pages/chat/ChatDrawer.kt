@@ -197,6 +197,25 @@ fun ChatDrawerContent(
 
     val drawerSurfaceAlpha =
         (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0.6f, 1f)
+    // ---- Bug1 修复：抽屉必须有独立且足够遮挡的底板 ----
+    //
+    // 旧实现让 ModalDrawerSheet 的容器 alpha = surfaceContainer.alpha(0.82) × 滑杆，
+    // 滑杆 60% 时实际只有 0.49 不透明度 ⇒ 底层聊天正文直接透过纪念卡与列表。
+    // 旧版还有一层「1 - 滑杆」的反向 scrim，两者叠加后总不透明度几乎恒定，
+    // 于是滑杆看起来「拉了没反应」。这两处都拆掉，改为单一、单调的底板。
+    //
+    // 底板 alpha 映射（滑杆 60%..100% → 下方区间），保证任何档位都读得清：
+    //   普通材质（FLAT / FOLLOW_THEME）：0.94 .. 1.00
+    //   玻璃 / 半透明材质：          0.90 .. 0.98（保留一点透，但不透字）
+    // 滑杆仍然有效（单调递增），全局透明度功能未被关闭。
+    val glassyDrawer =
+        settings.displaySetting.materialMode == DisplayMaterialMode.GLASS ||
+            settings.displaySetting.materialMode == DisplayMaterialMode.TRANSLUCENT
+    val drawerBackingAlpha = if (glassyDrawer) {
+        0.90f + 0.08f * drawerSurfaceAlpha
+    } else {
+        0.94f + 0.06f * drawerSurfaceAlpha
+    }
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = when (settings.displaySetting.materialMode) {
         DisplayMaterialMode.TRANSLUCENT,
@@ -235,28 +254,30 @@ fun ChatDrawerContent(
             // `encodeDefaults = true`，已装机用户的 preferences[DISPLAY_SETTING] 里一定存着
             // `"drawerSurfaceOpacity":100.0`，改默认值对他们完全无效。只有在合成层动手才
             // 真的改变行为。
+            // 容器只做极淡的材质染色：真正的遮挡由内部底板负责，
+            // 避免「容器 0.49 + 反向 scrim」那种叠加导致滑杆失效的旧问题。
             MaterialTheme.colorScheme.surfaceContainer.copy(
-                alpha = MaterialTheme.colorScheme.surfaceContainer.alpha * drawerSurfaceAlpha
+                alpha = 0.55f * drawerSurfaceAlpha
             ),
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // 内容防串层遮罩（最后修复）：抽屉容器是半透明的（drawerSurfaceOpacity 控制），
-            // 底下聊天列表的文字会直接透进卡片区域造成「文字叠文字」。
-            // 在背景图之上、内容之下垫一层主题色 scrim：
-            //   scrim alpha = 1 - drawerSurfaceAlpha  => 滑杆拉到 100% 时 scrim 为 0（纯玻璃），
-            //   拉到 60% 时 scrim 0.4，把穿透文字压到不可读但背景材质还在。
-            // 不改 ModalDrawerSheet 的容器 alpha，不动全局透明度设置。
+            // ---- Bug1 修复：抽屉自有底板（绘制顺序最底，先于背景图与内容）----
+            //
+            // 这一层负责「挡住底层聊天正文」。它用主题色的**不透明 RGB**，只调 alpha，
+            // 因此不会像容器那样继承 surfaceContainer 自带的 0.82 透明度。
+            // 层级（自下而上）：底板 -> 用户背景图 -> 卡片/列表等内容。
+            // 纪念卡自身的玻璃质感不受影响（它画在底板之上）。
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         MaterialTheme.colorScheme.surfaceContainer.copy(
-                            alpha = (1f - drawerSurfaceAlpha).coerceIn(0f, 0.55f)
+                            alpha = drawerBackingAlpha
                         )
                     ),
             )
-            // 侧边栏背景图（最底层）
+            // 侧边栏背景图（在底板之上，保证用户图片仍可见）
             val drawerBgPath = settings.displaySetting.drawerBackgroundPath
             if (drawerBgPath.isNotEmpty()) {
                 val bgFile = java.io.File(drawerBgPath)
