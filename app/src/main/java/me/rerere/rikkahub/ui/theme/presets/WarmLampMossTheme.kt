@@ -69,45 +69,57 @@ private val mossSurfaceContainerLight = Color(0xFFE2D7C3)
 private val mossSurfaceContainerHighLight = Color(0xFFE9DDC7)
 private val mossSurfaceContainerHighestLight = Color(0xFFEFE6D3)
 
-// ── 夜间 Warm Lamp · Night ───────────────────────────────────────────
-// 规格色：页面背景 #20251E、普通表面 #2B3127、助手气泡 #343A30、
-// 用户气泡 #454D36、主色 #929967、暖灯金 #D8B477、正文 #EAE5D6、次级文字 #A9AD91。
-private val mossPrimaryDark = Color(0xFF929967)
-private val mossOnPrimaryDark = Color(0xFF20251E)
-private val mossPrimaryContainerDark = Color(0xFF343A30)
-private val mossOnPrimaryContainerDark = Color(0xFFEAE5D6)
-private val mossSecondaryDark = Color(0xFFA9AD91)
-private val mossOnSecondaryDark = Color(0xFF20251E)
-private val mossSecondaryContainerDark = Color(0xFF454D36)
-private val mossOnSecondaryContainerDark = Color(0xFFEAE5D6)
-private val mossTertiaryDark = Color(0xFFD8B477)
-private val mossOnTertiaryDark = Color(0xFF20251E)
-private val mossTertiaryContainerDark = Color(0xFF4A3D28)
-private val mossOnTertiaryContainerDark = Color(0xFFF0DFC2)
+// ── 夜间 Warm Lamp · Night ────────────────────────────────────────
+// 暖炭灰 / 灰褐主调；苔绿只做少量强调，暖灯金负责点缀。
+//
+// 规格色 → token 映射（与项目实际读色点一致）：
+//   页面背景   #242522 → background
+//   普通表面   #302F2A → surface / surfaceContainer（输入框读 surfaceContainer）
+//   助手气泡   #393831 → surfaceContainerHigh
+//   用户气泡   #454638 → secondaryContainer
+//   思维链表面 #34342F → tertiaryContainer（本主题已加入 THEME_THINKING_CONTAINER_THEMES）
+//   主色       #A4A181 → primary
+//   暖灯金     #D5B477 → tertiary
+//   正文       #EAE5D9 → onSurface / onBackground
+//   次级文字   #B8B2A2 → onSurfaceVariant
+private val mossPrimaryDark = Color(0xFFA4A181)
+private val mossOnPrimaryDark = Color(0xFF242522)
+private val mossPrimaryContainerDark = Color(0xFF393831)
+private val mossOnPrimaryContainerDark = Color(0xFFEAE5D9)
+private val mossSecondaryDark = Color(0xFFB8B2A2)
+private val mossOnSecondaryDark = Color(0xFF242522)
+private val mossSecondaryContainerDark = Color(0xFF454638)
+private val mossOnSecondaryContainerDark = Color(0xFFEAE5D9)
+// 暖灯金：点缀色（选中态、少量图标、装饰）
+private val mossTertiaryDark = Color(0xFFD5B477)
+private val mossOnTertiaryDark = Color(0xFF242522)
+// 思维链表面专用槽位
+private val mossTertiaryContainerDark = Color(0xFF34342F)
+private val mossOnTertiaryContainerDark = Color(0xFFEAE5D9)
 private val mossErrorDark = Color(0xFFE0A392)
 private val mossOnErrorDark = Color(0xFF3A1710)
 private val mossErrorContainerDark = Color(0xFF5C2418)
 private val mossOnErrorContainerDark = Color(0xFFF5DDD6)
 
-private val mossBackgroundDark = Color(0xFF20251E)
-private val mossOnBackgroundDark = Color(0xFFEAE5D6)
-private val mossSurfaceDark = Color(0xFF2B3127)
-private val mossOnSurfaceDark = Color(0xFFEAE5D6)
-private val mossSurfaceVariantDark = Color(0xFF454D36)
-private val mossOnSurfaceVariantDark = Color(0xFFA9AD91)
-private val mossOutlineDark = Color(0xFF6B7358)
-private val mossOutlineVariantDark = Color(0xFF3B4234)
+private val mossBackgroundDark = Color(0xFF242522)
+private val mossOnBackgroundDark = Color(0xFFEAE5D9)
+private val mossSurfaceDark = Color(0xFF302F2A)
+private val mossOnSurfaceDark = Color(0xFFEAE5D9)
+private val mossSurfaceVariantDark = Color(0xFF454638)
+private val mossOnSurfaceVariantDark = Color(0xFFB8B2A2)
+private val mossOutlineDark = Color(0xFF6E6A5E)
+private val mossOutlineVariantDark = Color(0xFF423F37)
 private val mossScrimDark = Color(0xFF000000)
-private val mossInverseSurfaceDark = Color(0xFFEAE5D6)
-private val mossInverseOnSurfaceDark = Color(0xFF20251E)
-private val mossInversePrimaryDark = Color(0xFFD8B477)
-private val mossSurfaceDimDark = Color(0xFF1A1F19)
-private val mossSurfaceBrightDark = Color(0xFF3B4234)
-private val mossSurfaceContainerLowestDark = Color(0xFF171C16)
-private val mossSurfaceContainerLowDark = Color(0xFF232922)
-private val mossSurfaceContainerDark = Color(0xFF2B3127)
-private val mossSurfaceContainerHighDark = Color(0xFF343A30)
-private val mossSurfaceContainerHighestDark = Color(0xFF454D36)
+private val mossInverseSurfaceDark = Color(0xFFEAE5D9)
+private val mossInverseOnSurfaceDark = Color(0xFF242522)
+private val mossInversePrimaryDark = Color(0xFFD5B477)
+private val mossSurfaceDimDark = Color(0xFF1D1E1B)
+private val mossSurfaceBrightDark = Color(0xFF413F37)
+private val mossSurfaceContainerLowestDark = Color(0xFF1D1E1B)
+private val mossSurfaceContainerLowDark = Color(0xFF282824)
+private val mossSurfaceContainerDark = Color(0xFF302F2A)
+private val mossSurfaceContainerHighDark = Color(0xFF393831)
+private val mossSurfaceContainerHighestDark = Color(0xFF413F37)
 
 private val warmLampLightScheme = lightColorScheme(
     primary = mossPrimaryLight,
