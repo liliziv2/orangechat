@@ -893,11 +893,26 @@ private fun DrawerMemorialCard(
                         Spacer(Modifier.width(18.dp))
                         // 右：栖 = 助手（与名字同数据源绑定）。点击直达助手设置页。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            // 头像外环：只做「细、低对比度、日夜一致」的边缘分隔。
+                            //
+                            // 旧实现是 border(1.5.dp, colorScheme.surface)：
+                            //  1) 宽度 1.5dp 在 54dp 头像上读起来是粗圈；
+                            //  2) 取色用 surface —— 夜间 #302F2A（暖炭灰）压在
+                            //     primaryContainer@55% 的浅底上直接读成黑圈；日间
+                            //     surface 是浅纸色，读成白圈；日夜各错一边；
+                            //  3) surface 还带着 interfaceSurfaceOpacity 的 alpha，
+                            //     调侧栏透明度时环的观感跟着变 —— 正是「拉透明度后
+                            //     头像冒出异常外圈」的根源。
+                            // 现改为 1dp + outlineVariant（不参与任何透明度合成、
+                            // 日夜各有一档低对比度）。左侧渺渺本来就是裸 UIAvatar
+                            // 不带环，保持原样；这里只把「多出来的那个粗环」修正到
+                            // 与整体克制风格一致的强度。
+                            // 头像尺寸/位置/裁切/交叠关系一律不动。
                             Box(
                                 modifier = Modifier
                                     .size(54.dp)
-                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
-                                    .padding(1.5.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                    .padding(1.dp)
                                     .clip(CircleShape)
                                     .clickable(onClick = onAssistantClick),
                             ) {
