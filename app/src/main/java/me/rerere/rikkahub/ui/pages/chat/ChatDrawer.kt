@@ -93,6 +93,7 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sun03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.theme.GLASS_BACKGROUND_THEMES
+import me.rerere.rikkahub.ui.theme.opaqueSurfaceColor
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
@@ -275,12 +276,18 @@ fun ChatDrawerContent(
                     alpha = 0.55f,
                 )
             }
-            // ---- L1：主题 scrim（不透明来源，负责挡住底层聊天正文）----
-            // 带图主题用主题 scrim 色；普通主题直接用页面背景色。
-            // 这一层是**不透明**的，所以侧栏任何滑杆档位下都不会透出聊天消息。
-            val scrimColor = when (drawerThemeId) {
-                in GLASS_BACKGROUND_THEMES -> MaterialTheme.colorScheme.surfaceContainer
-                else -> MaterialTheme.colorScheme.surface
+            // ---- L1：遮挡底板（真正的「不透明来源」，负责挡住底层聊天正文）----
+            //
+            // ⚠️ 这里**必须**读 opaqueSurfaceColor()，不能直接读 surface / surfaceContainer。
+            // Theme 的 alpha 合成会把这两个 token 的 alpha 改写为 interfaceSurfaceOpacity
+            // （默认 82%），直接读到的就是 0.82 的半透色 —— 那样这一层根本挡不住底下的
+            // 聊天正文，滑杆怎么调都只是「把它压得更淡」，透字依旧。
+            // opaqueSurfaceColor() 取回主题 RGB 并把 alpha 强制回 1f，与任何滑块无关：
+            // 底板负责「能不能透」，drawerSurfaceOpacity(L3) 负责「表面感强弱」，职责分离。
+            val scrimColor = if (drawerThemeId in GLASS_BACKGROUND_THEMES) {
+                opaqueSurfaceColor(useContainer = true)
+            } else {
+                opaqueSurfaceColor(useContainer = false)
             }
             Box(
                 modifier = Modifier

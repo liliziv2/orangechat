@@ -43,6 +43,30 @@ fun popupContainerColor(baseContainerColor: Color): Color {
     return baseContainerColor.copy(alpha = popupAlpha)
 }
 
+/**
+ * 不透明基色 —— 用于**必须完全阻断下层内容**的区域（侧栏遮挡层等）。
+ *
+ * 为什么需要它：Theme 的 alpha 合成阶段会把 surface / surfaceBright / surfaceDim /
+ * surfaceContainer* / surfaceVariant 这 9 个 token 的 alpha 统一改写为
+ * `interfaceSurfaceOpacity`（默认 82%）。这是「界面轻透」的语义，本身没错；
+ * 但任何以「我要挡住下面的内容」为目的的背景层，如果直接读 `surface` 或
+ * `surfaceContainer`，拿到的就不是不透明色，而是 0.82 的半透色 ——
+ * 于是底下的聊天正文会穿透上来，而且越往下叠加半透明层也压不干净。
+ *
+ * 这个函数把主题原本的 RGB 取回来、alpha 强制拉回 1f，作为真正的底板。
+ * 它**不参与**任何透明度滑块（滑块管的是「表面感强弱」，底板管的是「能不能透」），
+ * 两者职责分离，不会互相覆盖或重复相乘。
+ *
+ * @param useContainer true 取 surfaceContainer（与带底图主题的 scrim 同色系），
+ *                     false 取 surface（与页面背景同色系）。
+ */
+@Composable
+@ReadOnlyComposable
+fun opaqueSurfaceColor(useContainer: Boolean = false): Color {
+    val scheme = MaterialTheme.colorScheme
+    return (if (useContainer) scheme.surfaceContainer else scheme.surface).copy(alpha = 1f)
+}
+
 internal val GLASS_BACKGROUND_THEMES = setOf("harbor", "creamrose")
 
 /**
