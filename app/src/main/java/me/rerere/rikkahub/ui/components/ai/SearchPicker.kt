@@ -1,5 +1,6 @@
 ﻿package me.rerere.rikkahub.ui.components.ai
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -116,6 +117,7 @@ fun SearchPickerButton(
 
     if (showSearchPicker) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
             onDismissRequest = { showSearchPicker = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {

@@ -1,5 +1,6 @@
 ﻿package me.rerere.rikkahub.ui.components.ai
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -104,6 +105,7 @@ fun ReasoningPicker(
     }
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
         onDismissRequest = onDismissRequest,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {

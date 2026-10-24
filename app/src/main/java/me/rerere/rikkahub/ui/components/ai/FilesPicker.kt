@@ -1,5 +1,6 @@
 ﻿package me.rerere.rikkahub.ui.components.ai
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -217,6 +218,7 @@ private fun InjectionQuickConfigSheet(
     val navController = LocalNavController.current
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {

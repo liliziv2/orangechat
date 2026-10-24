@@ -114,6 +114,7 @@ fun McpPickerButton(
     }
     if (showMcpPicker) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
             onDismissRequest = { showMcpPicker = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {

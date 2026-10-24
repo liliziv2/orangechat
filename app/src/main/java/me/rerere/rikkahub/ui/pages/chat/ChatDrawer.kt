@@ -1,5 +1,6 @@
 ﻿package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.activity.ComponentActivity
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
@@ -555,6 +556,7 @@ fun ChatDrawerContent(
             }
         }
         ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
             onDismissRequest = {
                 showMoveToFolderSheet = false
                 conversationToMoveFolder = null
@@ -730,6 +732,7 @@ fun ChatDrawerContent(
     // 移动到助手 Bottom Sheet
     if (showMoveToAssistantSheet) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
             onDismissRequest = {
                 showMoveToAssistantSheet = false
                 conversationToMove = null

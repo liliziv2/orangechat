@@ -1,5 +1,6 @@
 ﻿package me.rerere.rikkahub.ui.components.ai
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -133,6 +134,7 @@ private fun AssistantPickerSheet(
     }
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {

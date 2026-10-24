@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.foundation.lazy.itemsIndexed
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Package01
@@ -875,6 +876,7 @@ private fun AddModelButton(
         dialogState.currentState?.let { modelState ->
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
                 onDismissRequest = {
                     dialogState.dismiss()
                 },
@@ -960,6 +962,7 @@ private fun ModelPicker(
     var showModal by remember { mutableStateOf(false) }
     if (showModal) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
             onDismissRequest = { showModal = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         ) {
@@ -1331,6 +1334,7 @@ private fun ModelCard(
         dialogState.currentState?.let { editingModel ->
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
                 onDismissRequest = {
                     dialogState.dismiss()
                 },
@@ -1674,6 +1678,7 @@ private fun ProviderOverrideSettings(
         // Provider configuration modal
         if (showProviderConfig && editingProvider != null) {
             ModalBottomSheet(
+        containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerLow),
                 onDismissRequest = {
                     showProviderConfig = false
                     editingProvider = null
