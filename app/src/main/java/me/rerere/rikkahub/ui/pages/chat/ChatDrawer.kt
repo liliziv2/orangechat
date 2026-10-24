@@ -304,14 +304,27 @@ fun ChatDrawerContent(
             // 图像生成 / AI 翻译 / Mini Apps / 记忆库 不再出现在侧栏。
             DrawerDivider()
 
-            FolderBar(
-                folders = folders,
-                selectedFolderId = selectedFolderId,
-                onSelect = { drawerVm.selectFolder(it) },
-                onCreate = { showCreateFolderDialog = true },
-                onRename = { folderToRename = it },
-                onDelete = { folderToDelete = it },
-            )
+            // 清单 §2/§4：无文件夹 -> [聊天][新建对话]；有文件夹 -> [聊天][文件夹][新建对话]。
+            // 文件夹入口点击后在横向 chips 间切换（LazyRow 可滚动），不竖排。
+            if (folders.isEmpty()) {
+                FolderBar(
+                    folders = emptyList(),
+                    selectedFolderId = selectedFolderId,
+                    onSelect = { drawerVm.selectFolder(it) },
+                    onCreate = { showCreateFolderDialog = true },
+                    onRename = { folderToRename = it },
+                    onDelete = { folderToDelete = it },
+                )
+            } else {
+                FolderBar(
+                    folders = folders,
+                    selectedFolderId = selectedFolderId,
+                    onSelect = { drawerVm.selectFolder(it) },
+                    onCreate = { showCreateFolderDialog = true },
+                    onRename = { folderToRename = it },
+                    onDelete = { folderToDelete = it },
+                )
+            }
 
             ConversationList(
                 current = current,
@@ -777,17 +790,26 @@ private fun DrawerMemorialCard(
                         modifier = Modifier.align(Alignment.Center),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 左：渺渺 = 用户。点击弹原有「更换头像」对话框。
+                        // 左：栖 = 助手（清单 §2 定稿：栖在左、渺渺在右）。点击直达助手设置页。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            UIAvatar(
-                                name = settings.displaySetting.userNickname,
-                                value = settings.displaySetting.userAvatar,
-                                modifier = Modifier.size(52.dp),
-                                onUpdate = onUpdateUserAvatar,
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape)
+                                    .padding(1.5.dp)
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onAssistantClick),
+                            ) {
+                                ChatMessageSideAvatar(
+                                    role = MessageRole.ASSISTANT,
+                                    model = settings.getCurrentChatModel(),
+                                    assistant = currentAssistant,
+                                    size = 48.dp,
+                                )
+                            }
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = userName,
+                                text = assistantName,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -804,24 +826,17 @@ private fun DrawerMemorialCard(
                             )
                         }
                         Spacer(Modifier.width(18.dp))
-                        // 右：栖 = 助手。点击直达助手设置页。
+                        // 右：渺渺 = 用户。点击弹原有「更换头像」对话框。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .clickable(onClick = onAssistantClick),
-                            ) {
-                                ChatMessageSideAvatar(
-                                    role = MessageRole.ASSISTANT,
-                                    model = settings.getCurrentChatModel(),
-                                    assistant = currentAssistant,
-                                    size = 52.dp,
-                                )
-                            }
+                            UIAvatar(
+                                name = settings.displaySetting.userNickname,
+                                value = settings.displaySetting.userAvatar,
+                                modifier = Modifier.size(52.dp),
+                                onUpdate = onUpdateUserAvatar,
+                            )
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = assistantName,
+                                text = userName,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -874,6 +889,14 @@ private fun DrawerMemorialCard(
                         modifier = Modifier.weight(1f),
                     )
                 }
+                // ---- 卡片底部日期小字（§2：系统当天日期，来源有效、不假造纪念日）----
+                Text(
+                    text = java.time.LocalDate.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy年M月d日 EEEE", java.util.Locale.getDefault())),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }
@@ -1169,14 +1192,17 @@ private fun FolderBar(
                 }
             }
         }
-        item {
-            FolderChip(
-                label = stringResource(R.string.chat_page_folder_add),
-                icon = HugeIcons.FolderAdd,
-                selected = false,
-                onClick = onCreate,
-                onLongClick = {},
-            )
+        // 新建文件夹入口只在已有文件夹时出现（基础态保持 [聊天] 极简）。
+        if (folders.isNotEmpty()) {
+            item {
+                FolderChip(
+                    label = stringResource(R.string.chat_page_folder_add),
+                    icon = HugeIcons.FolderAdd,
+                    selected = false,
+                    onClick = onCreate,
+                    onLongClick = {},
+                )
+            }
         }
     }
 }
