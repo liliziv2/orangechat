@@ -42,7 +42,14 @@ private val mossOnSecondaryContainerLight = Color(0xFF3B3429)
 // 暖灯金：点缀色（选中态、少量图标、装饰）
 private val mossTertiaryLight = Color(0xFFD49A54)
 private val mossOnTertiaryLight = Color(0xFF3B3429)
-private val mossTertiaryContainerLight = Color(0xFFF2E2C8)
+// 思维链表面专用槽位（日间）。
+//
+// 任务单 §六 日间规格要求「思维链表面 #D8D6C0」。而这个主题在
+// Theme.kt 的 THEME_THINKING_CONTAINER_THEMES 里，思维链卡片转读
+// tertiaryContainer —— 也就是说 tertiaryContainer 的日间取值直接就是
+// 思维链的显色，必须是 #D8D6C0，而不是之前的奶油金 #F2E2C8。
+// 暖灯金继续只由 tertiary（#D49A54）承担小面积点缀。
+private val mossTertiaryContainerLight = Color(0xFFD8D6C0)
 private val mossOnTertiaryContainerLight = Color(0xFF5A4526)
 private val mossErrorLight = Color(0xFF9B4A3C)
 private val mossOnErrorLight = Color(0xFFFFFFFF)
