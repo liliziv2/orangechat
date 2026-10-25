@@ -153,26 +153,6 @@ fun SettingDisplayTransparencyPage(vm: SettingVM = koinViewModel()) {
                         }
                     )
                     item(
-                        headlineContent = { Text("思维链透明度") },
-                        supportingContent = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Slider(
-                                    value = displaySetting.thinkingChainTransparency,
-                                    onValueChange = {
-                                        updateDisplaySetting(displaySetting.copy(thinkingChainTransparency = it))
-                                    },
-                                    valueRange = 0f..100f,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(text = "${displaySetting.thinkingChainTransparency.roundToInt()}%")
-                            }
-                        }
-                    )
-                    item(
                         headlineContent = { Text("侧边栏元素透明度") },
                         supportingContent = {
                             Row(

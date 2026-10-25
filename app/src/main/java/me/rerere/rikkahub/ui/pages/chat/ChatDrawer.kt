@@ -216,15 +216,19 @@ fun ChatDrawerContent(
     // 关键点：遮挡只由 L0 一层负责、调节只由 L1 一层负责，职责分离。
     // 旧实现把「遮挡」和「表面感」压在同两三层半透明底色上，alpha 叠起来接近 1.0，
     // 侧栏就变成一块实色板 —— 滑杆再怎么拉也看不出区别。
-    val drawerSurfaceAlphaRaw =
-        (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0f, 1f)
-    // 侧栏表面染色层 alpha：滑杆 0..100 → 0..0.70。
+    // 侧栏表面染色层 alpha：
     //
-    // 上限从 0.92 压到 0.70：侧栏底下已经是**不透明的主题底**，两层叠加时
-    // 0.92 会让总不透明度逼近 1.0，侧栏读成实色板、滑块几乎没区别（用户反馈
-    // 「又不太透明了」就是这个）。0.70 让默认 100% 档仍留约 30% 的主题氛围，
-    // 滑块往低调则连续变得更通透，而聊天正文始终被 L0 挡住。
-    val drawerSurfaceLayerAlpha = drawerSurfaceAlphaRaw * 0.70f
+    // 侧栏底层 L0 已经有实色/底图提供 100% 遮挡（杜绝文字穿透）。
+    // 旧实现给染色层乘了 0.70 上限，但滑块默认被夹在 60%..100%，
+    // 导致实际在屏幕上的调节区间只有 0.42..0.70（跨度仅 0.28），所以「三档调节不够明显」。
+    //
+    // 放大动态范围：滑块 0.60..1.00 映射到 0.15..0.85（跨度 0.70）：
+    // - 60%（最透）：染色层仅 0.15，底图/渐变和背景氛围极其清透强烈；
+    // - 80%（中间）：染色层 0.50，适中的半透明质感；
+    // - 100%（最实）：染色层 0.85，接近完全实色面板。
+    // 三档递进阶梯极大（0.15 -> 0.50 -> 0.85），肉眼差距极其明显，同时 L0 依然稳稳挡住下层文字。
+    val drawerSurfaceProgress = ((settings.displaySetting.drawerSurfaceOpacity - 60f) / 40f).coerceIn(0f, 1f)
+    val drawerSurfaceLayerAlpha = 0.15f + drawerSurfaceProgress * 0.70f
     val drawerThemeId = settings.themeId
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = when (settings.displaySetting.materialMode) {
