@@ -215,6 +215,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
                         current = conversation,
                         vm = vm,
                         settings = setting,
+                        hazeState = hazeState,
                     )
                 }
             ) {
@@ -249,6 +250,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
                         current = conversation,
                         vm = vm,
                         settings = setting,
+                        hazeState = hazeState,
                     )
                 }
             ) {

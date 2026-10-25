@@ -2,6 +2,10 @@
 
 import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.activity.ComponentActivity
+import android.os.Build
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.HazeMaterials
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
@@ -138,6 +142,7 @@ fun ChatDrawerContent(
     vm: ChatVM,
     settings: Settings,
     current: Conversation,
+    hazeState: HazeState? = null,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -201,35 +206,20 @@ fun ChatDrawerContent(
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
-    // ---- 侧栏表面分层（材质系统重修 §五）----
-    //
-    // 历史问题：
-    //   1) 容器 alpha = surfaceContainer.alpha(0.82) × 滑杆 ⇒ 60% 时只有 0.49，透出聊天正文；
-    //   2) 另有一层「1 - 滑杆」的反向 scrim，与容器互补 ⇒ 总不透明度几乎恒定，滑杆看起来失效；
-    //   3) 随后改成 0.90~0.98 的窄区间底板 ⇒ 滑杆依然几乎看不出变化（任务单点名）。
-    //
-    // 现在的分层（自下而上，全部画在 ModalDrawerSheet 内部）：
-    //   L0 主题底（**不透明**）：带图主题 = 底图 Crop + 主题 scrim；普通主题 = 页面背景实色
-    //      + 一层极淡的主题色渐变。它独自承担「挡住聊天正文」的职责。
-    //   L1 表面染色层（alpha = 滑杆 × 0.70）：只调「表面感强弱」，即还能看到多少主题氛围。
-    //   L2 用户自定义侧栏背景图（若设置了，alpha 0.15 保持克制）
-    //   L3 纪念卡 / 文件夹 / 会话列表 / 底栏等内容
-    //
-    // 关键点：遮挡只由 L0 一层负责、调节只由 L1 一层负责，职责分离。
-    // 旧实现把「遮挡」和「表面感」压在同两三层半透明底色上，alpha 叠起来接近 1.0，
-    // 侧栏就变成一块实色板 —— 滑杆再怎么拉也看不出区别。
-    // Keep the opaque backing, but expose more of the drawer's own background.
-    // 60 / 80 / 100 map to tint alpha 0.05 / 0.35 / 0.65.
+    val drawerMode = settings.displaySetting.materialMode
+    val isFlatDrawer = drawerMode == DisplayMaterialMode.FLAT || drawerMode == DisplayMaterialMode.FOLLOW_THEME
+    val useDrawerBlur = drawerMode == DisplayMaterialMode.GLASS && hazeState != null &&
+        settings.displaySetting.enableBlurEffect && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val drawerSurfaceProgress = ((settings.displaySetting.drawerSurfaceOpacity - 60f) / 40f).coerceIn(0f, 1f)
     val drawerSurfaceLayerAlpha = 0.05f + drawerSurfaceProgress * 0.60f
     val drawerThemeId = settings.themeId
     val drawerShape = DrawerDefaults.shape
-    val showDrawerBorder = when (settings.displaySetting.materialMode) {
-        DisplayMaterialMode.TRANSLUCENT,
-        DisplayMaterialMode.GLASS -> true
-
-        DisplayMaterialMode.FLAT,
-        DisplayMaterialMode.FOLLOW_THEME -> false
+    val showDrawerBorder = drawerMode == DisplayMaterialMode.TRANSLUCENT
+    val drawerBgPath = settings.displaySetting.drawerBackgroundPath
+    val drawerBgBitmap = remember(drawerBgPath) {
+        drawerBgPath.takeIf { it.isNotBlank() }?.let { path ->
+            runCatching { BitmapFactory.decodeFile(java.io.File(path).absolutePath)?.asImageBitmap() }.getOrNull()
+        }
     }
     val drawerModifier = Modifier
         .width(300.dp)
@@ -237,7 +227,7 @@ fun ChatDrawerContent(
             if (showDrawerBorder) {
                 Modifier.border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
                     shape = drawerShape,
                 )
             } else {
@@ -248,99 +238,43 @@ fun ChatDrawerContent(
     ModalDrawerSheet(
         modifier = drawerModifier,
         drawerShape = drawerShape,
-        drawerContainerColor =
-            // 侧栏与其余表面统一：把用户那个滑块当**倍率**乘在主题已合成的
-            // surfaceContainer alpha 上，不再用 1.0 把它覆盖掉。
-            //
-            // 原来这里是 `.copy(alpha = drawerSurfaceAlpha)`，而 drawerSurfaceOpacity
-            // 默认 100f ⇒ alpha 恒为 1.0，把 Theme.kt 合成的 82% 顶掉 ⇒ 侧栏成了全 App
-            // 唯一一个不透明的表面（其余容器都读同一份 82% 的 surfaceContainer），
-            // 观感上比别的面板重一档。倍率化之后 100% = 与其余表面同色同透明，往下调更透。
-            //
-            // ⚠️ 不改 PreferencesStore 的默认值 100f → 82f：Json.kt 的 JsonInstant 是
-            // `encodeDefaults = true`，已装机用户的 preferences[DISPLAY_SETTING] 里一定存着
-            // `"drawerSurfaceOpacity":100.0`，改默认值对他们完全无效。只有在合成层动手才
-            // 真的改变行为。
-            // 容器只做极淡染色，且**不再与滑杆相乘**（避免同一数值多层重复相乘）。
-            // 真正的遮挡由内部 L0/L1 层负责，表面感由 L3 层按滑杆连续调节。
-            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.30f),
+        drawerContainerColor = Color.Transparent,
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // ---- L0：主题底（**不透明**，是整个侧栏「不透字」的唯一保障）----
-            //
-            // 这里必须是不透明的：只要这一层实了，底下聊天正文就永远进不来，
-            // 上面无论叠多少半透明层、滑杆拉到多低，都只会露出「主题氛围」，
-            // 而不会露出文字。
-            //
-            // 带壁纸主题（港口/奶油玫瑰）：底图按侧栏区域 Crop 绘制，再叠一层
-            // 主题 scrim 保证文字对比度；复用 RouteActivity 同一张资源，不新增图片。
-            // 普通主题：用页面背景实色 + 一层极淡的主题色渐变，避免读成一块死板的纯色。
-            if (drawerThemeId in GLASS_BACKGROUND_THEMES) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Image(
-                        painter = painterResource(id = R.drawable.harbor_chat_bg),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        // 1.0：底图本身要实，它承担遮挡职责。
-                        alpha = 1f,
+            if (isFlatDrawer) {
+                // A custom image replaces the preset; there is never a second image beneath it.
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 1f)))
+                when {
+                    drawerBgBitmap != null -> Image(
+                        bitmap = drawerBgBitmap, contentDescription = null,
+                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.22f)),
+                    drawerThemeId in GLASS_BACKGROUND_THEMES -> Image(
+                        painter = painterResource(R.drawable.harbor_chat_bg), contentDescription = null,
+                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
                     )
                 }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = 1f))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
-                                    Color.Transparent,
-                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f),
-                                )
-                            )
-                        ),
-                )
-            }
-            // ---- L2：用户自定义侧栏背景图（可选，叠在主题底之上）----
-            // 旧行为保留：用户设了图就显示，alpha 0.15 保持克制。
-            // 侧边栏背景图
-            val drawerBgPath = settings.displaySetting.drawerBackgroundPath
-            if (drawerBgPath.isNotEmpty()) {
-                val bgFile = java.io.File(drawerBgPath)
-                if (bgFile.exists()) {
-                    val bgBitmap = remember(drawerBgPath) {
-                        BitmapFactory.decodeFile(drawerBgPath)
-                    }
-                    if (bgBitmap != null) {
-                        Image(
-                            bitmap = bgBitmap.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .alpha(0.15f),
-                            contentScale = ContentScale.Crop,
-                        )
-                    }
-                }
-            }
-
-            // The only slider-controlled tint; backing already isolates chat text.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        MaterialTheme.colorScheme.surfaceContainer.copy(
-                            alpha = drawerSurfaceLayerAlpha
-                        )
+                Box(Modifier.fillMaxSize().background(
+                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)
+                ))
+            } else if (useDrawerBlur) {
+                // Sample the existing chat blur source, not a duplicate wallpaper.
+                Box(Modifier.fillMaxSize().clip(drawerShape).hazeEffect(
+                    state = hazeState,
+                    style = HazeMaterials.ultraThin(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 1f)
                     ),
-            )
+                ) {
+                    blurRadius = 32.dp
+                }.background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)))
+            } else {
+                // No wallpaper or unblurred chat text in translucent/unsupported-glass fallback.
+                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 1f)))
+                Box(Modifier.fillMaxSize().background(
+                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)
+                ))
+            }
             Column(
                 modifier = Modifier.padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -850,7 +784,7 @@ private fun DrawerMemorialCard(
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -866,19 +800,19 @@ private fun DrawerMemorialCard(
                         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Box(modifier = Modifier.weight(1f).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
-                    FourPetalFlower(size = 40.dp, color = scheme.primary.copy(alpha = 0.55f))
+                    FourPetalFlower(size = 36.dp, color = scheme.primary.copy(alpha = 0.42f))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
                     // Keep the image and centered hit target; no outer ring.
                     Box(
-                        modifier = Modifier.size(54.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
+                        modifier = Modifier.size(52.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
                         contentAlignment = Alignment.Center,
                     ) {
                         ChatMessageSideAvatar(
                             role = MessageRole.ASSISTANT,
                             model = settings.getCurrentChatModel(),
                             assistant = currentAssistant,
-                            size = 48.dp,
+                            size = 52.dp,
                         )
                     }
                     Spacer(Modifier.height(4.dp))
@@ -896,7 +830,7 @@ private fun DrawerMemorialCard(
             )
             // Compact actions at the bottom right; no date or placeholder.
             Row(
-                modifier = Modifier.align(Alignment.End).padding(top = 12.dp),
+                modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 MemorialCardPill(HugeIcons.Search01, stringResource(R.string.chat_page_search_chats), onSearch)
@@ -908,42 +842,33 @@ private fun DrawerMemorialCard(
 
 @Composable
 private fun MemorialCardPill(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier,
+    Row(
+        modifier = modifier.clip(MaterialTheme.shapes.small).clickable(onClick = onClick)
+            .heightIn(min = 48.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Row(
-            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-        }
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }
-
 /** Four identical round oval petals without pointed tails. */
 @Composable
 private fun FourPetalFlower(size: androidx.compose.ui.unit.Dp, color: Color) {
     Canvas(modifier = Modifier.size(size)) {
         val r = this.size.minDimension / 2f
         val c = center
-        val stroke = Stroke(width = 1.dp.toPx())
+        val stroke = Stroke(width = 0.7.dp.toPx())
         repeat(4) { index ->
             rotate(degrees = index * 90f, pivot = c) {
                 drawOval(
                     color = color,
-                    topLeft = Offset(c.x - r * 0.27f, c.y - r * 0.88f),
-                    size = Size(r * 0.54f, r * 0.72f),
+                    topLeft = Offset(c.x - r * 0.22f, c.y - r * 0.88f),
+                    size = Size(r * 0.44f, r * 0.70f),
                     style = stroke,
                 )
             }
