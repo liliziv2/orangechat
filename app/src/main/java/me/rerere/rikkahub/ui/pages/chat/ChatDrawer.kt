@@ -893,28 +893,24 @@ private fun DrawerMemorialCard(
                         Spacer(Modifier.width(18.dp))
                         // 右：栖 = 助手（与名字同数据源绑定）。点击直达助手设置页。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            // 头像外环：只做「细、低对比度、日夜一致」的边缘分隔。
+                            // 栖头像：**不带任何外圈**。
                             //
-                            // 旧实现是 border(1.5.dp, colorScheme.surface)：
-                            //  1) 宽度 1.5dp 在 54dp 头像上读起来是粗圈；
-                            //  2) 取色用 surface —— 夜间 #302F2A（暖炭灰）压在
-                            //     primaryContainer@55% 的浅底上直接读成黑圈；日间
-                            //     surface 是浅纸色，读成白圈；日夜各错一边；
-                            //  3) surface 还带着 interfaceSurfaceOpacity 的 alpha，
-                            //     调侧栏透明度时环的观感跟着变 —— 正是「拉透明度后
-                            //     头像冒出异常外圈」的根源。
-                            // 现改为 1dp + outlineVariant（不参与任何透明度合成、
-                            // 日夜各有一档低对比度）。左侧渺渺本来就是裸 UIAvatar
-                            // 不带环，保持原样；这里只把「多出来的那个粗环」修正到
-                            // 与整体克制风格一致的强度。
-                            // 头像尺寸/位置/裁切/交叠关系一律不动。
+                            // 圆圈的真实来源有两层，都已清除：
+                            //  1) 这里原来有 .border(...) 画的一圈描边 —— 直接删掉；
+                            //  2) 原来 Box 没写 contentAlignment（默认 TopStart），
+                            //     54dp 容器减 padding 后是 52dp，48dp 头像靠左上摆放，
+                            //     右下留 4dp 空隙 → 头像整体偏向左上，看上去就像
+                            //     「外圈移位」。现在显式 Center，并把 padding 一并去掉。
+                            //
+                            // 剩下的只有 ChatMessageSideAvatar 自己的圆形裁切（它内部
+                            // 的 Surface 用 rememberAvatarShape → CircleShape），
+                            // 没有任何描边 / 阴影 / 重复圆环，也不会随侧栏透明度变色。
                             Box(
                                 modifier = Modifier
                                     .size(54.dp)
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                                    .padding(1.dp)
                                     .clip(CircleShape)
                                     .clickable(onClick = onAssistantClick),
+                                contentAlignment = Alignment.Center,
                             ) {
                                 ChatMessageSideAvatar(
                                     role = MessageRole.ASSISTANT,
@@ -981,14 +977,10 @@ private fun DrawerMemorialCard(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                // ---- 卡片底部日期小字（§2：系统当天日期，来源有效、不假造纪念日）----
-                Text(
-                    text = java.time.LocalDate.now()
-                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy年M月d日 EEEE", java.util.Locale.getDefault())),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                // 卡片底部日期行已按要求整行删除（不换成其他文案、不留占位）。
+                // 底部留白由 Surface 的 vertical = 14.dp 内边距自然收住，
+                // 双列入口下方的间距已在 Row 之上通过分隔线的 bottom = 10.dp 给出，
+                // 因此这里不再额外加 Spacer，避免留下「空出一整行」的高度。
             }
         }
     }
@@ -1033,8 +1025,19 @@ private fun MemorialCardPill(
 }
 
 /**
- * 四瓣花装饰：四片细线花瓣 + 中心小圆点，线条纤细，
- * 呼应纪念卡的水纹/花瓣背景。纯装饰元素。
+ * 四瓣花装饰：四片圆润对称的花瓣 + 中心小圆点。纯装饰元素。
+ *
+ * 旧实现的问题：每片花瓣都从**同一个中心点**起笔，用两段三次贝塞尔收成一条
+ * 细长水滴，四片共用一个原点交叉 → 视觉上像四片扇叶/螺旋桨，且尖端带长尾。
+ *
+ * 现在改为标准的四瓣花画法：
+ * - 每片花瓣是独立封闭轮廓，根部不落在正中心，而是留出 rootR 的空白，
+ *   四片互不相交，因此不会再读成「交叉」；
+ * - 每片用两段对称的三次贝塞尔：从根部沿两侧鼓出到最宽处，再收成圆润瓣尖；
+ * - 四片按 0°/90°/180°/270° 旋转复制，尺寸与形状完全一致；
+ * - 统一 1dp 描边，低对比度，不加渐变/阴影/纹理。
+ *
+ * 颜色由调用方传入（主题派生），日夜都保持柔和可辨。
  */
 @Composable
 private fun FourPetalFlower(
@@ -1044,38 +1047,65 @@ private fun FourPetalFlower(
     Canvas(modifier = Modifier.size(size)) {
         val c = Offset(x = this.size.width / 2f, y = this.size.height / 2f)
         val r = this.size.minDimension / 2f
-        val petal = r * 0.62f
-        // 四片花瓣：上下左右，用三次贝塞尔画细长水滴瓣
+        // 花瓣根部留白（四瓣因此互不相交），瓣尖收到 0.88r。
+        val rootR = r * 0.20f
+        val tipR = r * 0.88f
+        val bellyR = (rootR + tipR) / 2f
+        val bellyHalfWidth = r * 0.30f
+        // 控制点：从最宽处往瓣尖收拢的中途，取 62% 的半宽 —— 圆润、不尖锐。
+        val ctrlR = bellyR + (tipR - bellyR) * 0.55f
+        val ctrlHalfWidth = bellyHalfWidth * 0.62f
+        val strokeWidth = 1.dp.toPx()
+
         val petalPath = androidx.compose.ui.graphics.Path()
         fun petalAt(angleDeg: Float) {
             val rad = Math.toRadians(angleDeg.toDouble())
-            val dx = Math.cos(rad).toFloat()
-            val dy = Math.sin(rad).toFloat()
-            val tipX = c.x + dx * petal
-            val tipY = c.y + dy * petal
-            val sideX = dy * (petal * 0.34f)
-            val sideY = -dx * (petal * 0.34f)
-            petalPath.reset()
-            petalPath.moveTo(c.x, c.y)
-            petalPath.cubicTo(
-                c.x + sideX - dx * petal * 0.18f, c.y + sideY - dy * petal * 0.18f,
-                tipX - dx * petal * 0.22f, tipY - dy * petal * 0.22f,
-                tipX, tipY,
+            val ux = Math.cos(rad).toFloat()   // 花瓣轴向单位向量
+            val uy = Math.sin(rad).toFloat()
+            val vx = -uy                        // 花瓣横向单位向量（垂直于轴向）
+            val vy = ux
+
+            fun at(along: Float, across: Float) = Offset(
+                x = c.x + ux * along + vx * across,
+                y = c.y + uy * along + vy * across,
             )
+
+            val root = at(rootR, 0f)
+            val tip = at(tipR, 0f)
+            val bellyLeft = at(bellyR, -bellyHalfWidth)
+            val bellyRight = at(bellyR, bellyHalfWidth)
+            val ctrlLeft = at(ctrlR, -ctrlHalfWidth)
+            val ctrlRight = at(ctrlR, ctrlHalfWidth)
+
+            petalPath.reset()
+            petalPath.moveTo(root.x, root.y)
+            // 根部 → 左侧鼓出 → 瓣尖
             petalPath.cubicTo(
-                tipX + dx * petal * 0.22f, tipY + dy * petal * 0.22f,
-                c.x + sideX + dx * petal * 0.18f, c.y + sideY + dy * petal * 0.18f,
-                c.x, c.y,
+                bellyLeft.x, bellyLeft.y,
+                ctrlLeft.x, ctrlLeft.y,
+                tip.x, tip.y,
+            )
+            // 瓣尖 → 右侧鼓出 → 根部
+            petalPath.cubicTo(
+                ctrlRight.x, ctrlRight.y,
+                bellyRight.x, bellyRight.y,
+                root.x, root.y,
             )
             petalPath.close()
-            drawPath(petalPath, color = color, style = Stroke(width = 1.2.dp.toPx()))
+            drawPath(petalPath, color = color, style = Stroke(width = strokeWidth))
         }
+        petalAt(270f)  // 上
         petalAt(0f)    // 右
         petalAt(90f)   // 下
         petalAt(180f)  // 左
-        petalAt(270f)  // 上
-        // 中心小圆点
-        drawCircle(color = color, radius = r * 0.09f, center = c, style = Stroke(width = 1.2.dp.toPx()))
+
+        // 中心小圆点：与花瓣根部留白呼应。
+        drawCircle(
+            color = color,
+            radius = rootR * 0.46f,
+            center = c,
+            style = Stroke(width = strokeWidth),
+        )
     }
 }
 
