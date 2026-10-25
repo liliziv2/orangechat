@@ -1,11 +1,14 @@
 package me.rerere.rikkahub.ui.pages.search
 
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Refresh01
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -51,6 +54,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import me.rerere.rikkahub.R
@@ -231,6 +235,14 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
                                         )
                                     }
                                 )
+                            }
+
+                            // 云搜索失败提示：不再静默吞掉异常。
+                            // 放在结果列表顶部而不是替换整个页面，本地结果依然可读。
+                            vm.cloudError?.let { message ->
+                                item {
+                                    CloudSearchErrorRow(message = message)
+                                }
                             }
 
                             // 云端搜索结果
@@ -467,6 +479,48 @@ private fun Modifier.searchContainerMaterial(
                 if (path != null) {
                     drawPath(path, brush = glassBorderBrush, style = Stroke(width = 1.dp.toPx()))
                 }
+            }
+        }
+    }
+}
+
+/**
+ * 云搜索失败提示行。
+ *
+ * 只在 `vm.cloudError != null` 时插入结果列表顶部，不替换整页 ——
+ * 本地搜索结果依然可读，用户同时知道「云端那部分没拿到」。
+ */
+@Composable
+private fun CloudSearchErrorRow(message: String) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = HugeIcons.Alert01,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "云端搜索不可用",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

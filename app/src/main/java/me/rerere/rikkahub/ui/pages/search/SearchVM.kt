@@ -25,6 +25,16 @@ class SearchVM(
         private set
     var cloudResults by mutableStateOf<List<CloudSearchResult>>(emptyList())
         private set
+
+    /**
+     * 云搜索失败信息。null = 本次没有失败。
+     *
+     * 旧实现把异常直接 `cloudResults = emptyList()` 吞掉，用户开了云同步搜索、
+     * 云端连不上时只会看到「无结果」，无法区分「真没有」和「连不上」。
+     * 现在把失败原因留下来，由页面显示一行提示。
+     */
+    var cloudError by mutableStateOf<String?>(null)
+        private set
     var isLoading by mutableStateOf(false)
         private set
     var isRebuilding by mutableStateOf(false)
@@ -69,6 +79,7 @@ class SearchVM(
         if (query.isBlank()) {
             results = emptyList()
             cloudResults = emptyList()
+            cloudError = null
             return
         }
         isLoading = true
@@ -82,6 +93,7 @@ class SearchVM(
     }
 
     private suspend fun searchCloud(query: String) {
+        cloudError = null
         try {
             val settings = settingsStore.settingsFlow.value
             val externalConfigs = settings.externalMemories.filter { it.enabled }
@@ -113,8 +125,13 @@ class SearchVM(
                 }
             }
             cloudResults = allCloudResults
+            cloudError = null
         } catch (e: Exception) {
             cloudResults = emptyList()
+            // 错误脱敏：不带出任何 key / token / 完整 URL 凭证片段。
+            cloudError = (e.message ?: e::class.simpleName ?: "未知错误")
+                .replace(Regex("(?i)(apikey|authorization|bearer|key)\\s*[:=]\\s*\\S+"), "$1=***")
+                .take(160)
         }
     }
 }
