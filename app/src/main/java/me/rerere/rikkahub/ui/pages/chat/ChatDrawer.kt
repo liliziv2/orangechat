@@ -210,7 +210,7 @@ fun ChatDrawerContent(
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
 
-    val drawerMode = settings.displaySetting.materialMode
+    val drawerMode = settings.displaySetting.drawerMaterialMode ?: settings.displaySetting.materialMode
     val isFlatDrawer = drawerMode == DisplayMaterialMode.FLAT || drawerMode == DisplayMaterialMode.FOLLOW_THEME
     val useDrawerBlur = drawerMode == DisplayMaterialMode.GLASS && hazeState != null &&
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -357,7 +357,7 @@ fun ChatDrawerContent(
                 conversationJobs = conversationJobs.keys,
                 listState = conversationListState,
                 drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                materialMode = settings.displaySetting.materialMode,
+                materialMode = drawerMode,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -841,8 +841,8 @@ private fun DrawerMemorialCard(
                 modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                MemorialCardPill(HugeIcons.Search01, stringResource(R.string.chat_page_search_chats), onSearch)
-                MemorialCardPill(HugeIcons.Book01, stringResource(R.string.vocabulary_page_title), onVocabulary)
+                MemorialCardPill(HugeIcons.Search01, stringResource(R.string.chat_page_search_chats), onSearch, settings.displaySetting.drawerMaterialMode ?: settings.displaySetting.materialMode)
+                MemorialCardPill(HugeIcons.Book01, stringResource(R.string.vocabulary_page_title), onVocabulary, settings.displaySetting.drawerMaterialMode ?: settings.displaySetting.materialMode)
             }
         }
     }
@@ -850,9 +850,9 @@ private fun DrawerMemorialCard(
 
 @Composable
 private fun MemorialCardPill(
-    icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier,
+    icon: ImageVector, label: String, onClick: () -> Unit, materialMode: DisplayMaterialMode, modifier: Modifier = Modifier,
 ) {
-    val mode = me.rerere.rikkahub.ui.theme.LocalMaterialMode.current
+    val mode = materialMode
     val scheme = MaterialTheme.colorScheme
     val fill = when (mode) {
         DisplayMaterialMode.TRANSLUCENT -> 0.025f

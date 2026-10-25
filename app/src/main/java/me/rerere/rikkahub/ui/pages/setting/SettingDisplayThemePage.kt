@@ -130,6 +130,28 @@ fun SettingDisplayThemePage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                     )
+                    item(
+                        headlineContent = { Text("侧栏材质") },
+                        supportingContent = { Text("独立设置侧栏，不影响气泡与其他界面") },
+                        trailingContent = {
+                            Select(
+                                options = listOf<DisplayMaterialMode?>(null) + MATERIAL_MODE_OPTIONS,
+                                selectedOption = displaySetting.drawerMaterialMode,
+                                onOptionSelected = {
+                                    updateDisplaySetting(displaySetting.copy(drawerMaterialMode = it))
+                                },
+                                optionToString = {
+                                    when (it) {
+                                        null -> "跟随全局"
+                                        DisplayMaterialMode.FOLLOW_THEME, DisplayMaterialMode.FLAT -> "平面"
+                                        DisplayMaterialMode.TRANSLUCENT -> "轻透"
+                                        DisplayMaterialMode.GLASS -> "玻璃"
+                                    }
+                                },
+                                modifier = Modifier.width(150.dp),
+                            )
+                        },
+                    )
                     // Custom theme management entry
                     item(
                         onClick = { navController.navigate(Screen.SettingTheme) },

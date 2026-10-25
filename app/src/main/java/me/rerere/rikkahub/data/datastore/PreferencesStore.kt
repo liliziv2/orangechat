@@ -819,6 +819,8 @@ data class DisplaySetting(
     val enableBlurEffect: Boolean = false,
     val chatFontFamily: ChatFontFamily = ChatFontFamily.DEFAULT,
     val materialMode: DisplayMaterialMode = DisplayMaterialMode.FOLLOW_THEME,
+    // null preserves the global material for existing configurations.
+    val drawerMaterialMode: DisplayMaterialMode? = null,
     val interfaceSurfaceOpacity: Float = 82f,
     val popupSurfaceOpacity: Float = 90f,
     val enableVolumeKeyScroll: Boolean = false,
