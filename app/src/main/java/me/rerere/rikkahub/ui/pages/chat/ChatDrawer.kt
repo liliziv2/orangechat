@@ -96,7 +96,6 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sun03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.theme.GLASS_BACKGROUND_THEMES
-import me.rerere.rikkahub.ui.theme.opaqueSurfaceColor
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.datastore.Settings
@@ -219,19 +218,10 @@ fun ChatDrawerContent(
     // 关键点：遮挡只由 L0 一层负责、调节只由 L1 一层负责，职责分离。
     // 旧实现把「遮挡」和「表面感」压在同两三层半透明底色上，alpha 叠起来接近 1.0，
     // 侧栏就变成一块实色板 —— 滑杆再怎么拉也看不出区别。
-    // 侧栏表面染色层 alpha：
-    //
-    // 侧栏底层 L0 已经有实色/底图提供 100% 遮挡（杜绝文字穿透）。
-    // 旧实现给染色层乘了 0.70 上限，但滑块默认被夹在 60%..100%，
-    // 导致实际在屏幕上的调节区间只有 0.42..0.70（跨度仅 0.28），所以「三档调节不够明显」。
-    //
-    // 放大动态范围：滑块 0.60..1.00 映射到 0.15..0.85（跨度 0.70）：
-    // - 60%（最透）：染色层仅 0.15，底图/渐变和背景氛围极其清透强烈；
-    // - 80%（中间）：染色层 0.50，适中的半透明质感；
-    // - 100%（最实）：染色层 0.85，接近完全实色面板。
-    // 三档递进阶梯极大（0.15 -> 0.50 -> 0.85），肉眼差距极其明显，同时 L0 依然稳稳挡住下层文字。
+    // Keep the opaque backing, but expose more of the drawer's own background.
+    // 60 / 80 / 100 map to tint alpha 0.05 / 0.35 / 0.65.
     val drawerSurfaceProgress = ((settings.displaySetting.drawerSurfaceOpacity - 60f) / 40f).coerceIn(0f, 1f)
-    val drawerSurfaceLayerAlpha = 0.15f + drawerSurfaceProgress * 0.70f
+    val drawerSurfaceLayerAlpha = 0.05f + drawerSurfaceProgress * 0.60f
     val drawerThemeId = settings.themeId
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = when (settings.displaySetting.materialMode) {
@@ -299,14 +289,14 @@ fun ChatDrawerContent(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)),
+                            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.22f)),
                     )
                 }
             } else {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(opaqueSurfaceColor(useContainer = false))
+                        .background(MaterialTheme.colorScheme.background.copy(alpha = 1f))
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
@@ -341,14 +331,7 @@ fun ChatDrawerContent(
                 }
             }
 
-            // ---- L1：表面染色层（drawerSurfaceOpacity 连续控制“有多实”）----
-            //
-            // 职责单一：只决定「表面感强弱」。因为下面的 L0 主题底已经是不透明的，
-            // 这一层无论多透都不会漏出聊天正文 —— 它调的只是「还能看到多少主题氛围」。
-            //
-            // ⚠️ 上限从 0.92 降到 0.70：旧值配上不透明底板
-            // 合成后接近 1.0，侧栏读成一块实色板，滑块几乎无感 —— 这就是「又不透明了」
-            // 的直接原因。现在默认 100% 档留出约 30% 的主题氛围，往下调更通透。
+            // The only slider-controlled tint; backing already isolates chat text.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
