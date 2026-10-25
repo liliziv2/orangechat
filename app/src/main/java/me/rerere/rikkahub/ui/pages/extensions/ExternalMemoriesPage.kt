@@ -50,12 +50,15 @@ import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.pages.setting.settingsScaffoldContainerColor
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
+    val navController = LocalNavController.current
     val settings = vm.settings.collectAsStateWithLifecycle().value
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
@@ -112,6 +115,11 @@ fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
             items(settings.externalMemories, key = { it.id }) { memory ->
                 ExternalMemoryItem(
                     memory = memory,
+                    onView = {
+                        navController.navigate(
+                            Screen.ExternalMemoryContent(memoryId = memory.id.toString())
+                        )
+                    },
                     onEdit = { editTarget = memory },
                     onDelete = { deleteTarget = memory },
                 )
@@ -172,6 +180,7 @@ fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
 @Composable
 private fun ExternalMemoryItem(
     memory: ExternalMemory,
+    onView: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -222,6 +231,11 @@ private fun ExternalMemoryItem(
 
             ItemActionMenu(
                 actions = listOf(
+                    ItemAction(
+                        text = "查看记忆",
+                        icon = HugeIcons.Brain01,
+                        onClick = onView,
+                    ),
                     ItemAction(
                         text = "编辑",
                         icon = HugeIcons.Edit01,
