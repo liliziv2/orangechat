@@ -6,6 +6,10 @@ import android.os.Build
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.HazeMaterials
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import dev.chrisbanes.haze.HazeTint
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
@@ -213,6 +217,7 @@ fun ChatDrawerContent(
     val drawerSurfaceProgress = ((settings.displaySetting.drawerSurfaceOpacity - 60f) / 40f).coerceIn(0f, 1f)
     val drawerSurfaceLayerAlpha = 0.05f + drawerSurfaceProgress * 0.60f
     val drawerThemeId = settings.themeId
+    val drawerGlassTint = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.12f)
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = drawerMode == DisplayMaterialMode.TRANSLUCENT
     val drawerBgPath = settings.displaySetting.drawerBackgroundPath
@@ -222,7 +227,7 @@ fun ChatDrawerContent(
         }
     }
     val drawerModifier = Modifier
-        .width(300.dp)
+        .width(300.dp).fillMaxHeight()
         .then(
             if (showDrawerBorder) {
                 Modifier.border(
@@ -238,6 +243,7 @@ fun ChatDrawerContent(
     ModalDrawerSheet(
         modifier = drawerModifier,
         drawerShape = drawerShape,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         drawerContainerColor = Color.Transparent,
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -266,18 +272,19 @@ fun ChatDrawerContent(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 1f)
                     ),
                 ) {
-                    blurRadius = 32.dp
-                }.background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)))
+                    blurRadius = 24.dp
+                    tints = listOf(HazeTint(drawerGlassTint))
+                }.background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.04f + drawerSurfaceProgress * 0.16f)))
             } else {
                 // Translucent is a genuinely translucent fill plus the border above.
                 // Unsupported glass falls back to this same fill, never an opaque plate.
                 // Without blur, underlying chat content can be visible: do not claim isolation.
                 Box(Modifier.fillMaxSize().background(
-                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)
+                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.03f + drawerSurfaceProgress * 0.25f)
                 ))
             }
             Column(
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing).padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
             if (settings.displaySetting.showUpdates && !isPlayStore) {
@@ -785,9 +792,9 @@ private fun DrawerMemorialCard(
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                modifier = Modifier.padding(top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
                     UIAvatar(
@@ -800,7 +807,7 @@ private fun DrawerMemorialCard(
                     Text(userName, style = MaterialTheme.typography.labelMedium,
                         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Box(modifier = Modifier.weight(1f).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.width(76.dp).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
                     FourPetalFlower(size = 36.dp, color = scheme.primary.copy(alpha = 0.42f))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
@@ -845,36 +852,99 @@ private fun DrawerMemorialCard(
 private fun MemorialCardPill(
     icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier.clip(MaterialTheme.shapes.small).clickable(onClick = onClick)
-            .heightIn(min = 48.dp).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+    val mode = me.rerere.rikkahub.ui.theme.LocalMaterialMode.current
+    val scheme = MaterialTheme.colorScheme
+    val fill = when (mode) {
+        DisplayMaterialMode.TRANSLUCENT -> 0.025f
+        DisplayMaterialMode.GLASS -> 0.04f
+        else -> 0.06f
+    }
+    // Rounded rectangle, not a pill; compact visible shell within a 48dp hit area.
+    Box(modifier = modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
+        .clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = scheme.onSurface.copy(alpha = fill),
+            border = if (mode == DisplayMaterialMode.TRANSLUCENT || mode == DisplayMaterialMode.GLASS)
+                BorderStroke(0.5.dp, scheme.onSurface.copy(alpha = 0.08f)) else null,
+        ) {
+            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Icon(icon, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                Text(label, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant, maxLines = 1)
+            }
+        }
     }
 }
 /** Four identical round oval petals without pointed tails. */
 @Composable
-private fun FourPetalFlower(size: androidx.compose.ui.unit.Dp, color: Color) {
+private fun FourPetalFlower(
+    size: androidx.compose.ui.unit.Dp,
+    color: Color,
+) {
     Canvas(modifier = Modifier.size(size)) {
+        val c = Offset(x = this.size.width / 2f, y = this.size.height / 2f)
         val r = this.size.minDimension / 2f
-        val c = center
-        val stroke = Stroke(width = 0.7.dp.toPx())
-        repeat(4) { index ->
-            rotate(degrees = index * 90f, pivot = c) {
-                drawOval(
-                    color = color,
-                    topLeft = Offset(c.x - r * 0.22f, c.y - r * 0.88f),
-                    size = Size(r * 0.44f, r * 0.70f),
-                    style = stroke,
-                )
-            }
+        // 花瓣根部留白（四瓣因此互不相交），瓣尖收到 0.88r。
+        val rootR = r * 0.20f
+        val tipR = r * 0.88f
+        val bellyR = (rootR + tipR) / 2f
+        val bellyHalfWidth = r * 0.30f
+        // 控制点：从最宽处往瓣尖收拢的中途，取 62% 的半宽 —— 圆润、不尖锐。
+        val ctrlR = bellyR + (tipR - bellyR) * 0.55f
+        val ctrlHalfWidth = bellyHalfWidth * 0.62f
+        val strokeWidth = 0.7.dp.toPx()
+
+        val petalPath = androidx.compose.ui.graphics.Path()
+        fun petalAt(angleDeg: Float) {
+            val rad = Math.toRadians(angleDeg.toDouble())
+            val ux = Math.cos(rad).toFloat()   // 花瓣轴向单位向量
+            val uy = Math.sin(rad).toFloat()
+            val vx = -uy                        // 花瓣横向单位向量（垂直于轴向）
+            val vy = ux
+
+            fun at(along: Float, across: Float) = Offset(
+                x = c.x + ux * along + vx * across,
+                y = c.y + uy * along + vy * across,
+            )
+
+            val root = at(rootR, 0f)
+            val tip = at(tipR, 0f)
+            val bellyLeft = at(bellyR, -bellyHalfWidth)
+            val bellyRight = at(bellyR, bellyHalfWidth)
+            val ctrlLeft = at(ctrlR, -ctrlHalfWidth)
+            val ctrlRight = at(ctrlR, ctrlHalfWidth)
+
+            petalPath.reset()
+            petalPath.moveTo(root.x, root.y)
+            // 根部 → 左侧鼓出 → 瓣尖
+            petalPath.cubicTo(
+                bellyLeft.x, bellyLeft.y,
+                ctrlLeft.x, ctrlLeft.y,
+                tip.x, tip.y,
+            )
+            // 瓣尖 → 右侧鼓出 → 根部
+            petalPath.cubicTo(
+                ctrlRight.x, ctrlRight.y,
+                bellyRight.x, bellyRight.y,
+                root.x, root.y,
+            )
+            petalPath.close()
+            drawPath(petalPath, color = color, style = Stroke(width = strokeWidth))
         }
-        drawCircle(color = color, radius = r * 0.065f, center = c)
+        petalAt(270f)  // 上
+        petalAt(0f)    // 右
+        petalAt(90f)   // 下
+        petalAt(180f)  // 左
+
+        // 中心小圆点：与花瓣根部留白呼应。
+        drawCircle(
+            color = color,
+            radius = rootR * 0.46f,
+            center = c,
+            style = Stroke(width = strokeWidth),
+        )
     }
 }
 

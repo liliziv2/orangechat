@@ -75,6 +75,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
@@ -141,6 +142,7 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val hazeState = rememberHazeState()
+    val drawerHazeState = rememberHazeState()
     val softwareKeyboardController = LocalSoftwareKeyboardController.current
 
     // Handle back press when drawer is open
@@ -215,11 +217,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
                         current = conversation,
                         vm = vm,
                         settings = setting,
-                        hazeState = hazeState,
+                        hazeState = drawerHazeState,
                     )
                 }
             ) {
                 ChatPageContent(
+                    modifier = Modifier.hazeSource(state = drawerHazeState),
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
@@ -250,11 +253,12 @@ fun ChatPage(id: Uuid, text: String?, files: List<Uri>, nodeId: Uuid? = null, au
                         current = conversation,
                         vm = vm,
                         settings = setting,
-                        hazeState = hazeState,
+                        hazeState = drawerHazeState,
                     )
                 }
             ) {
                 ChatPageContent(
+                    modifier = Modifier.hazeSource(state = drawerHazeState),
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
