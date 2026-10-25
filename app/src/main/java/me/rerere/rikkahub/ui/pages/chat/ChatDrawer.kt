@@ -207,19 +207,24 @@ fun ChatDrawerContent(
     //   3) 随后改成 0.90~0.98 的窄区间底板 ⇒ 滑杆依然几乎看不出变化（任务单点名）。
     //
     // 现在的分层（自下而上，全部画在 ModalDrawerSheet 内部）：
-    //   L0 主题底图（港口/奶油玫瑰等带图主题，按侧栏区域 Crop 绘制）
-    //   L1 主题 scrim（把底图压到可读对比度，同时挡住底层聊天正文）
-    //   L2 用户自定义侧栏背景图（若设置了）
-    //   L3 侧栏表面色（alpha = drawerSurfaceAlpha，滑杆直接、连续、可预测）
-    //   L4 纪念卡 / 文件夹 / 会话列表 / 底栏等内容
+    //   L0 主题底（**不透明**）：带图主题 = 底图 Crop + 主题 scrim；普通主题 = 页面背景实色
+    //      + 一层极淡的主题色渐变。它独自承担「挡住聊天正文」的职责。
+    //   L1 表面染色层（alpha = 滑杆 × 0.70）：只调「表面感强弱」，即还能看到多少主题氛围。
+    //   L2 用户自定义侧栏背景图（若设置了，alpha 0.15 保持克制）
+    //   L3 纪念卡 / 文件夹 / 会话列表 / 底栏等内容
     //
-    // 关键点：L1 是**不透明来源**（底图 + scrim 本身不透明），因此聊天正文无法穿透；
-    // L3 只叠在 L1/L2 之上调「表面感的强弱」，滑杆怎么拉都不会露出底下的聊天页面。
+    // 关键点：遮挡只由 L0 一层负责、调节只由 L1 一层负责，职责分离。
+    // 旧实现把「遮挡」和「表面感」压在同两三层半透明底色上，alpha 叠起来接近 1.0，
+    // 侧栏就变成一块实色板 —— 滑杆再怎么拉也看不出区别。
     val drawerSurfaceAlphaRaw =
         (settings.displaySetting.drawerSurfaceOpacity / 100f).coerceIn(0f, 1f)
-    // 侧栏表面层 alpha：滑杆 0..100 → 0..0.92。
-    // 上限留 0.08 余量，让主题底图在最不透时仍能留一点点氛围（而不是彻底变纯色块）。
-    val drawerSurfaceLayerAlpha = drawerSurfaceAlphaRaw * 0.92f
+    // 侧栏表面染色层 alpha：滑杆 0..100 → 0..0.70。
+    //
+    // 上限从 0.92 压到 0.70：侧栏底下已经是**不透明的主题底**，两层叠加时
+    // 0.92 会让总不透明度逼近 1.0，侧栏读成实色板、滑块几乎没区别（用户反馈
+    // 「又不太透明了」就是这个）。0.70 让默认 100% 档仍留约 30% 的主题氛围，
+    // 滑块往低调则连续变得更通透，而聊天正文始终被 L0 挡住。
+    val drawerSurfaceLayerAlpha = drawerSurfaceAlphaRaw * 0.70f
     val drawerThemeId = settings.themeId
     val drawerShape = DrawerDefaults.shape
     val showDrawerBorder = when (settings.displaySetting.materialMode) {
@@ -265,36 +270,48 @@ fun ChatDrawerContent(
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // ---- L0：主题底图（带图主题才有；按侧栏区域 Crop 绘制）----
-            // 复用 RouteActivity 用的同一张资源，不新增图片，也不改主页面背景。
+            // ---- L0：主题底（**不透明**，是整个侧栏「不透字」的唯一保障）----
+            //
+            // 这里必须是不透明的：只要这一层实了，底下聊天正文就永远进不来，
+            // 上面无论叠多少半透明层、滑杆拉到多低，都只会露出「主题氛围」，
+            // 而不会露出文字。
+            //
+            // 带壁纸主题（港口/奶油玫瑰）：底图按侧栏区域 Crop 绘制，再叠一层
+            // 主题 scrim 保证文字对比度；复用 RouteActivity 同一张资源，不新增图片。
+            // 普通主题：用页面背景实色 + 一层极淡的主题色渐变，避免读成一块死板的纯色。
             if (drawerThemeId in GLASS_BACKGROUND_THEMES) {
-                Image(
-                    painter = painterResource(id = R.drawable.harbor_chat_bg),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.55f,
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Image(
+                        painter = painterResource(id = R.drawable.harbor_chat_bg),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        // 1.0：底图本身要实，它承担遮挡职责。
+                        alpha = 1f,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f)),
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(opaqueSurfaceColor(useContainer = false))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f),
+                                )
+                            )
+                        ),
                 )
             }
-            // ---- L1：遮挡底板（真正的「不透明来源」，负责挡住底层聊天正文）----
-            //
-            // ⚠️ 这里**必须**读 opaqueSurfaceColor()，不能直接读 surface / surfaceContainer。
-            // Theme 的 alpha 合成会把这两个 token 的 alpha 改写为 interfaceSurfaceOpacity
-            // （默认 82%），直接读到的就是 0.82 的半透色 —— 那样这一层根本挡不住底下的
-            // 聊天正文，滑杆怎么调都只是「把它压得更淡」，透字依旧。
-            // opaqueSurfaceColor() 取回主题 RGB 并把 alpha 强制回 1f，与任何滑块无关：
-            // 底板负责「能不能透」，drawerSurfaceOpacity(L3) 负责「表面感强弱」，职责分离。
-            val scrimColor = if (drawerThemeId in GLASS_BACKGROUND_THEMES) {
-                opaqueSurfaceColor(useContainer = true)
-            } else {
-                opaqueSurfaceColor(useContainer = false)
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(scrimColor),
-            )
-            // ---- L2：用户自定义侧栏背景图（可选，叠在 scrim 之上）----
+            // ---- L2：用户自定义侧栏背景图（可选，叠在主题底之上）----
             // 旧行为保留：用户设了图就显示，alpha 0.15 保持克制。
             // 侧边栏背景图
             val drawerBgPath = settings.displaySetting.drawerBackgroundPath
@@ -317,10 +334,14 @@ fun ChatDrawerContent(
                 }
             }
 
-            // ---- L3：侧栏表面层（drawerSurfaceOpacity 直接、连续控制）----
-            // 叠在 L1/L2 之上：滑杆越高表面越实、主题氛围越淡；越低则底图/scrim 越明显。
-            // 因为 L1 本身不透明，所以无论滑杆拉到多低，聊天正文都不会穿透。
-            // 同时这里**不再**用「1 - 滑杆」的反向补偿，滑杆语义单一可预测。
+            // ---- L1：表面染色层（drawerSurfaceOpacity 连续控制“有多实”）----
+            //
+            // 职责单一：只决定「表面感强弱」。因为下面的 L0 主题底已经是不透明的，
+            // 这一层无论多透都不会漏出聊天正文 —— 它调的只是「还能看到多少主题氛围」。
+            //
+            // ⚠️ 上限从 0.92 降到 0.70：旧值配上不透明底板
+            // 合成后接近 1.0，侧栏读成一块实色板，滑块几乎无感 —— 这就是「又不透明了」
+            // 的直接原因。现在默认 100% 档留出约 30% 的主题氛围，往下调更通透。
             Box(
                 modifier = Modifier
                     .fillMaxSize()
