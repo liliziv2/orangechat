@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -127,6 +129,7 @@ fun UpdateCard(vm: ChatVM) {
                 toaster.show(context.getString(R.string.update_card_downloading), type = ToastType.Info)
             }
             ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
                 onDismissRequest = { showDetail = false },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             ) {

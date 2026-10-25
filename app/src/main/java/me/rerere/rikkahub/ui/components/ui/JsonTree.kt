@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -62,6 +64,7 @@ fun JsonTree(
 
     selectedString?.let { content ->
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = { selectedString = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {

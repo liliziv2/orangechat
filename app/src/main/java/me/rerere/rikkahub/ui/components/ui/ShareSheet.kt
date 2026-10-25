@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,6 +38,7 @@ fun ShareSheet(
     val context = LocalContext.current
     if (state.isShow) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 state.dismiss()
             },

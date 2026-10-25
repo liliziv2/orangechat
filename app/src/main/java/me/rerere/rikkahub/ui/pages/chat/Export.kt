@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -125,6 +127,7 @@ fun ChatExportSheet(
 
     if (visible) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = onDismissRequest,
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         ) {

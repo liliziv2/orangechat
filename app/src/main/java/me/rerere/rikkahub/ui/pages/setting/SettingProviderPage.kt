@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import android.net.Uri
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.HugeIcons
@@ -479,6 +481,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val scope = rememberCoroutineScope()
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 dialogState.dismiss()
             },

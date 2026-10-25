@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -158,6 +160,7 @@ internal fun EditedFilesList(
         val path = selectedPath!!
         val fileName = remember(path) { path.substringAfterLast('/') }
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = { selectedPath = null },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         ) {

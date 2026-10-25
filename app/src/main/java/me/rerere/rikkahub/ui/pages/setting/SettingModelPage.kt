@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Earth
@@ -192,6 +194,7 @@ private fun DefaultTranslationModelSetting(
 
     if (showModal) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showModal = false
             },
@@ -303,6 +306,7 @@ private fun DefaultSuggestionModelSetting(
 
     if (showModal) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showModal = false
             },
@@ -398,6 +402,7 @@ private fun DefaultTitleModelSetting(
 
     if (showModal) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showModal = false
             },
@@ -534,6 +539,7 @@ private fun DefaultOcrModelSetting(
 
     if (showModal) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showModal = false
             },
@@ -631,6 +637,7 @@ private fun DefaultCompressModelSetting(
 
     if (showModal) {
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showModal = false
             },

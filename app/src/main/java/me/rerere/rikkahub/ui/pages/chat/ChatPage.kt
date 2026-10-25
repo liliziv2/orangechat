@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
@@ -697,6 +699,7 @@ private fun AssistantPickerBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {

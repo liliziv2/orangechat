@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AlertCircle
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -377,6 +379,7 @@ private fun McpServerConfigModal(state: EditState<McpServerConfig>) {
         val pagerState = rememberPagerState { 2 }
         val scope = rememberCoroutineScope()
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 state.dismiss()
             },
@@ -1011,6 +1014,7 @@ private fun McpImportModal(
     val parseErrorMsg = stringResource(R.string.setting_mcp_page_import_parse_error)
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {

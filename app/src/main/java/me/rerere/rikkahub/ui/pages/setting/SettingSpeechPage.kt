@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.StopCircle
@@ -199,6 +200,7 @@ fun SettingSpeechPage(vm: SettingVM = koinViewModel()) {
         var currentProvider by remember(provider) { mutableStateOf(provider) }
 
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 editingTTSProvider = null
             },
@@ -262,6 +264,7 @@ fun SettingSpeechPage(vm: SettingVM = koinViewModel()) {
         var currentProvider by remember(provider) { mutableStateOf(provider) }
 
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 editingASRProvider = null
             },
@@ -500,6 +503,7 @@ private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
     if (showBottomSheet) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showBottomSheet = false
             },
@@ -611,6 +615,7 @@ private fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
     if (showBottomSheet) {
         val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 showBottomSheet = false
             },

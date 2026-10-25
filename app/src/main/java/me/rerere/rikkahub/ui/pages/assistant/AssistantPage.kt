@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.assistant
 
+import androidx.compose.material3.BottomSheetDefaults
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import androidx.compose.foundation.clickable
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
@@ -324,6 +326,7 @@ private fun AssistantCreationSheet(
 ) {
     state.EditStateContent { assistant, update ->
         ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
             onDismissRequest = {
                 state.dismiss()
             },
@@ -488,6 +491,7 @@ private fun AssistantActionSheet(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
         onDismissRequest = onDismiss
     ) {
         Column(
