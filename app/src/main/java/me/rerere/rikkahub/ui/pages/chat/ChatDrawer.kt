@@ -127,7 +127,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
-/** 纪念卡圆角：比 DrawerItemSurface(12dp) 大一档的对话面板圆角。 */
+/** 纪念卡圆角：比会话行(12dp) 大一档的对话面板圆角。 */
 private val MemorialCardShape = RoundedCornerShape(22.dp)
 
 @Composable
@@ -1128,119 +1128,6 @@ private fun FourPetalFlower(
             style = Stroke(width = strokeWidth),
         )
     }
-}
-
-@Composable
-private fun DrawerItemSurface(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    shape: Shape,
-    color: Color,
-    drawerItemAlpha: Float,
-    materialMode: DisplayMaterialMode,
-    content: @Composable () -> Unit,
-) {
-    val contentColor = MaterialTheme.colorScheme.onSurface
-    // 侧栏元素透明度（drawerItemAlpha）在三种材质下都必须生效。
-    //
-    // 旧实现里 FLAT / FOLLOW_THEME 直接 return color，滑块在平面模式下完全失效，
-    // 这正是「某模式完全忽略滑块」的问题。现在统一乘上滑块；
-    // 三种模式的差别只体现在装饰层（描边、玻璃高光），不体现在滑块是否起作用。
-    //
-    // 乘的是「color 已有 alpha × 滑块」，而不是把 alpha 覆盖成滑块值，
-    // 避免把极淡底色变成不透明块。
-    val backgroundColor = color.copy(alpha = color.alpha * drawerItemAlpha)
-    val borderColor = when (materialMode) {
-        DisplayMaterialMode.TRANSLUCENT -> contentColor.copy(alpha = 0.05f * drawerItemAlpha)
-        DisplayMaterialMode.GLASS -> contentColor.copy(alpha = 0.04f * drawerItemAlpha)
-        DisplayMaterialMode.FLAT,
-        DisplayMaterialMode.FOLLOW_THEME -> Color.Transparent
-    }
-    val materialModifier = when (materialMode) {
-        DisplayMaterialMode.TRANSLUCENT,
-        DisplayMaterialMode.GLASS -> Modifier.border(1.dp, borderColor, shape)
-
-        DisplayMaterialMode.FLAT,
-        DisplayMaterialMode.FOLLOW_THEME -> Modifier
-    }
-
-    Surface(
-        onClick = onClick,
-        modifier = modifier.then(materialModifier),
-        shape = shape,
-        color = backgroundColor,
-        contentColor = contentColor,
-    ) {
-        Box {
-            if (materialMode == DisplayMaterialMode.GLASS) {
-                DrawerItemGlassLayers(
-                    shape = shape,
-                    drawerItemAlpha = drawerItemAlpha,
-                )
-            }
-            content()
-        }
-    }
-}
-
-@Composable
-private fun BoxScope.DrawerItemGlassLayers(
-    shape: Shape,
-    drawerItemAlpha: Float,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    // 抽屉条目的玻璃三层整体压低。
-    //
-    // Material cleanup 的原则：玻璃是「消息气泡效果」，不是整个 App 的材质主题。
-    // 这三层（斜向渐变 0.1/0.07、竖向渐变 0.13/0.035、渐变描边 0.2/0.045）
-    // 叠在每一个抽屉条目和底栏按钮上，是「一排玻璃球」观感的直接来源。
-    //
-    // 全部约 ×0.3：保留一点材质暗示，不再让普通导航元件跟气泡抢材质表现。
-    // 气泡自己的 glassShadowModifier / glassInsetTopHighlightModifier
-    // 与 liquid glass 均不受影响。
-    Box(
-        modifier = Modifier
-            .matchParentSize()
-            .clip(shape)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.03f * drawerItemAlpha),
-                        colorScheme.primary.copy(alpha = 0.02f * drawerItemAlpha),
-                        Color.Transparent,
-                    )
-                )
-            )
-    )
-    Box(
-        modifier = Modifier
-            .matchParentSize()
-            .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.04f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.01f * drawerItemAlpha),
-                        Color.Transparent,
-                    )
-                )
-            )
-    )
-    Box(
-        modifier = Modifier
-            .matchParentSize()
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        colorScheme.onSurface.copy(alpha = 0.06f * drawerItemAlpha),
-                        colorScheme.onSurface.copy(alpha = 0.015f * drawerItemAlpha),
-                        Color.Transparent,
-                    )
-                ),
-                shape = shape,
-            )
-    )
 }
 
 /** 侧栏底部的无底色图标按钮（聊天历史 / 收藏 / 统计 / 菜单）。 */

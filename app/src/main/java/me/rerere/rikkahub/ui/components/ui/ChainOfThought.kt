@@ -78,10 +78,7 @@ fun <T> ChainOfThought(
     content: @Composable ChainOfThoughtScope.(T) -> Unit
 ) {
     val settings = LocalSettings.current
-    val thinkingAlpha = 1f - settings.displaySetting.thinkingChainTransparency / 100f
     val materialMode = LocalMaterialMode.current
-    val useTranslucentSurface = materialMode == DisplayMaterialMode.TRANSLUCENT ||
-        materialMode == DisplayMaterialMode.GLASS
     val materialBaseAlpha = when (materialMode) {
         DisplayMaterialMode.TRANSLUCENT -> TRANSLUCENT_THINKING_BASE_ALPHA
         DisplayMaterialMode.GLASS -> GLASS_THINKING_BASE_ALPHA
@@ -93,17 +90,24 @@ fun <T> ChainOfThought(
     val canCollapse = steps.size > collapsedVisibleCount
     val shouldFillCollapseControlWidth = expanded || !collapsedAdaptiveWidth
 
+    // 思维链透明度滑块（thinkingChainTransparency）已移除。
+    //
+    // 原因：默认思维链不画背景（THEME_THINKING_SURFACE_THEMES 为空且多数用户没设
+    // thinkingBubbleColor），滑块没有载体，拉了也看不出任何变化 —— 留着只会让用户
+    // 以为坏了。若将来重新给思维链加回底色，再把滑块接回来。
+    //
+    // thinkingBubbleColor 自定义底色能力保留：设了颜色就按材质基准 alpha 合成。
     val thinkingBubbleColor = settings.displaySetting.thinkingBubbleColor?.let { it.toComposeColor() }
     val effectiveCardColors = CardDefaults.cardColors(
         containerColor = (thinkingBubbleColor ?: cardColors.containerColor).copy(
-            alpha = materialBaseAlpha * thinkingAlpha
+            alpha = materialBaseAlpha
         ),
         contentColor = cardColors.contentColor,
         disabledContainerColor = cardColors.disabledContainerColor,
         disabledContentColor = cardColors.disabledContentColor,
     )
     // 边框与玻璃三层随卡片容器一起去掉：思考不再是独立卡片，就没有"材质"可言。
-    // useTranslucentSurface / materialBaseAlpha 仍用于 thinkingBubbleColor 的透明度合成。
+    // materialBaseAlpha 仍用于 thinkingBubbleColor 的透明度合成。
 
     CompositionLocalProvider(
         LocalCardColor provides cardColors.containerColor

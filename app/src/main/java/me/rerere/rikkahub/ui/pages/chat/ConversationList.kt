@@ -433,13 +433,15 @@ private fun ConversationListMaterialContainer(
         DisplayMaterialMode.FOLLOW_THEME -> Modifier
     }
 
-    val backgroundColor = when (materialMode) {
-        DisplayMaterialMode.FLAT,
-        DisplayMaterialMode.FOLLOW_THEME -> color
-
-        DisplayMaterialMode.TRANSLUCENT,
-        DisplayMaterialMode.GLASS -> color.copy(alpha = drawerItemAlpha)
-    }
+    // 侧栏元素透明度（drawerItemAlpha）必须在**三种材质下都生效**。
+    //
+    // 旧实现：FLAT / FOLLOW_THEME 直接返回 color —— 平面模式下这个滑块完全失效，
+    // 这是用户反复反馈「元素透明度滑块没反应」的真实原因。
+    //
+    // 现在统一乘上滑块，乘的是「color 已有 alpha × 滑块」而不是把 alpha 覆盖成
+    // 滑块值，避免把极淡底色变成不透明块。三种模式的差别只体现在装饰层
+    // （描边 / 玻璃高光），不体现在滑块是否起作用。
+    val backgroundColor = color.copy(alpha = color.alpha * drawerItemAlpha)
 
     Box(
         modifier = modifier
