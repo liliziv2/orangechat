@@ -1077,8 +1077,9 @@ private fun MessagePartsBlock(
         }
     }
  
-    // Annotations (always rendered at the end)
-    if (annotations.isNotEmpty()) {
+    // Count and render web citations only, not voice metadata.
+    val citations = visibleMessageCitations(annotations)
+    if (citations.isNotEmpty()) {
         Column(
             modifier = Modifier.animateContentSize(),
         ) {
@@ -1102,7 +1103,7 @@ private fun MessagePartsBlock(
                             .padding(4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        annotations.fastForEachIndexed { index, annotation ->
+                        citations.fastForEachIndexed { index, annotation ->
                             when (annotation) {
                                 is UIMessageAnnotation.UrlCitation -> {
                                     Row(
@@ -1133,7 +1134,7 @@ private fun MessagePartsBlock(
                     expand = !expand
                 }
             ) {
-                Text(stringResource(R.string.citations_count, annotations.size))
+                Text(stringResource(R.string.citations_count, citations.size))
             }
         }
     }
