@@ -209,7 +209,7 @@ fun ChatDrawerContent(
     val drawerMode = settings.displaySetting.materialMode
     val isFlatDrawer = drawerMode == DisplayMaterialMode.FLAT || drawerMode == DisplayMaterialMode.FOLLOW_THEME
     val useDrawerBlur = drawerMode == DisplayMaterialMode.GLASS && hazeState != null &&
-        settings.displaySetting.enableBlurEffect && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val drawerSurfaceProgress = ((settings.displaySetting.drawerSurfaceOpacity - 60f) / 40f).coerceIn(0f, 1f)
     val drawerSurfaceLayerAlpha = 0.05f + drawerSurfaceProgress * 0.60f
     val drawerThemeId = settings.themeId
@@ -269,8 +269,9 @@ fun ChatDrawerContent(
                     blurRadius = 32.dp
                 }.background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)))
             } else {
-                // No wallpaper or unblurred chat text in translucent/unsupported-glass fallback.
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background.copy(alpha = 1f)))
+                // Translucent is a genuinely translucent fill plus the border above.
+                // Unsupported glass falls back to this same fill, never an opaque plate.
+                // Without blur, underlying chat content can be visible: do not claim isolation.
                 Box(Modifier.fillMaxSize().background(
                     MaterialTheme.colorScheme.surfaceContainer.copy(alpha = drawerSurfaceLayerAlpha)
                 ))
