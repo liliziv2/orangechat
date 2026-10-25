@@ -58,9 +58,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -809,14 +811,7 @@ fun ChatDrawerContent(
     }
 }
 
-/**
- * 侧栏顶部「纪念卡」（按参考图 1000454428 定稿重做）：
- *   行1: 两枚分开圆头像（左渺渺/用户，右栖/助手），各自可点（换头像/助手设置），右上设置
- *   行2: 中间大装饰数字（相识天数，自动抓取）+ 头像下名字行 + ♡ DAYS TOGETHER ♡ 装饰
- *   行3: 动态问候语（早上好/中午好/下午好/晚上好/夜深了 + 主题色小太阳）
- *   行4: 细分隔线 + 「搜索聊天｜背单词」双列卡内入口
- * 卡片下方一概不动。配色全走主题，不新增配色体系。
- */
+/** Existing content rearranged inside the memorial card only. */
 @Composable
 private fun DrawerMemorialCard(
     settings: Settings,
@@ -826,8 +821,7 @@ private fun DrawerMemorialCard(
     onVocabulary: () -> Unit,
     onUpdateUserAvatar: (Avatar) -> Unit,
 ) {
-    val containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-    val outlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    val scheme = MaterialTheme.colorScheme
     val currentAssistant = settings.getCurrentAssistant()
     val assistantName = currentAssistant.name.ifBlank {
         stringResource(R.string.assistant_page_default_assistant)
@@ -835,183 +829,99 @@ private fun DrawerMemorialCard(
     val userName = settings.displaySetting.userNickname.ifBlank {
         stringResource(R.string.user_default_name)
     }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        // 水纹/花瓣背景：两团错位径向渐变，主题色派生，被半透明面板罩住只剩色晕。
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(MemorialCardShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                            Color.Transparent,
-                        ),
-                        center = Offset(x = 0.16f, y = 0.1f),
-                        radius = 620f,
-                    )
-                )
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f),
-                            Color.Transparent,
-                        ),
-                        center = Offset(x = 0.92f, y = 0.85f),
-                        radius = 560f,
-                    )
-                ),
-        )
-        Surface(
-            shape = MemorialCardShape,
-            color = containerColor,
-            border = BorderStroke(1.dp, outlineColor),
-            modifier = Modifier.fillMaxWidth(),
+    Surface(
+        shape = MemorialCardShape,
+        color = scheme.primaryContainer.copy(alpha = 0.24f),
+        border = BorderStroke(1.dp, scheme.onSurface.copy(alpha = 0.08f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                // ---- 行 1：双头像 + 中间装饰数字 + 右上设置 ----
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Icon(
-                        imageVector = HugeIcons.Settings03,
-                        contentDescription = stringResource(R.string.settings),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .clip(CircleShape)
-                            .clickable(onClick = onOpenSettings)
-                            .padding(6.dp)
-                            .size(20.dp),
-                    )
-                    Row(
-                        modifier = Modifier.align(Alignment.Center),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // 左：渺渺 = 用户（最后定稿：渺渺在左、栖在右）。点击弹「更换头像」。
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            UIAvatar(
-                                name = settings.displaySetting.userNickname,
-                                value = settings.displaySetting.userAvatar,
-                                modifier = Modifier.size(52.dp),
-                                onUpdate = onUpdateUserAvatar,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = userName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Spacer(Modifier.width(18.dp))
-                        // 中：四瓣花装饰（细线描边，呼应水纹/花瓣背景）。
-                        // 纯装饰，不承载任何统计数据。
-                        Box(modifier = Modifier.padding(bottom = 14.dp)) {
-                            FourPetalFlower(
-                                size = 40.dp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
-                            )
-                        }
-                        Spacer(Modifier.width(18.dp))
-                        // 右：栖 = 助手（与名字同数据源绑定）。点击直达助手设置页。
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            // 栖头像：**不带任何外圈**。
-                            //
-                            // 圆圈的真实来源有两层，都已清除：
-                            //  1) 这里原来有 .border(...) 画的一圈描边 —— 直接删掉；
-                            //  2) 原来 Box 没写 contentAlignment（默认 TopStart），
-                            //     54dp 容器减 padding 后是 52dp，48dp 头像靠左上摆放，
-                            //     右下留 4dp 空隙 → 头像整体偏向左上，看上去就像
-                            //     「外圈移位」。现在显式 Center，并把 padding 一并去掉。
-                            //
-                            // 剩下的只有 ChatMessageSideAvatar 自己的圆形裁切（它内部
-                            // 的 Surface 用 rememberAvatarShape → CircleShape），
-                            // 没有任何描边 / 阴影 / 重复圆环，也不会随侧栏透明度变色。
-                            Box(
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(CircleShape)
-                                    .clickable(onClick = onAssistantClick),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                ChatMessageSideAvatar(
-                                    role = MessageRole.ASSISTANT,
-                                    model = settings.getCurrentChatModel(),
-                                    assistant = currentAssistant,
-                                    size = 48.dp,
-                                )
-                            }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = assistantName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-                // ---- 行 2：英文装饰文案 ♡ DAYS TOGETHER ♡ ----
-                Text(
-                    text = "♡  S I D E  B Y  S I D E  ♡",
-                    style = MaterialTheme.typography.labelSmall,
-                    letterSpacing = 1.5.sp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                // ---- 行 3：动态问候语 + 主题色小太阳 ----
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Greeting(style = MaterialTheme.typography.titleMedium)
+                    Greeting(modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium)
                     Icon(
                         imageVector = HugeIcons.Sun03,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp),
+                        tint = scheme.primary,
+                        modifier = Modifier.size(14.dp),
                     )
                 }
-                // ---- 行 4：分隔线 + 双列卡内入口 ----
-                Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 10.dp)
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    MemorialCardPill(
-                        icon = HugeIcons.Search01,
-                        label = stringResource(R.string.chat_page_search_chats),
-                        onClick = onSearch,
-                        modifier = Modifier.weight(1f),
-                    )
-                    MemorialCardPill(
-                        icon = HugeIcons.Book01,
-                        label = stringResource(R.string.vocabulary_page_title),
-                        onClick = onVocabulary,
-                        modifier = Modifier.weight(1f),
+                IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) {
+                    Icon(
+                        imageVector = HugeIcons.Settings03,
+                        contentDescription = stringResource(R.string.settings),
+                        tint = scheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
-                // 卡片底部日期行已按要求整行删除（不换成其他文案、不留占位）。
-                // 底部留白由 Surface 的 vertical = 14.dp 内边距自然收住，
-                // 双列入口下方的间距已在 Row 之上通过分隔线的 bottom = 10.dp 给出，
-                // 因此这里不再额外加 Spacer，避免留下「空出一整行」的高度。
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
+                    UIAvatar(
+                        name = settings.displaySetting.userNickname,
+                        value = settings.displaySetting.userAvatar,
+                        modifier = Modifier.size(52.dp),
+                        onUpdate = onUpdateUserAvatar,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(userName, style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Box(modifier = Modifier.weight(1f).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+                    FourPetalFlower(size = 40.dp, color = scheme.primary.copy(alpha = 0.55f))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
+                    // Keep the image and centered hit target; no outer ring.
+                    Box(
+                        modifier = Modifier.size(54.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ChatMessageSideAvatar(
+                            role = MessageRole.ASSISTANT,
+                            model = settings.getCurrentChatModel(),
+                            assistant = currentAssistant,
+                            size = 48.dp,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(assistantName, style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Text(
+                text = "♡  S I D E  B Y  S I D E  ♡",
+                style = MaterialTheme.typography.labelSmall,
+                letterSpacing = 1.5.sp,
+                color = scheme.primary.copy(alpha = 0.75f),
+                modifier = Modifier.padding(top = 8.dp),
+                maxLines = 1,
+            )
+            // Compact actions at the bottom right; no date or placeholder.
+            Row(
+                modifier = Modifier.align(Alignment.End).padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                MemorialCardPill(HugeIcons.Search01, stringResource(R.string.chat_page_search_chats), onSearch)
+                MemorialCardPill(HugeIcons.Book01, stringResource(R.string.vocabulary_page_title), onVocabulary)
             }
         }
     }
 }
 
-/** 纪念卡内部的小入口 pill：onSurface 6% 实底 + 主题文字色，居中排布。 */
 @Composable
 private fun MemorialCardPill(
     icon: ImageVector,
@@ -1021,116 +931,40 @@ private fun MemorialCardPill(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f),
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        Row(
+            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
         }
     }
 }
-}
 
-/**
- * 四瓣花装饰：四片圆润对称的花瓣 + 中心小圆点。纯装饰元素。
- *
- * 旧实现的问题：每片花瓣都从**同一个中心点**起笔，用两段三次贝塞尔收成一条
- * 细长水滴，四片共用一个原点交叉 → 视觉上像四片扇叶/螺旋桨，且尖端带长尾。
- *
- * 现在改为标准的四瓣花画法：
- * - 每片花瓣是独立封闭轮廓，根部不落在正中心，而是留出 rootR 的空白，
- *   四片互不相交，因此不会再读成「交叉」；
- * - 每片用两段对称的三次贝塞尔：从根部沿两侧鼓出到最宽处，再收成圆润瓣尖；
- * - 四片按 0°/90°/180°/270° 旋转复制，尺寸与形状完全一致；
- * - 统一 1dp 描边，低对比度，不加渐变/阴影/纹理。
- *
- * 颜色由调用方传入（主题派生），日夜都保持柔和可辨。
- */
+/** Four identical round oval petals without pointed tails. */
 @Composable
-private fun FourPetalFlower(
-    size: androidx.compose.ui.unit.Dp,
-    color: Color,
-) {
+private fun FourPetalFlower(size: androidx.compose.ui.unit.Dp, color: Color) {
     Canvas(modifier = Modifier.size(size)) {
-        val c = Offset(x = this.size.width / 2f, y = this.size.height / 2f)
         val r = this.size.minDimension / 2f
-        // 花瓣根部留白（四瓣因此互不相交），瓣尖收到 0.88r。
-        val rootR = r * 0.20f
-        val tipR = r * 0.88f
-        val bellyR = (rootR + tipR) / 2f
-        val bellyHalfWidth = r * 0.30f
-        // 控制点：从最宽处往瓣尖收拢的中途，取 62% 的半宽 —— 圆润、不尖锐。
-        val ctrlR = bellyR + (tipR - bellyR) * 0.55f
-        val ctrlHalfWidth = bellyHalfWidth * 0.62f
-        val strokeWidth = 1.dp.toPx()
-
-        val petalPath = androidx.compose.ui.graphics.Path()
-        fun petalAt(angleDeg: Float) {
-            val rad = Math.toRadians(angleDeg.toDouble())
-            val ux = Math.cos(rad).toFloat()   // 花瓣轴向单位向量
-            val uy = Math.sin(rad).toFloat()
-            val vx = -uy                        // 花瓣横向单位向量（垂直于轴向）
-            val vy = ux
-
-            fun at(along: Float, across: Float) = Offset(
-                x = c.x + ux * along + vx * across,
-                y = c.y + uy * along + vy * across,
-            )
-
-            val root = at(rootR, 0f)
-            val tip = at(tipR, 0f)
-            val bellyLeft = at(bellyR, -bellyHalfWidth)
-            val bellyRight = at(bellyR, bellyHalfWidth)
-            val ctrlLeft = at(ctrlR, -ctrlHalfWidth)
-            val ctrlRight = at(ctrlR, ctrlHalfWidth)
-
-            petalPath.reset()
-            petalPath.moveTo(root.x, root.y)
-            // 根部 → 左侧鼓出 → 瓣尖
-            petalPath.cubicTo(
-                bellyLeft.x, bellyLeft.y,
-                ctrlLeft.x, ctrlLeft.y,
-                tip.x, tip.y,
-            )
-            // 瓣尖 → 右侧鼓出 → 根部
-            petalPath.cubicTo(
-                ctrlRight.x, ctrlRight.y,
-                bellyRight.x, bellyRight.y,
-                root.x, root.y,
-            )
-            petalPath.close()
-            drawPath(petalPath, color = color, style = Stroke(width = strokeWidth))
+        val c = center
+        val stroke = Stroke(width = 1.dp.toPx())
+        repeat(4) { index ->
+            rotate(degrees = index * 90f, pivot = c) {
+                drawOval(
+                    color = color,
+                    topLeft = Offset(c.x - r * 0.27f, c.y - r * 0.88f),
+                    size = Size(r * 0.54f, r * 0.72f),
+                    style = stroke,
+                )
+            }
         }
-        petalAt(270f)  // 上
-        petalAt(0f)    // 右
-        petalAt(90f)   // 下
-        petalAt(180f)  // 左
-
-        // 中心小圆点：与花瓣根部留白呼应。
-        drawCircle(
-            color = color,
-            radius = rootR * 0.46f,
-            center = c,
-            style = Stroke(width = strokeWidth),
-        )
+        drawCircle(color = color, radius = r * 0.065f, center = c)
     }
 }
 
