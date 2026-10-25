@@ -115,7 +115,6 @@ import me.rerere.rikkahub.ui.pages.disclaimer.DisclaimerPage
 import me.rerere.rikkahub.ui.pages.disclaimer.LegalPage
 import me.rerere.rikkahub.ui.pages.extensions.ExtensionsPage
 import me.rerere.rikkahub.ui.pages.extensions.ExternalMemoriesPage
-import me.rerere.rikkahub.ui.pages.extensions.ExternalMemoryContentPage
 import me.rerere.rikkahub.ui.pages.extensions.PromptPage
 import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
 import me.rerere.rikkahub.ui.pages.extensions.SkillDetailPage
@@ -728,12 +727,6 @@ class RouteActivity : ComponentActivity() {
                                 QuickMessagesPage()
                             }
 
-                            entry<Screen.ExternalMemoryContent> { key ->
-                                ExternalMemoryContentPage(
-                                    memoryId = key.memoryId,
-                                    onBack = { backStack.removeLastOrNull() },
-                                )
-                            }
                             entry<Screen.ExternalMemories> {
                                 ExternalMemoriesPage()
                             }
@@ -1261,9 +1254,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object ExternalMemories : Screen
-
-    /** 单个外置记忆库的记忆内容（只读查看）。 */
-    data class ExternalMemoryContent(val memoryId: String) : Screen
 
     @Serializable
     data class VoiceCall(val conversationId: String) : Screen
