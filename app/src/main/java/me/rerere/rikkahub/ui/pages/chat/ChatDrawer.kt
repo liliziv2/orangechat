@@ -91,7 +91,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
@@ -130,9 +129,6 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
-// 背单词（独立 vocabulary.db）。拆掉这个模块时，把这一行 import + 下面两处
-// koinInject/collect + 那行入口 + DrawerVocabularyRow 一起删掉即可。
-import me.rerere.rikkahub.vocabulary.data.VocabularyRepository
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
@@ -179,12 +175,6 @@ fun ChatDrawerContent(
     val conversationJobs by vm.conversationJobs.collectAsStateWithLifecycle(
         initialValue = emptyMap(),
     )
-
-    // 背单词入口那行的状态。⚠️ 这里**不能**挂定时轮询 —— drawerContent 只是滑出屏幕、
-    // 没退出 composition，轮询会一直空转。所以只订两个 Flow（见 VocabularyRepository.dueCount）。
-    val vocabularyRepo = koinInject<VocabularyRepository>()
-    val vocabularyBooks by vocabularyRepo.books.collectAsStateWithLifecycle(initialValue = emptyList())
-    val vocabularyDue by vocabularyRepo.dueCount.collectAsStateWithLifecycle(initialValue = 0)
 
     // 昵称编辑状态
     val nicknameEditState = useEditState<String> { newNickname ->
@@ -299,14 +289,13 @@ fun ChatDrawerContent(
             // ============ 纪念卡（侧栏顶部唯一身份区）============
             // 只重做这一块：柔和水纹底 + 半透明面板 + 细边框圆角。
             // 材质完全跟主题（不新增配色体系），卡片内部收拢：
-            // 双头像(渺渺左/栖右) + 装饰数字 + 动态问候 + 右上设置 + 卡片内搜索/背单词。
+            // 双头像(渺渺左/栖右) + 装饰数字 + 动态问候 + 右上设置 + 卡片内搜索。
             // 卡片以下（分隔线/文件夹/会话列表/底部栏）保持回退版本原样。
             DrawerMemorialCard(
                 settings = settings,
                 onOpenSettings = { navController.navigate(Screen.Setting) },
                 onAssistantClick = { navController.navigate(Screen.AssistantDetail(settings.assistantId.toString())) },
                 onSearch = { navController.navigate(Screen.MessageSearch) },
-                onVocabulary = { navController.navigate(Screen.VocabularyList) },
                 onUpdateUserAvatar = { avatar ->
                     vm.updateSettings(
                         settings.copy(
@@ -744,7 +733,6 @@ private fun DrawerMemorialCard(
     onOpenSettings: () -> Unit,
     onAssistantClick: () -> Unit,
     onSearch: () -> Unit,
-    onVocabulary: () -> Unit,
     onUpdateUserAvatar: (Avatar) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -842,7 +830,6 @@ private fun DrawerMemorialCard(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 MemorialCardPill(HugeIcons.Search01, stringResource(R.string.chat_page_search_chats), onSearch, settings.displaySetting.drawerMaterialMode ?: settings.displaySetting.materialMode)
-                MemorialCardPill(HugeIcons.Book01, stringResource(R.string.vocabulary_page_title), onVocabulary, settings.displaySetting.drawerMaterialMode ?: settings.displaySetting.materialMode)
             }
         }
     }

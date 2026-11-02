@@ -210,84 +210,146 @@ export interface SSECallbacks<T> {
   onClose?: () => void;
 }
 
+type SSEOptions = Options & {
+  signal?: AbortSignal;
+  reconnect?: boolean;
+  reconnectBaseDelayMs?: number;
+  reconnectMaxDelayMs?: number;
+};
+
+function waitForReconnect(delayMs: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, delayMs);
+    signal?.addEventListener("abort", finish, { once: true });
+    if (signal?.aborted) finish();
+  });
+}
+
 /**
- * Create an SSE connection using ky (supports auth headers)
+ * Create an SSE connection using ky (supports auth headers).
+ * The server sends SSE heartbeats; this client keeps the subscription alive across
+ * transient network/proxy drops and stops only when the caller aborts it.
  */
 async function sse<T>(
   url: string,
   callbacks: SSECallbacks<T>,
-  options?: Options & { signal?: AbortSignal },
+  options?: SSEOptions,
 ): Promise<void> {
-  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  const {
+    signal,
+    reconnect = true,
+    reconnectBaseDelayMs = 1000,
+    reconnectMaxDelayMs = 30_000,
+    ...requestOptions
+  } = options ?? {};
+
+  let reconnectDelay = reconnectBaseDelayMs;
 
   try {
-    const response = await kyInstance.get(url, {
-      ...options,
-      headers: {
-        ...options?.headers,
-        Accept: "text/event-stream",
-      },
-      timeout: false,
-    });
+    while (!signal?.aborted) {
+      let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+      let shouldReconnect = false;
+      let connectedAt: number | undefined;
 
-    callbacks.onOpen?.();
+      try {
+        const response = await kyInstance.get(url, {
+          ...requestOptions,
+          signal,
+          headers: {
+            ...requestOptions.headers,
+            Accept: "text/event-stream",
+            // Avoid an intermediary serving a cached/stale stream after reconnect.
+            "Cache-Control": "no-cache",
+          },
+          timeout: false,
+        });
 
-    reader = response.body?.getReader();
-    if (!reader) {
-      throw new ApiError("Response body is not readable", 0);
-    }
+        callbacks.onOpen?.();
+        connectedAt = Date.now();
 
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let currentEvent = "message";
-    let currentData = "";
-    let currentId: string | undefined;
+        reader = response.body?.getReader();
+        if (!reader) {
+          throw new ApiError("Response body is not readable", 0);
+        }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let currentEvent = "message";
+        let currentData = "";
+        let currentId: string | undefined;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+        while (!signal?.aborted) {
+          const { done, value } = await reader.read();
+          if (done) {
+            shouldReconnect = true;
+            break;
+          }
 
-      for (const line of lines) {
-        const trimmedLine = line.replace(/\r$/, "");
-        if (trimmedLine.startsWith("event:")) {
-          currentEvent = trimmedLine.slice(6).trim();
-        } else if (trimmedLine.startsWith("data:")) {
-          currentData += (currentData ? "\n" : "") + trimmedLine.slice(5).trim();
-        } else if (trimmedLine.startsWith("id:")) {
-          currentId = trimmedLine.slice(3).trim();
-        } else if (trimmedLine === "") {
-          if (currentData) {
-            try {
-              const data = JSON.parse(currentData) as T;
-              callbacks.onMessage({ event: currentEvent, data, id: currentId });
-            } catch {
-              // Ignore JSON parse error
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmedLine = line.replace(/\r$/, "");
+            if (trimmedLine.startsWith("event:")) {
+              currentEvent = trimmedLine.slice(6).trim();
+            } else if (trimmedLine.startsWith("data:")) {
+              currentData += (currentData ? "\n" : "") + trimmedLine.slice(5).trim();
+            } else if (trimmedLine.startsWith("id:")) {
+              currentId = trimmedLine.slice(3).trim();
+            } else if (trimmedLine === "") {
+              if (currentData) {
+                try {
+                  const data = JSON.parse(currentData) as T;
+                  callbacks.onMessage({ event: currentEvent, data, id: currentId });
+                } catch {
+                  // Ignore malformed events and keep the stream alive.
+                }
+              }
+              currentEvent = "message";
+              currentData = "";
+              currentId = undefined;
             }
           }
-          currentEvent = "message";
-          currentData = "";
-          currentId = undefined;
         }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          break;
+        }
+
+        let handledError: unknown = error;
+        try {
+          await handleError(error);
+        } catch (caughtError) {
+          handledError = caughtError;
+        }
+        const normalizedError =
+          handledError instanceof Error ? handledError : new Error(String(handledError));
+        callbacks.onError?.(normalizedError);
+
+        // Authentication failures need user interaction, not an endless retry loop.
+        if (normalizedError instanceof ApiError && normalizedError.code === 401) {
+          break;
+        }
+        shouldReconnect = true;
+      } finally {
+        reader?.releaseLock();
       }
-    }
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      // Ignored: intentional abort
-    } else {
-      try {
-        await handleError(error);
-      } catch (handledError) {
-        callbacks.onError?.(
-          handledError instanceof Error ? handledError : new Error(String(handledError)),
-        );
+
+      if (!reconnect || !shouldReconnect || signal?.aborted) break;
+      if (connectedAt !== undefined && Date.now() - connectedAt >= 30_000) {
+        reconnectDelay = reconnectBaseDelayMs;
       }
+      await waitForReconnect(reconnectDelay, signal);
+      reconnectDelay = Math.min(reconnectDelay * 2, reconnectMaxDelayMs);
     }
   } finally {
-    reader?.releaseLock();
     callbacks.onClose?.();
   }
 }

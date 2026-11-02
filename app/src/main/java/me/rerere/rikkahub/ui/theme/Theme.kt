@@ -101,9 +101,7 @@ internal val THEME_BACKGROUND_SCRIM = mapOf(
  * 默认（以及其他主题）思考卡片与助手气泡共用 surfaceContainerHigh；列在这里的主题
  * 把「思考气泡」当成独立的一层，卡片改读 tertiaryContainer。
  */
-// warmlampmoss：夜间规格单独指定了思维链表面 #34342F（与助手气泡 #393831 区分），
-// 因此也走 tertiaryContainer 槽位。
-internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose", "warmlampmoss")
+internal val THEME_THINKING_CONTAINER_THEMES = setOf("creamrose")
 
 /**
  * 思考卡**真的画背景**的主题。

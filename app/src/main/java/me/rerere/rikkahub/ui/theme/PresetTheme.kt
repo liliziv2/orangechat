@@ -4,7 +4,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import me.rerere.rikkahub.ui.theme.presets.ClaudeThemePreset
 import me.rerere.rikkahub.ui.theme.presets.MinimalThemePreset
-import me.rerere.rikkahub.ui.theme.presets.WarmLampMossThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.CreamRoseThemePreset
 import me.rerere.rikkahub.ui.theme.presets.custom.HarborThemePreset
 
@@ -19,7 +18,7 @@ data class PresetTheme(
     }
 }
 
-// 五个预设。Minimal 放在首位 —— PreferencesStore 与 SettingVM 都用
+// 四个预设。Minimal 放在首位 —— PreferencesStore 与 SettingVM 都用
 // PresetThemes[0].id 作为「没存过主题 / 原主题已不存在」时的默认值，
 // 它与下面 findPresetTheme 的兜底必须是同一个，否则两处口径会不一致。
 val PresetThemes by lazy {
@@ -28,7 +27,6 @@ val PresetThemes by lazy {
         HarborThemePreset,
         CreamRoseThemePreset,
         ClaudeThemePreset,
-        WarmLampMossThemePreset,
     )
 }
 
