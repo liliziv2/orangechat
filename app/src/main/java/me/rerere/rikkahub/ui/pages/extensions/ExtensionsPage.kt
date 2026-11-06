@@ -91,11 +91,15 @@ fun ExtensionsPage() {
                         headlineContent = { Text("进阶记忆") },
                         supportingContent = { Text("管理外置记忆库，为助手配置独立的长期记忆") },
                     )
-                    item(
-                        onClick = { navController.navigate(Screen.Workspaces) },
-                        headlineContent = { Text(stringResource(R.string.extensions_page_workspace)) },
-                        supportingContent = { Text(stringResource(R.string.extensions_page_workspace_desc)) },
-                    )
+                    // 工作区入口默认隐藏：页面、路由与 AI 工具全部保留，
+                    // 需要时恢复这个 item 即可，不影响已有会话的 workspace 绑定。
+                    if (false) {
+                        item(
+                            onClick = { navController.navigate(Screen.Workspaces) },
+                            headlineContent = { Text(stringResource(R.string.extensions_page_workspace)) },
+                            supportingContent = { Text(stringResource(R.string.extensions_page_workspace_desc)) },
+                        )
+                    }
                 }
             }
         }

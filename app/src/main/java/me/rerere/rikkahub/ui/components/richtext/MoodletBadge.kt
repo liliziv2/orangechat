@@ -1,7 +1,8 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -165,7 +166,7 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     val label = title.ifEmpty { preset.labelZh }
     val expandedText = if (reason.isNotEmpty()) "（$reason）" else preset.hintZh
     val hasExpandable = expandedText.isNotEmpty()
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable(mood, title, reason) { mutableStateOf(false) }
 
     // 情绪同色描边：描边色 = 该 mood 的 tint 色（与左侧图标同一个色），
     // 而不是一条中性灰线。原因是助手气泡底色本身就是 surfaceContainerHigh，
@@ -180,61 +181,59 @@ fun MoodletBadge(element: Element, modifier: Modifier = Modifier) {
     // 0.15 后降到 ΔL* 6.3~11.4（中位 7.6，约填充的 3 倍），读作「轻轻勾了一道边界」。
     val tint = preset.tint.color()
 
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        border = BorderStroke(
-            width = 1.dp,
-            color = tint.copy(alpha = 0.15f),
-        ),
-    ) {
-        Row(
-            modifier = Modifier
-                .then(
-                    if (hasExpandable) Modifier.clickable { expanded = !expanded }
-                    else Modifier
-                )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    // Selection is disabled inside the badge only: the surrounding message stays selectable,
+    // while a tap here reaches the badge instead of being consumed as a selection drag.
+    DisableSelection {
+        Surface(
+            onClick = { expanded = !expanded },
+            enabled = hasExpandable,
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            border = BorderStroke(width = 1.dp, color = tint.copy(alpha = 0.15f)),
         ) {
-            Icon(
-                imageVector = preset.icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(22.dp),
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 10.dp),
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = label,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                Icon(
+                    imageVector = preset.icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(22.dp),
                 )
-                if (expanded && hasExpandable) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 10.dp),
+                ) {
                     Text(
-                        text = expandedText,
-                        fontSize = 11.sp,
-                        fontStyle = if (reason.isNotEmpty()) FontStyle.Italic else FontStyle.Normal,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                            alpha = if (reason.isNotEmpty()) 0.6f else 0.75f
-                        ),
+                        text = label,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                    )
+                    if (expanded && hasExpandable) {
+                        Text(
+                            text = expandedText,
+                            fontSize = 11.sp,
+                            fontStyle = if (reason.isNotEmpty()) FontStyle.Italic else FontStyle.Normal,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = if (reason.isNotEmpty()) 0.6f else 0.75f
+                            ),
+                        )
+                    }
+                }
+                if (hasExpandable) {
+                    Icon(
+                        imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp),
                     )
                 }
-            }
-            if (hasExpandable) {
-                Icon(
-                    imageVector = if (expanded) Lucide.ChevronUp else Lucide.ChevronDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.size(16.dp),
-                )
             }
         }
     }

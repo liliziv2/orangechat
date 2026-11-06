@@ -145,6 +145,10 @@ android {
     }
     androidResources {
         generateLocaleConfig = true
+        // 只打包本项目真正翻译过的语言（values 为英文，其余见 res/values-*）。
+        // 依赖库（AndroidX / Coil / Ktor 等）自带的其他语言在这里被剔除，
+        // 不影响任何已翻译文案，也不改变运行时回退链（英文仍在列表内）。
+        localeFilters += listOf("en", "ja", "ko-rKR", "ru", "zh", "zh-rTW")
     }
     packaging {
         jniLibs {

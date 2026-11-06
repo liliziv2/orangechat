@@ -295,7 +295,6 @@ fun ChatDrawerContent(
                 settings = settings,
                 onOpenSettings = { navController.navigate(Screen.Setting) },
                 onAssistantClick = { navController.navigate(Screen.AssistantDetail(settings.assistantId.toString())) },
-                onSearch = { navController.navigate(Screen.MessageSearch) },
                 onUpdateUserAvatar = { avatar ->
                     vm.updateSettings(
                         settings.copy(
@@ -323,6 +322,7 @@ fun ChatDrawerContent(
                 selectedFolderId = selectedFolderId,
                 onSelect = { drawerVm.selectFolder(it) },
                 onCreate = { showCreateFolderDialog = true },
+                onSearch = { navController.navigate(Screen.MessageSearch) },
                 onNewChat = {
                     scope.launch {
                         val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
@@ -744,7 +744,6 @@ private fun DrawerMemorialCard(
     settings: Settings,
     onOpenSettings: () -> Unit,
     onAssistantClick: () -> Unit,
-    onSearch: () -> Unit,
     onUpdateUserAvatar: (Avatar) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -762,7 +761,7 @@ private fun DrawerMemorialCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -775,12 +774,7 @@ private fun DrawerMemorialCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Greeting(modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium)
-                    Icon(
-                        imageVector = HugeIcons.Sun03,
-                        contentDescription = null,
-                        tint = scheme.primary,
-                        modifier = Modifier.size(14.dp),
-                    )
+
                 }
                 IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) {
                     Icon(
@@ -792,7 +786,7 @@ private fun DrawerMemorialCard(
                 }
             }
             Row(
-                modifier = Modifier.padding(top = 4.dp),
+                modifier = Modifier.padding(bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
@@ -800,27 +794,27 @@ private fun DrawerMemorialCard(
                     UIAvatar(
                         name = settings.displaySetting.userNickname,
                         value = settings.displaySetting.userAvatar,
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier.size(48.dp),
                         onUpdate = onUpdateUserAvatar,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(userName, style = MaterialTheme.typography.labelMedium,
                         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Box(modifier = Modifier.width(76.dp).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
-                    FourPetalFlower(size = 36.dp, color = scheme.primary.copy(alpha = 0.42f))
+                Box(modifier = Modifier.width(64.dp).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+                    FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.42f))
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
                     // Keep the image and centered hit target; no outer ring.
                     Box(
-                        modifier = Modifier.size(52.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
+                        modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
                         contentAlignment = Alignment.Center,
                     ) {
                         ChatMessageSideAvatar(
                             role = MessageRole.ASSISTANT,
                             model = settings.getCurrentChatModel(),
                             assistant = currentAssistant,
-                            size = 52.dp,
+                            size = 48.dp,
                         )
                     }
                     Spacer(Modifier.height(4.dp))
@@ -828,54 +822,10 @@ private fun DrawerMemorialCard(
                         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Text(
-                text = "♡  S I D E  B Y  S I D E  ♡",
-                style = MaterialTheme.typography.labelSmall,
-                letterSpacing = 1.5.sp,
-                color = scheme.primary.copy(alpha = 0.75f),
-                modifier = Modifier.padding(top = 8.dp),
-                maxLines = 1,
-            )
-            // Compact actions at the bottom right; no date or placeholder.
-            Row(
-                modifier = Modifier.align(Alignment.End).padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                MemorialCardPill(HugeIcons.Search01, stringResource(R.string.chat_page_search_chats), onSearch, settings.displaySetting.drawerMaterialMode ?: settings.displaySetting.materialMode)
-            }
         }
     }
 }
 
-@Composable
-private fun MemorialCardPill(
-    icon: ImageVector, label: String, onClick: () -> Unit, materialMode: DisplayMaterialMode, modifier: Modifier = Modifier,
-) {
-    val mode = materialMode
-    val scheme = MaterialTheme.colorScheme
-    val fill = when (mode) {
-        DisplayMaterialMode.TRANSLUCENT -> 0.025f
-        DisplayMaterialMode.GLASS -> 0.04f
-        else -> 0.06f
-    }
-    // Rounded rectangle, not a pill; compact visible shell within a 48dp hit area.
-    Box(modifier = modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
-        .clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = scheme.onSurface.copy(alpha = fill),
-            border = if (mode == DisplayMaterialMode.TRANSLUCENT || mode == DisplayMaterialMode.GLASS)
-                BorderStroke(0.5.dp, scheme.onSurface.copy(alpha = 0.08f)) else null,
-        ) {
-            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Icon(icon, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                Text(label, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant, maxLines = 1)
-            }
-        }
-    }
-}
 /** Four identical round oval petals without pointed tails. */
 @Composable
 private fun FourPetalFlower(
@@ -990,91 +940,101 @@ private fun FolderBar(
     onSelect: (Uuid?) -> Unit,
     onCreate: () -> Unit,
     onNewChat: () -> Unit,
+    onSearch: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
 ) {
-    // 侧栏最后修复：恢复聊天管理入口，条件式三段：
-    //   无文件夹：[聊天] [新建]
-    //   有文件夹：[聊天] [文件夹▾] [新建]  —— 点[文件夹▾]横向展开具体文件夹 chips
-    // 具体文件夹横向滚动，不竖排；长按重命名/删除保留。
+    // 侧栏的会话管理行：
+    //   无文件夹：[聊天] [新建]                              [搜索]
+    //   有文件夹：[聊天] [文件夹▾] [新建] [具体文件夹...]    [搜索]
+    // chips 横向滚动，搜索固定在行尾，不随 chip 数量被挤出屏幕。
     var showFolderChips by remember { mutableStateOf(false) }
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // [聊天]：全部会话
-        item {
-            FolderChip(
-                label = stringResource(R.string.chat_page_folder_default),
-                selected = selectedFolderId == null,
-                onClick = { onSelect(null) },
-                onLongClick = {},
-            )
-        }
-        // [文件夹▾]：只有存在用户文件夹时出现，紧邻[新建]之前
-        if (folders.isNotEmpty()) {
+        LazyRow(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             item {
                 FolderChip(
-                    label = stringResource(R.string.chat_page_folder_add),
-                    icon = HugeIcons.Folder01,
-                    selected = showFolderChips || selectedFolderId != null,
-                    onClick = { showFolderChips = !showFolderChips },
+                    label = stringResource(R.string.chat_page_folder_default),
+                    selected = selectedFolderId == null,
+                    onClick = { onSelect(null) },
                     onLongClick = {},
                 )
             }
-        }
-        // [新建]：常驻，新建对话（与底栏同一逻辑）
-        item {
-            FolderChip(
-                label = stringResource(R.string.chat_page_new_chat),
-                icon = HugeIcons.MessageAdd01,
-                selected = false,
-                onClick = onNewChat,
-                onLongClick = {},
-            )
-        }
-        // 具体文件夹 chips：横向滚动，点[文件夹▾]展开；长按重命名/删除
-        if (folders.isNotEmpty() && showFolderChips) {
-            items(folders) { folder ->
-                var menuExpanded by remember { mutableStateOf(false) }
-                Box {
+            if (folders.isNotEmpty()) {
+                item {
                     FolderChip(
-                        label = folder.name,
+                        label = stringResource(R.string.chat_page_folder_add),
                         icon = HugeIcons.Folder01,
-                        selected = selectedFolderId == folder.id,
-                        onClick = { onSelect(folder.id) },
-                        onLongClick = { menuExpanded = true },
+                        selected = showFolderChips || selectedFolderId != null,
+                        onClick = { showFolderChips = !showFolderChips },
+                        onLongClick = {},
                     )
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        border = materialModeBorderStroke(),
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_rename)) },
-                            leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
-                            onClick = {
-                                onRename(folder)
-                                menuExpanded = false
-                            }
+                }
+            }
+            item {
+                FolderChip(
+                    label = stringResource(R.string.chat_page_new_chat),
+                    icon = HugeIcons.MessageAdd01,
+                    selected = false,
+                    onClick = onNewChat,
+                    onLongClick = {},
+                )
+            }
+            if (folders.isNotEmpty() && showFolderChips) {
+                items(folders) { folder ->
+                    var menuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        FolderChip(
+                            label = folder.name,
+                            icon = HugeIcons.Folder01,
+                            selected = selectedFolderId == folder.id,
+                            onClick = { onSelect(folder.id) },
+                            onLongClick = { menuExpanded = true },
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.chat_page_delete)) },
-                            leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                            onClick = {
-                                onDelete(folder)
-                                menuExpanded = false
-                            }
-                        )
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            border = materialModeBorderStroke(),
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chat_page_rename)) },
+                                leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
+                                onClick = {
+                                    onRename(folder)
+                                    menuExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chat_page_delete)) },
+                                leadingIcon = { Icon(HugeIcons.Delete01, null) },
+                                onClick = {
+                                    onDelete(folder)
+                                    menuExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
+        IconButton(onClick = onSearch, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = HugeIcons.Search01,
+                contentDescription = stringResource(R.string.chat_page_search_chats),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
+
 @Composable
 private fun FolderChip(
     label: String,
