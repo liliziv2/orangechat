@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -222,6 +224,9 @@ private fun AddWorkspaceDialog(
     var name by rememberSaveable { mutableStateOf("") }
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_page_add_title)) },
         text = {

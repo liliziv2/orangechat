@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.log
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import androidx.compose.foundation.clickable
@@ -112,6 +114,9 @@ private fun UnifiedLogList(logs: List<LogEntry>, modifier: Modifier = Modifier) 
 
     selectedLog?.let { log ->
         ModalBottomSheet(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { selectedLog = null },
             sheetState = sheetState
         ) {

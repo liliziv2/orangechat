@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.security
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -53,6 +55,9 @@ fun SecurityAuditPage(vm: SecurityAuditVM = koinViewModel()) {
 
     if (showClearConfirm) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showClearConfirm = false },
             title = { Text("清空日志") },
             text = { Text("确定要删除所有安全审计日志吗？此操作不可恢复。") },

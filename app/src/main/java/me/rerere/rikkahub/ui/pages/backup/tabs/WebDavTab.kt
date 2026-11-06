@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.pages.backup.tabs
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
@@ -305,6 +307,9 @@ fun WebDavTab(
 
     if (showBackupFiles) {
         ModalBottomSheet(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 showBackupFiles = false
             },

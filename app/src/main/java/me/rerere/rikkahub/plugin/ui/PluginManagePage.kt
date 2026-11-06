@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.plugin.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -162,6 +164,9 @@ fun PluginManagePage(
     pendingImport?.let { pending ->
         val manifest = pending.manifest
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { viewModel.cancelImportPreview() },
             title = { Text("确认安装插件") },
             text = {
@@ -299,6 +304,9 @@ fun PluginManagePage(
     showDeleteFolderConfirm?.let { folder ->
         val count = plugins.count { it.folderId == folder.id }
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteFolderConfirm = null },
             title = { Text("删除文件夹") },
             text = {
@@ -554,6 +562,9 @@ internal fun PluginRow(
 
     if (showDeleteConfirm) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("确认删除") },
             text = { Text("确定要删除插件 \"${plugin.manifest.name}\" 吗？此操作不可撤销。") },
@@ -576,6 +587,9 @@ private fun CreateFolderDialog(
 ) {
     var folderName by remember { mutableStateOf("") }
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text("新建文件夹") },
         text = {
@@ -609,6 +623,9 @@ private fun RenameFolderDialog(
 ) {
     var folderName by remember(folder.id) { mutableStateOf(folder.name) }
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text("编辑文件夹") },
         text = {

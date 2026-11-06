@@ -1365,6 +1365,7 @@ private fun ToolDenyReasonDialog(
     var reason by remember { mutableStateOf("") }
 
     AlertDialog(
+        containerColor = me.rerere.rikkahub.ui.theme.popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
         onDismissRequest = onDismiss,
         title = {
             Text(stringResource(R.string.chat_message_tool_deny_dialog_title))

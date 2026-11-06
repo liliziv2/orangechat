@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.miniapp
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -221,6 +223,9 @@ fun MiniAppPage(
 
     popupData?.let { data ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { popupData = null },
             title = { data.title?.let { Text(it) } },
             text = { Text(data.message) },
@@ -284,6 +289,9 @@ fun MiniAppPage(
 
     alertMessage?.let { message ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { alertMessage = null },
             text = { Text(message) },
             confirmButton = {

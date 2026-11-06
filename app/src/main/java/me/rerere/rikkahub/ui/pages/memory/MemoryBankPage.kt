@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.memory
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.rikkahub.ui.pages.setting.settingsScaffoldContainerColor
 
 import androidx.compose.foundation.layout.Arrangement
@@ -243,6 +245,9 @@ fun MemoryBankPage(
     // 删除确认对话框
     showDeleteDialog?.let { memory ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteDialog = null },
             title = { Text("删除记忆") },
             text = { Text("确定要删除这条记忆吗？此操作不可撤销。") },

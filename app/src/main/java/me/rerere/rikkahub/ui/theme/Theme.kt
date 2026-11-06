@@ -201,7 +201,7 @@ fun RikkahubTheme(
             )
         }
         val interfaceSurfaceAlpha =
-            (settings.displaySetting.interfaceSurfaceOpacity / 100f).coerceIn(0f, 0.95f)
+            (settings.displaySetting.interfaceSurfaceOpacity / 100f).coerceIn(0f, 1f)
         // 直接覆盖容器 token 的 alpha，保留 RGB，避免与主题或组件已有 alpha 相乘。
         // background 保持不透明，使聊天页外层 Surface 能完整隔离导航根部的设置背景。
         scheme = scheme.copy(

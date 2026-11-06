@@ -559,6 +559,9 @@ private fun AssistantActionSheet(
 
     if (showDeleteDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteDialog = false },
             title = { Text(stringResource(R.string.assistant_page_delete)) },
             text = { Text(stringResource(R.string.assistant_page_delete_dialog_text)) },

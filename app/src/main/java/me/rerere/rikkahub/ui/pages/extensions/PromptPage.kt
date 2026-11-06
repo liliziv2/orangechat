@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -415,6 +417,9 @@ private fun ModeInjectionEditSheet(
     val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         sheetGesturesEnabled = false,
@@ -842,6 +847,9 @@ private fun LorebookEditSheet(
     }
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         sheetGesturesEnabled = false,
@@ -1039,6 +1047,9 @@ private fun RegexInjectionEditDialog(
     var newKeyword by remember { mutableStateOf("") }
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.prompt_page_edit_entry)) },
         text = {

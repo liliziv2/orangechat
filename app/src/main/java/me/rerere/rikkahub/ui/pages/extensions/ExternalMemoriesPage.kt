@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -272,6 +274,9 @@ private fun ExternalMemoryEditDialog(
     val settings = vm.settings.collectAsStateWithLifecycle().value
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(if (memory == null) "新建进阶记忆" else "编辑进阶记忆") },
         text = {

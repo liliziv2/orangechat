@@ -455,6 +455,9 @@ fun ChatDrawerContent(
     // 昵称编辑对话框
     nicknameEditState.EditStateContent { nickname, onUpdate ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 nicknameEditState.dismiss()
             },
@@ -593,6 +596,9 @@ fun ChatDrawerContent(
     if (showCreateFolderDialog) {
         var name by remember { mutableStateOf("") }
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showCreateFolderDialog = false },
             title = { Text(stringResource(R.string.chat_page_create_folder)) },
             text = {
@@ -625,6 +631,9 @@ fun ChatDrawerContent(
     folderToRename?.let { folder ->
         var name by remember(folder.id) { mutableStateOf(folder.name) }
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { folderToRename = null },
             title = { Text(stringResource(R.string.chat_page_rename_folder)) },
             text = {
@@ -655,6 +664,9 @@ fun ChatDrawerContent(
     // 删除文件夹确认
     folderToDelete?.let { folder ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { folderToDelete = null },
             title = { Text(stringResource(R.string.chat_page_delete_folder)) },
             text = { Text(stringResource(R.string.chat_page_delete_folder_confirm, folder.name)) },

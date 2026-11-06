@@ -1,4 +1,6 @@
 package me.rerere.rikkahub.ui.pages.history;
+
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import me.rerere.rikkahub.ui.pages.setting.settingsScaffoldContainerColor
 
 
@@ -142,6 +144,9 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
 
     if (showDeleteAllDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteAllDialog = false },
             title = { Text(stringResource(R.string.history_page_delete_all_conversations)) },
             text = { Text(stringResource(R.string.history_page_delete_all_confirmation)) },

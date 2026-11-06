@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.Canvas
@@ -103,6 +105,9 @@ fun ColorPickerDialog(
 
     @OptIn(ExperimentalLayoutApi::class)
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text("颜色选择") },
         text = {

@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -113,6 +115,9 @@ fun BackgroundPicker(
 
     if (showPickOption) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 showPickOption = false
             },
@@ -169,6 +174,9 @@ fun BackgroundPicker(
 
     if (showUrlInput) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 showUrlInput = false
             },

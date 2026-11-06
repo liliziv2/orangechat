@@ -899,6 +899,9 @@ private fun TopBar(
     )
     if (showCloseoutDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showCloseoutDialog = false },
             title = { Text(stringResource(R.string.chat_page_closeout)) },
             text = {
@@ -935,6 +938,9 @@ private fun TopBar(
     }
     titleState.EditStateContent { title, onUpdate ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 titleState.dismiss()
             },

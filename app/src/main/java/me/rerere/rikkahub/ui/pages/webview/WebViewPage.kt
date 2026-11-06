@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.webview
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Bug01
@@ -144,6 +146,9 @@ fun WebViewPage(url: String, content: String) {
 
     if (showConsoleSheet) {
         ModalBottomSheet(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showConsoleSheet = false },
             sheetState = sheetState
         ) {

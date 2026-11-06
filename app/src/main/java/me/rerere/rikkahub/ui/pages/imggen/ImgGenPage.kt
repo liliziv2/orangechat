@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.imggen
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.rikkahub.ui.pages.setting.settingsScaffoldContainerColor
 
 import androidx.activity.compose.BackHandler
@@ -181,6 +183,9 @@ private fun CancelDialog(
     onConfirm: () -> Unit
 ) {
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.imggen_page_cancel_generation_title)) },
         text = { Text(stringResource(R.string.imggen_page_cancel_generation_message)) },
@@ -693,6 +698,9 @@ private fun SettingsBottomSheet(
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() }

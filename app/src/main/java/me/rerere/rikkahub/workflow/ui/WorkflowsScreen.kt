@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.workflow.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +59,9 @@ fun WorkflowsScreen(vm: WorkflowsViewModel = koinViewModel()) {
 
     if (showHowItWorks) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showHowItWorks = false },
             title = { Text("工作流如何运作") },
             text = {

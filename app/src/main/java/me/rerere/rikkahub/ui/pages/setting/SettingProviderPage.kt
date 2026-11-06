@@ -282,6 +282,9 @@ private fun ImportProviderButton(
 
     if (showImportDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showImportDialog = false },
             title = {
                 Text(
@@ -584,6 +587,9 @@ private fun ProviderItem(
     }
     if (showDeleteConfirm) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 showDeleteConfirm = false
             },

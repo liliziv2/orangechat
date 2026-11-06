@@ -1,4 +1,6 @@
 package me.rerere.rikkahub.plugin.ui
+
+import me.rerere.rikkahub.ui.theme.popupContainerColor
  
 import me.rerere.rikkahub.ui.pages.setting.settingsScaffoldContainerColor
 
@@ -459,6 +461,9 @@ fun PluginUIDeclarativePage(
     // ── Confirm Dialog ─────────────────────────────────────────
     confirmAction?.let { (action, fv) ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { confirmAction = null },
             title = { Text(action.confirmDialog?.title ?: "确认") },
             text = { Text(action.confirmDialog?.message ?: "确定要执行此操作吗？") },
@@ -884,7 +889,11 @@ private fun DialogFormSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
  
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

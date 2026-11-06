@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +30,9 @@ fun <T> ExportDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(title ?: stringResource(R.string.export_title)) },
         text = {

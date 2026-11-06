@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.clickable
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Image02
@@ -97,6 +99,9 @@ fun SettingFilesPage(
     if (pendingDelete != null) {
         val target = pendingDelete!!
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { pendingDelete = null },
             title = { Text(stringResource(R.string.setting_files_page_delete_file_title)) },
             text = { Text(target.displayName) },
@@ -139,6 +144,9 @@ fun SettingFilesPage(
             }
         }
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { if (!isCleaning) { showOldConversationsDialog = false; cleanableNodes = -1 } },
             title = { Text("清理旧对话") },
             text = {
@@ -217,6 +225,9 @@ fun SettingFilesPage(
     // 数据库清理对话框
     if (showCleanupDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { if (!isCleaning) showCleanupDialog = false },
             title = { Text("清理数据库") },
             text = {

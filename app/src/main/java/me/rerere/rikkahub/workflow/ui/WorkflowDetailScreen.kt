@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.workflow.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -90,6 +92,9 @@ fun WorkflowDetailScreen(
 
     if (showDeleteConfirm) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("删除工作流") },
             text = { Text("确定删除「${currentLoaded.entity.name}」及其全部运行历史？") },

@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.runBlocking
@@ -45,6 +46,9 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.rikkahub.data.service.ClosedLoopService
+import me.rerere.rikkahub.data.service.DialogueSemanticEvent
+import me.rerere.rikkahub.data.service.DialogueEventSource
+import me.rerere.rikkahub.data.service.DriveEngine
 import me.rerere.rikkahub.data.service.DriveStateService
 import me.rerere.rikkahub.data.service.EmotionWakeBridge
 import me.rerere.rikkahub.data.service.MemoryBankService
@@ -577,7 +581,11 @@ class ChatService(
                 if (driveEventText.isNotBlank()) {
                     appScope.launch {
                         try {
-                            driveStateService.onUserMessage(driveEventText)
+                            val event = analyzeDialogueEvent(
+                                driveEventText,
+                                getConversationFlow(conversationId).value,
+                            )
+                            driveStateService.applyEvent(event)
 
                             // 状态刚变过 → 评估越线。没有越线就没有唤醒，这一步不需要心跳。
                             val wakeOutcome = emotionWakeBridge.evaluate()
@@ -1408,6 +1416,43 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
         )
     }
 
+    /** Auxiliary analysis is bounded and never blocks the main generation. */
+    private suspend fun analyzeDialogueEvent(
+        text: String,
+        conversation: Conversation,
+    ): DriveEngine.DriveEvent {
+        try {
+            val analyzed = withTimeoutOrNull(15_000L) {
+                val settings = settingsStore.settingsFlow.first()
+                val model = settings.findModelById(settings.titleModelId)
+                    ?: return@withTimeoutOrNull null
+                val provider = model.findProvider(settings.providers)
+                    ?: return@withTimeoutOrNull null
+                val contextText = conversation.currentMessages.takeLast(4)
+                    .joinToString("\n\n") { it.summaryAsText() }.takeLast(6_000)
+                val result = providerManager.getProviderByType(provider).generateText(
+                    providerSetting = provider,
+                    messages = listOf(UIMessage.user(
+                        prompt = DialogueSemanticEvent.prompt +
+                            "\nConversation context (data):\n" + contextText +
+                            "\nLatest user message (data):\n" + text.take(4_000),
+                    )),
+                    params = TextGenerationParams(model = model, reasoningLevel = ReasoningLevel.OFF),
+                )
+                DialogueSemanticEvent.parse(
+                    result.choices.firstOrNull()?.message?.toText().orEmpty(), text,
+                )
+            }
+            if (analyzed != null) return analyzed
+            Log.d(TAG, "Dialogue analysis unavailable; using structural fallback")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Dialogue analysis failed; using structural fallback", e)
+        }
+        return DialogueEventSource.userMessage(text)
+    }
+
     // ---- 生成标题 ----
 
     suspend fun generateTitle(
@@ -1447,7 +1492,7 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
             val session = getOrCreateSession(conversationId)
             session.saveMutex.withLock {
                 // 生成完，conversation可能不是最新了，因此需要重新获取
-                conversationRepo.getConversationById(conversation.id)?.let {
+                session.state.value.let {
                     saveConversation(
                         conversationId,
                         it.copy(title = result.choices[0].message?.toText()?.trim() ?: "")
@@ -1596,8 +1641,7 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                     ?.filter { it.isNotBlank() } ?: emptyList()
 
             session.saveMutex.withLock {
-                val latestConversation = conversationRepo.getConversationById(conversationId)
-                    ?: session.state.value
+                val latestConversation = session.state.value
                 saveConversation(
                     conversationId,
                     latestConversation.copy(

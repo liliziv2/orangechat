@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -67,6 +69,7 @@ class ClosedLoopService(
 ) {
 
     private val store = CheckpointStore(context)
+    private val runMutex = Mutex()
 
     /** 检查点：闭环推进到哪了。 */
     @Serializable
@@ -95,7 +98,11 @@ class ClosedLoopService(
      * 调用点有两处：用户发消息之后的 fire-and-forget，以及现有主动消息服务
      * 每轮收尾。**没有新增任何后台任务** —— 这两个点本来就是现成的。
      */
-    suspend fun run(now: Long = System.currentTimeMillis()): Outcome = withContext(Dispatchers.IO) {
+    suspend fun run(now: Long = System.currentTimeMillis()): Outcome = runMutex.withLock {
+        runLocked(now)
+    }
+
+    private suspend fun runLocked(now: Long): Outcome = withContext(Dispatchers.IO) {
         val checkpoint = store.read()
 
         if (!checkpoint.initialized) {

@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -196,6 +198,9 @@ fun UIAvatar(
 
     if (showPickOption) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 showPickOption = false
             },
@@ -259,6 +264,9 @@ fun UIAvatar(
 
     if (showUrlInput) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 showUrlInput = false
             },

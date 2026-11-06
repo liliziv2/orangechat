@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.richtext
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.webkit.JavascriptInterface
@@ -195,6 +197,9 @@ fun Mermaid(
 
     if (preview) {
         ModalBottomSheet(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 preview = false
             },

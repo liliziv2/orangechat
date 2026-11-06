@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.search
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Refresh01
@@ -91,6 +93,9 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
 
     if (showRebuildDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showRebuildDialog = false },
             title = { Text(stringResource(R.string.search_page_rebuild_index)) },
             text = { Text(stringResource(R.string.search_page_rebuild_index_desc)) },

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.activity
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -180,6 +182,9 @@ private fun AssistantPickerSheet(
     }
 
     ModalBottomSheet(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {

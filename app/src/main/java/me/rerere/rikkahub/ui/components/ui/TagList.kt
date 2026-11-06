@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.components.ui
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -101,7 +103,11 @@ fun TagsInput(
         // 获取未选择的标签
         val unselectedTags = tags.filter { tag -> !value.contains(tag.id) }
 
-        AlertDialog(onDismissRequest = {
+        AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
+            onDismissRequest = {
             showAddDialog = false
             tagName = ""
             showError = false

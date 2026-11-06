@@ -1,5 +1,7 @@
 ﻿package me.rerere.rikkahub.ui.pages.chat
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Alert01
 import androidx.compose.foundation.layout.Arrangement
@@ -148,6 +150,9 @@ fun ConversationSizeWarningDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         icon = {
             Icon(

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -245,6 +247,9 @@ private fun EditQuickMessageDialog(
     }
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -263,6 +265,9 @@ private fun AddSkillDialog(
     val nameError = content.isNotBlank() && name.isBlank()
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.skills_page_add_title)) },
         text = {
@@ -314,6 +319,9 @@ private fun ImportSkillDialog(
     var loading by remember { mutableStateOf(false) }
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = { if (!loading) onDismiss() },
         title = { Text(stringResource(R.string.skills_page_import_from_github)) },
         text = {

@@ -83,15 +83,18 @@ class ConversationSession(
         }
     }
 
-    fun setJob(job: Job?) {
-        _generationJob.value?.cancel()
+    fun setJob(job: Job?): Unit = synchronized(claimLock) {
+        val previous = _generationJob.value
         _generationJob.value = job
+        if (previous !== job) previous?.cancel()
         job?.invokeOnCompletion {
-            _generationJob.value = null
-            if (refCount.get() <= 0) {
-                scheduleIdleCheck()
+            synchronized(claimLock) {
+                if (_generationJob.compareAndSet(job, null) && refCount.get() <= 0) {
+                    scheduleIdleCheck()
+                }
             }
         }
+        Unit
     }
 
     fun getJob(): Job? = _generationJob.value

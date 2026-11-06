@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -228,6 +230,9 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
 
     editingTheme?.let { theme ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { editingTheme = null },
             title = { Text(if (settings.customThemes.any { it.id == theme.id }) "编辑主题" else "新建主题") },
             text = {
@@ -304,6 +309,9 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
     if (showImportDialog) {
         var jsonText by remember { mutableStateOf("") }
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showImportDialog = false },
             title = { Text("导入主题") },
             text = {

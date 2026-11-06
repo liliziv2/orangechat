@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Add01
@@ -134,6 +136,9 @@ private fun AssistantMemoryContent(
     // 记忆对话框
     memoryDialogState.EditStateContent { memory, update ->
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = {
                 memoryDialogState.dismiss()
             },
@@ -438,6 +443,9 @@ private fun ExternalMemoryPickerDialog(
     var currentSelection by remember { mutableStateOf(selectedIds) }
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text("选择外置记忆库") },
         text = {

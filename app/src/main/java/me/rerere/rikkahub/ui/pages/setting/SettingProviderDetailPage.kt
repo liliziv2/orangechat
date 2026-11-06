@@ -427,6 +427,9 @@ private fun SettingProviderConfigPage(
     // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showDeleteDialog = false },
             title = {
                 Text(stringResource(R.string.confirm_delete))

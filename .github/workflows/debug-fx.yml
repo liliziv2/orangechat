@@ -3,10 +3,14 @@ name: Debug FX Build
 on:
   push:
     branches:
+      - feat/sidebar-memorial-card-and-input
       - glass-fx-only
       - orangechat-ib-tg
       - feat/ib-inspired-six-fx
       - fix/244-baseline-error-and-sync
+  pull_request:
+    branches:
+      - feat/sidebar-memorial-card-and-input
   workflow_dispatch:
 
 permissions:
@@ -112,7 +116,7 @@ jobs:
           fi
 
       - name: Commit shared debug keystore
-        if: steps.keystore.outputs.generated == 'true'
+        if: steps.keystore.outputs.generated == 'true' && github.event_name != 'pull_request'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

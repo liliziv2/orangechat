@@ -78,6 +78,9 @@ fun ProviderConnectionTester(
         }
 
         AlertDialog(
+            containerColor = popupContainerColor(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
             onDismissRequest = { showTestDialog = false },
             title = {
                 Text(stringResource(R.string.setting_provider_page_test_connection))

@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.extensions
 
+import me.rerere.rikkahub.ui.theme.popupContainerColor
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -290,6 +292,9 @@ private fun EditFileDialog(
     var content by rememberSaveable(skillFile.relativePath) { mutableStateOf(initialContent) }
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(skillFile.relativePath, fontFamily = FontFamily.Monospace) },
         text = {
@@ -322,6 +327,9 @@ private fun AddFileDialog(
     val fileNameError = fileName.isNotBlank() && (fileName.contains('\\'))
 
     AlertDialog(
+        containerColor = popupContainerColor(
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.skill_detail_page_new_file)) },
         text = {
