@@ -737,11 +737,11 @@ private fun DrawerMemorialCard(
         stringResource(R.string.user_default_name)
     }
     Box(modifier = Modifier.fillMaxWidth()) {
-        // Center the complete identity/action group, including the settings hit target.
+        // Center identity independently; settings and search share the same end-aligned 48dp target.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 16.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 48.dp, bottom = 16.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -749,7 +749,7 @@ private fun DrawerMemorialCard(
                 UIAvatar(
                     name = settings.displaySetting.userNickname,
                     value = settings.displaySetting.userAvatar,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(56.dp),
                     onUpdate = onUpdateUserAvatar,
                 )
                 Spacer(Modifier.height(6.dp))
@@ -759,8 +759,8 @@ private fun DrawerMemorialCard(
             Box(
                 modifier = Modifier
                     .width(40.dp)
-                    // (48dp 头像 - 30dp 花) / 2 = 9dp，花心与头像圆心同高。
-                    .padding(top = 9.dp),
+                    // (56dp avatar - 30dp flower) / 2: align their centers.
+                    .padding(top = 13.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.55f))
@@ -768,34 +768,31 @@ private fun DrawerMemorialCard(
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
                 // Keep the image and centered hit target; no outer ring.
                 Box(
-                    modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
+                    modifier = Modifier.size(56.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
                     contentAlignment = Alignment.Center,
                 ) {
                     ChatMessageSideAvatar(
                         role = MessageRole.ASSISTANT,
                         model = settings.getCurrentChatModel(),
                         assistant = currentAssistant,
-                        size = 48.dp,
+                        size = 56.dp,
                     )
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(assistantName, style = MaterialTheme.typography.labelMedium,
                     color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Spacer(Modifier.width(8.dp))
-            Box(modifier = Modifier.height(48.dp), contentAlignment = Alignment.Center) {
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Settings03,
-                        contentDescription = stringResource(R.string.settings),
-                        tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
+        }
+        IconButton(
+            onClick = onOpenSettings,
+            modifier = Modifier.align(Alignment.TopEnd).size(48.dp),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Settings03,
+                contentDescription = stringResource(R.string.settings),
+                tint = scheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }
