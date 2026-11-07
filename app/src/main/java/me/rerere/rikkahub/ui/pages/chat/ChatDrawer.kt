@@ -318,19 +318,6 @@ fun ChatDrawerContent(
                 onSelect = { drawerVm.selectFolder(it) },
                 onCreate = { showCreateFolderDialog = true },
                 onSearch = { navController.navigate(Screen.MessageSearch) },
-                onNewChat = {
-                    scope.launch {
-                        val id = if (context.readBooleanPreference("create_new_conversation_on_start", true)) {
-                            Uuid.random()
-                        } else {
-                            repo.getConversationsOfAssistant(settings.assistantId)
-                                .first()
-                                .firstOrNull()
-                                ?.id ?: Uuid.random()
-                        }
-                        navigateToChatPage(navigator = navController, chatId = id)
-                    }
-                },
                 onRename = { folderToRename = it },
                 onDelete = { folderToDelete = it },
             )
@@ -755,11 +742,11 @@ private fun DrawerMemorialCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(start = 48.dp, end = 48.dp, top = 16.dp, bottom = 16.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.Center,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
                 UIAvatar(
                     name = settings.displaySetting.userNickname,
                     value = settings.displaySetting.userAvatar,
@@ -772,14 +759,14 @@ private fun DrawerMemorialCard(
             }
             Box(
                 modifier = Modifier
-                    .width(56.dp)
+                    .width(40.dp)
                     // (48dp 头像 - 30dp 花) / 2 = 9dp，花心与头像圆心同高。
                     .padding(top = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.55f))
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
                 // Keep the image and centered hit target; no outer ring.
                 Box(
                     modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
@@ -801,7 +788,7 @@ private fun DrawerMemorialCard(
         // 会变成一条孤零零的文字条，比现在更散。
         IconButton(
             onClick = onOpenSettings,
-            modifier = Modifier.align(Alignment.TopEnd).size(40.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 16.dp).size(48.dp),
         ) {
             Icon(
                 imageVector = HugeIcons.Settings03,
@@ -926,16 +913,11 @@ private fun FolderBar(
     selectedFolderId: Uuid?,
     onSelect: (Uuid?) -> Unit,
     onCreate: () -> Unit,
-    onNewChat: () -> Unit,
     onSearch: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
 ) {
-    // 侧栏的会话管理行：
-    //   无文件夹：[聊天] [新建]                              [搜索]
-    //   有文件夹：[聊天] [文件夹▾] [新建] [具体文件夹...]    [搜索]
-    // chips 横向滚动，搜索固定在行尾，不随 chip 数量被挤出屏幕。
-    var showFolderChips by remember { mutableStateOf(false) }
+    // Creation stays visible even when the folder list is empty; search remains pinned.
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -955,27 +937,16 @@ private fun FolderBar(
                     onLongClick = {},
                 )
             }
-            if (folders.isNotEmpty()) {
-                item {
-                    FolderChip(
-                        label = stringResource(R.string.chat_page_folder_add),
-                        icon = HugeIcons.Folder01,
-                        selected = showFolderChips || selectedFolderId != null,
-                        onClick = { showFolderChips = !showFolderChips },
-                        onLongClick = {},
-                    )
-                }
-            }
             item {
                 FolderChip(
-                    label = stringResource(R.string.chat_page_new_chat),
-                    icon = HugeIcons.MessageAdd01,
+                    label = stringResource(R.string.chat_page_folder_add),
+                    icon = HugeIcons.Folder01,
                     selected = false,
-                    onClick = onNewChat,
+                    onClick = onCreate,
                     onLongClick = {},
                 )
             }
-            if (folders.isNotEmpty() && showFolderChips) {
+            if (folders.isNotEmpty()) {
                 items(folders) { folder ->
                     var menuExpanded by remember { mutableStateOf(false) }
                     Box {

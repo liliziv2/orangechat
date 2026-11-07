@@ -143,6 +143,7 @@ class DriveStateService(
         val reason: String?,
         val applied: Map<String, Double>,
         val evidence: List<String>,
+        val memoryOwnerId: String? = null,
     )
 
     // ─── 读 ──────────────────────────────────────────────────────────────────
@@ -178,6 +179,7 @@ class DriveStateService(
                 reason = row.reason,
                 applied = decodeApplied(row.appliedJson),
                 evidence = decodeStringList(row.evidenceJson),
+                memoryOwnerId = row.memoryOwnerId,
             )
         }
     }
@@ -289,6 +291,7 @@ class DriveStateService(
                 appliedJson = encodeApplied(applied),
                 brainJson = encodeDrives(event.brain),
                 evidenceJson = encodeStringList(event.evidence),
+                memoryOwnerId = event.memoryOwnerId,
             )
         )
 
@@ -482,6 +485,7 @@ class DriveStateService(
                     reason = row.reason,
                     applied = decodeApplied(row.appliedJson),
                     evidence = decodeStringList(row.evidenceJson),
+                memoryOwnerId = row.memoryOwnerId,
                 )
             }
         }

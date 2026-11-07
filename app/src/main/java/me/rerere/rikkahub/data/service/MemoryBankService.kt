@@ -2,6 +2,10 @@ package me.rerere.rikkahub.data.service
 
 import android.content.Context
 import android.util.Log
+import androidx.room.withTransaction
+import me.rerere.rikkahub.data.db.AppDatabase
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -41,34 +45,6 @@ private const val PROMPT_RECALL_COUNT = 8
 private const val PROMPT_CANDIDATE_POOL = 200
 
 /**
- * 召回时最多拿几个 token 去查全库。
- *
- * 一句话切 2-gram 能切出几十个片段，全拿去做 LIKE 就是几十次全表扫描，
- * 而且"还是""什么"这种片段的命中率高得没意义 —— 捞回来的半库都要再过一遍闸门，
- * 白白把真正有信息量的词按比例稀释掉。按长度取前若干个，等于优先用具体名词。
- */
-private const val PROMPT_PROBE_TOKENS = 8
-
-/**
- * 单个 token 探测时最多取多少行。
- *
- * LIKE 带前导通配符用不上索引，每个 token 都是一次全表扫描，扫出来的行还要逐条
- * 算 [MemoryRelevance.overlap]（要把正文 + 双轨拼起来转小写）。按
- * [PROMPT_CANDIDATE_POOL] 取等于一次召回最多评估 8×200 行 —— 这跟"召回变准了"
- * 没有关系，纯粹是白烧 CPU。每 token 40 条已经足够覆盖强相关的那些，
- * 因为排序本来就是 decay_score DESC。
- */
-private const val PROMPT_PROBE_ROWS_PER_TOKEN = 40
-
-/**
- * 合并后参与闸门评估的总行数上限。
- *
- * 8 个 token 的结果并起来最坏 320 行，正常远小于此。设这个上限是防止某个常见片段
- * 命中太多时把评估量拖长 —— 到顶就不再探测剩下的 token。
- */
-private const val PROMPT_PROBE_MAX_ROWS = 160
-
-/**
  * 相关性闸门放行之后、进入 overlay 收敛与预算裁剪前的窗口大小。
  *
  * 不能直接用 [PROMPT_RECALL_COUNT]：排序口径在闸门之后换过一次（过闸按 decay，
@@ -96,6 +72,7 @@ class MemoryBankService(
     private val memoryBankDAO: MemoryBankDAO,
     private val okHttpClient: OkHttpClient,
     private val context: Context,
+    private val database: AppDatabase,
 ) {
     companion object {
         /**
@@ -207,8 +184,12 @@ class MemoryBankService(
         }
     }
 
-    suspend fun deleteMemory(id: Int) = withContext(Dispatchers.IO) {
-        memoryBankDAO.deleteMemoryById(id)
+    suspend fun deleteMemory(id: Int, expectedAssistantId: String? = null) = withContext(Dispatchers.IO) {
+        database.withTransaction {
+            val old = memoryBankDAO.getMemoryById(id) ?: return@withTransaction
+            MemoryRecallPolicy.requireOwner(old.assistantId, expectedAssistantId)
+            memoryBankDAO.deleteMemoryById(id)
+        }
     }
 
     suspend fun rebuildIndex() {
@@ -373,6 +354,10 @@ class MemoryBankService(
      * - [MemoryWriteRequest.overlayOf] 指向的记忆必须存在 —— overlay 是追加，不是凭空引用
      */
     suspend fun writeMemory(request: MemoryWriteRequest): MemoryBankEntity = withContext(Dispatchers.IO) {
+        database.withTransaction { writeMemoryLocked(request) }
+    }
+
+    private suspend fun writeMemoryLocked(request: MemoryWriteRequest): MemoryBankEntity {
         require(request.content.isNotBlank()) {
             "memory content must not be blank: 现场丢了就补不回来了"
         }
@@ -383,11 +368,15 @@ class MemoryBankService(
             "feel track is required: 缺情绪轨的记忆读回来只剩结论，不知道那是什么感觉"
         }
         request.overlayOf?.let { parentId ->
-            require(memoryBankDAO.getMemoryById(parentId) != null) {
+            val parent = requireNotNull(memoryBankDAO.getMemoryById(parentId)) {
                 "overlay target #$parentId does not exist"
             }
+            require(parent.assistantId == request.assistantId) { "overlay target belongs to another memory library" }
         }
 
+        if (request.sourceType in setOf("drive_event_ledger", "behavior_impulse") && request.sourceId != null) {
+            memoryBankDAO.getBySource(request.sourceType!!, request.sourceId!!)?.let { return it }
+        }
         val createdAt = request.createdAt.takeIf { it > 0L } ?: System.currentTimeMillis()
         val lastActiveAt = request.lastActiveAt.takeIf { it > 0L } ?: createdAt
         // 钉选/保护把 importance 锁到 10，与 Elektron 的 create() 一致
@@ -423,7 +412,7 @@ class MemoryBankService(
         // 写入时就把分算好，召回排序不依赖后台任务先跑过一轮
         val scored = draft.copy(decayScore = scoreOf(draft, lastActiveAt))
         val id = memoryBankDAO.insertMemory(scored).toInt()
-        scored.copy(id = id)
+        return scored.copy(id = id)
     }
 
     /**
@@ -439,7 +428,10 @@ class MemoryBankService(
         withContext(Dispatchers.IO) {
             val candidates = memoryBankDAO.getDecayCandidates()
             if (candidates.isEmpty()) return@withContext 0
-            memoryBankDAO.updateMemories(candidates.map { it.copy(decayScore = scoreOf(it, now)) })
+            database.withTransaction {
+                // Update only the score; never overwrite content, archive state or activation counters.
+                memoryBankDAO.getDecayCandidates().forEach { memoryBankDAO.updateDecayScore(it.id, scoreOf(it, now)) }
+            }
             candidates.size
         }
 
@@ -466,9 +458,11 @@ class MemoryBankService(
      */
     suspend fun touchMemory(id: Int, now: Long = System.currentTimeMillis()) =
         withContext(Dispatchers.IO) {
+            database.withTransaction {
             memoryBankDAO.touchActivation(id, now)
             memoryBankDAO.getMemoryById(id)?.let { refreshed ->
                 memoryBankDAO.updateDecayScore(id, scoreOf(refreshed, now))
+            }
             }
         }
 
@@ -533,22 +527,27 @@ class MemoryBankService(
         feelTrack: String,
         domain: List<String> = emptyList(),
         importance: Int = 5,
+        expectedAssistantId: String? = null,
     ): MemoryBankEntity? = withContext(Dispatchers.IO) {
-        val old = memoryBankDAO.getMemoryById(id) ?: return@withContext null
-        // 名字不能也叫 importance：Kotlin 不允许函数体里用局部 val 覆盖同名参数，
-        // 而且就算能写，下一行读的到底是哪个 importance 也没人说得清。
-        val normalizedImportance = importance.coerceIn(1, 10)
-        val merged = old.copy(
-            content = content,
-            factTrack = factTrack,
-            feelTrack = feelTrack,
-            domain = domain.filter { it.isNotBlank() }.joinToString(",").ifBlank { null },
-            importance = normalizedImportance,
-        )
-        // 内容变了，排序分要跟着重算 —— 否则会出现"改了内容却还按旧分排序"
-        val updated = merged.copy(decayScore = scoreOf(merged, System.currentTimeMillis()))
-        memoryBankDAO.updateMemory(updated)
-        updated
+        database.withTransaction {
+            val old = memoryBankDAO.getMemoryById(id) ?: return@withTransaction null
+            MemoryRecallPolicy.requireOwner(old.assistantId, expectedAssistantId)
+            require(content.isNotBlank() && factTrack.isNotBlank() && feelTrack.isNotBlank()) { "memory and both tracks must not be blank" }
+            // 名字不能也叫 importance：Kotlin 不允许函数体里用局部 val 覆盖同名参数，
+            // 而且就算能写，下一行读的到底是哪个 importance 也没人说得清。
+            val normalizedImportance = if (old.pinned || old.isProtected) 10 else importance.coerceIn(1, 10)
+            val merged = old.copy(
+                content = content,
+                factTrack = factTrack,
+                feelTrack = feelTrack,
+                domain = domain.filter { it.isNotBlank() }.joinToString(",").ifBlank { null },
+                importance = normalizedImportance,
+            )
+            // 内容变了，排序分要跟着重算 —— 否则会出现"改了内容却还按旧分排序"
+            val updated = merged.copy(decayScore = scoreOf(merged, System.currentTimeMillis()))
+            memoryBankDAO.updateMemory(updated)
+            updated
+        }
     }
 
     /** 删除某个助手的全部记忆。助手被移除时调用。 */
@@ -577,7 +576,7 @@ class MemoryBankService(
      *
      * 现在分四步：
      * 1. 取一个 decay 排序的候选池（[PROMPT_CANDIDATE_POOL] 条）；
-     * 2. query 非空时按 token 直接探测全库，把命中行并进候选（[MemoryBankDAO.probeByTokenRanked]）
+     * 2. query 非空时按 token 直接探测全库，把命中行并进候选（[MemoryBankDAO.recallPage]）
      *    —— 只靠池子等于给召回设了时间墙，库一大，池子外的强相关记忆永远没机会；
      * 3. 用 [MemoryRelevance] 做相关性**闸门** —— 沾边的才留下，留下的按 `decay_score` 排；
      * 4. 收敛 overlay 链，按 [MemoryPromptBudget] 裁到预算内，再取前 [count] 条并记一次召回。
@@ -621,76 +620,35 @@ class MemoryBankService(
         //
         // 收敛后的行优先级可能变了（新理解不一定和旧行同档），所以再排一次。
         val injected = MemoryPromptBudget.select(resolved.sortedWith(PROMPT_ORDER)) { row ->
-            MemoryPromptBudget.cost(row.content, row.factTrack.orEmpty(), row.feelTrack.orEmpty())
+            MemoryPromptBudget.cost(row.toAssistantMemory())
         }.take(count)
         // 进 prompt 才算「被想起来一次」：last_active 前移、activation_count +1、decay 重算。
         // 只记入选的 —— 池子里落选的那些不记，否则池子一放大，全库的 activation 都会被平白抬高。
         val now = System.currentTimeMillis()
         injected.forEach { touchMemory(it.id, now) }
+        Log.d(TAG, "recall: candidates=${selected.size}, resolved=${resolved.size}, selected=${injected.map { it.id }}, estimatedTokenCost=${injected.sumOf { MemoryPromptBudget.cost(it.toAssistantMemory()) }}")
         injected.map { it.toAssistantMemory() }
     }
 
-    /**
-     * 候选池 → 全库探测 → 相关性闸门 → 取前 [count] 条。分步理由见 [recallForPrompt]。
-     *
-     * 池子只有 [PROMPT_CANDIDATE_POOL] 条，是"最近最鲜活的"。库大了以后，
-     * 只靠池子等于给召回设了一道时间墙：半年前那条决定性的事永远不在候选里。
-     * 所以查询非空时额外按 token 直接查全库（[MemoryBankDAO.probeByTokenRanked]），
-     * 把命中的行并进候选再一起过闸门。
-     *
-     * 探测用的 token 数量有上限（[PROMPT_PROBE_TOKENS]），且优先取长的：
-     * 2-gram 里"还是""什么"这类片段命中率极高，拿来查全库等于把半库都捞回来，
-     * 反而把真正有信息量的词淹掉。
-     */
+    /** Keyset-page the entire scoped active library. Matching never truncates the query. */
     private suspend fun selectForPrompt(
         assistantId: String?,
         query: String,
     ): List<MemoryBankEntity> {
-        val pool = if (assistantId == null) {
-            memoryBankDAO.getMemoriesRanked(PROMPT_CANDIDATE_POOL)
-        } else {
-            memoryBankDAO.getMemoriesByAssistantRanked(assistantId, PROMPT_CANDIDATE_POOL)
+        val fallback = if (assistantId == null) memoryBankDAO.getMemoriesRanked(PROMPT_CANDIDATE_POOL)
+            else memoryBankDAO.getMemoriesByAssistantRanked(assistantId, PROMPT_CANDIDATE_POOL)
+        val tokens = MemoryRelevance.tokenize(query)
+        if (tokens.isEmpty()) return fallback.take(PROMPT_AFTER_GATE)
+        var afterId = 0
+        var hits = emptyList<MemoryBankEntity>()
+        while (true) {
+            val page = if (assistantId == null) memoryBankDAO.recallPageAll(afterId, PROMPT_CANDIDATE_POOL)
+                else memoryBankDAO.recallPage(assistantId, afterId, PROMPT_CANDIDATE_POOL)
+            if (page.isEmpty()) break
+            hits = MemoryRecallPolicy.mergeRelevant(hits, page, tokens, PROMPT_CANDIDATE_POOL)
+            afterId = page.last().id
         }
-        // 没有当前消息可看时保持旧行为：只按 decay 取一批候选。
-        // 注意这里**不截断** —— 截断和排序都交给 recallForPrompt 那一段统一做，
-        // 否则"有没有 query"会走出两条排序口径，预算裁剪就不再幂等。
-        if (query.isBlank()) return pool
-        val queryTokens = MemoryRelevance.tokenize(query)
-        if (queryTokens.isEmpty()) return pool
-
-        // 全库探测：并进池子，按 id 去重（池子里的行也会被探到）。
-        // 到上限就停 —— 常见 2-gram 能把半库捞回来，继续探只是让闸门更慢。
-        val merged = LinkedHashMap<Int, MemoryBankEntity>()
-        pool.forEach { merged[it.id] = it }
-        for (token in queryTokens.sortedByDescending { it.length }.take(PROMPT_PROBE_TOKENS)) {
-            if (merged.size >= PROMPT_PROBE_MAX_ROWS) break
-            val probed = if (assistantId == null) {
-                memoryBankDAO.probeByTokenRankedAllAssistants(token, PROMPT_PROBE_ROWS_PER_TOKEN)
-            } else {
-                memoryBankDAO.probeByTokenRanked(token, assistantId, PROMPT_PROBE_ROWS_PER_TOKEN)
-            }
-            probed.forEach { row -> if (!merged.containsKey(row.id)) merged[row.id] = row }
-        }
-
-        // 闸门：这里必须用完整的 query token 集合重新算一遍 overlap。
-        // 探测是按单 token 查的，一行可能只是因为命中一个常见的 2-gram 被捞回来；
-        // 直接信探测结果等于把闸门关了。
-        //
-        // 过闸之后**按 decay_score 重新排一次**：合并进来的行来自多次查询，
-        // 各自有序、拼起来整体无序。相关性在这里仍然只当闸门、不加权 ——
-        // 那是既有约定，排序权重只有一个来源（MemoryDecayEngine.decay_score）。
-        val hits = merged.values
-            .filter { MemoryRelevance.overlap(queryTokens, it) > 0.0 }
-            .sortedWith(
-                compareByDescending<MemoryBankEntity> { it.decayScore }
-                    .thenByDescending { it.createdAt }
-            )
-        // 一条都不沾边时回退到池子前若干条：宁可给"最近最鲜活的"，
-        // 也不要让模型突然一条记忆都没有。
-        //
-        // 返回窗口取 [PROMPT_AFTER_GATE] 而不是 [count]：下一段按 priority 重排，
-        // 这里只截 8 条的话重排就失去意义了。
-        return (hits.ifEmpty { pool }).take(PROMPT_AFTER_GATE)
+        return (hits.ifEmpty { fallback }).take(PROMPT_AFTER_GATE)
     }
 
     /**
@@ -722,7 +680,7 @@ class MemoryBankService(
         var current = row
         val visited = mutableSetOf(current.id)
         while (true) {
-            val next = memoryBankDAO.getOverlaysOf(current.id).lastOrNull { !it.archived }
+            val next = memoryBankDAO.getOverlaysOf(current.id).lastOrNull { !it.archived && it.assistantId == row.assistantId }
                 ?: return current
             if (!visited.add(next.id)) return current
             current = next
@@ -734,11 +692,14 @@ class MemoryBankService(
      *
      * [refreshDecayScores] 本身没有节流，直接在召回路径上调用会变成每次对话全表重算。
      */
-    suspend fun refreshDecayScoresIfStale(now: Long = System.currentTimeMillis()): Int {
-        if (now - lastDecayRefreshAt < DECAY_REFRESH_INTERVAL_MS) return 0
+    private val decayRefreshMutex = Mutex()
+    suspend fun refreshDecayScoresIfStale(now: Long = System.currentTimeMillis()): Int = decayRefreshMutex.withLock {
+        if (now - lastDecayRefreshAt < DECAY_REFRESH_INTERVAL_MS) return@withLock 0
+        val updated = refreshDecayScores(now)
         lastDecayRefreshAt = now
-        return refreshDecayScores(now)
+        updated
     }
+
 }
 
 /**

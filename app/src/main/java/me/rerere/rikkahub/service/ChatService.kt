@@ -585,10 +585,14 @@ class ChatService(
                                 driveEventText,
                                 getConversationFlow(conversationId).value,
                             )
-                            driveStateService.applyEvent(event)
+                            driveStateService.applyEvent(event.copy(memoryOwnerId =
+                                if (!assistant.enableMemory) null
+                                else if (assistant.useGlobalMemory) MemoryBankService.GLOBAL_MEMORY_ID
+                                else assistant.id.toString()
+                            ))
 
                             // 状态刚变过 → 评估越线。没有越线就没有唤醒，这一步不需要心跳。
-                            val wakeOutcome = emotionWakeBridge.evaluate()
+                            val wakeOutcome = emotionWakeBridge.evaluate(assistantId = if (assistant.useGlobalMemory) MemoryBankService.GLOBAL_MEMORY_ID else assistant.id.toString())
                             if (wakeOutcome is EmotionWakeBridge.Outcome.Enqueued) {
                                 Log.d(
                                     TAG,
@@ -1062,7 +1066,7 @@ class ChatService(
                 assistant = assistant,
                 conversationSystemPrompt = conversation.customSystemPrompt,
                 workspaceCwd = conversation.workspaceCwd,
-                memories = memoryBankService.recallForPrompt(
+                memories = if (assistant.enableMemory) memoryBankService.recallForPrompt(
                     // 助手开了全局记忆就读全局库，否则读它自己的库 —— 与写入侧（memory_tool
                     // 用的 memoryAssistantId）必须是同一个口径，否则会出现"存进去了但下次读不到"
                     assistantId = if (assistant.useGlobalMemory) {
@@ -1071,7 +1075,7 @@ class ChatService(
                         assistant.id.toString()
                     },
                     query = recallQuery,
-                ),
+                ) else emptyList(),
                 inputTransformers = buildList {
                     addAll(inputTransformers)
                     add(templateTransformer)

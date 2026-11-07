@@ -74,18 +74,11 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
         // 按优先级从高到低填进预算，超出即停。预算值、单条开销和选取规则都在
         // [MemoryPromptBudget]：读取侧已经按同一套规则裁过一次，这里兜底且幂等。
         val included = MemoryPromptBudget.select(sorted) { memory ->
-            MemoryPromptBudget.cost(memory.content, memory.factTrack, memory.feelTrack)
+            MemoryPromptBudget.cost(memory)
         }
         val json = buildJsonArray {
             included.forEach { memory ->
-                add(buildJsonObject {
-                    put("id", memory.id)
-                    put("content", memory.content)
-                    put("fact_track", memory.factTrack)
-                    put("feel_track", memory.feelTrack)
-                    put("category", memory.category.serialName)
-                    put("priority", memory.priority)
-                })
+                add(MemoryPromptBudget.record(memory))
             }
         }
         append(JsonInstantPretty.encodeToString(json))

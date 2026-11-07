@@ -153,7 +153,7 @@ class EmotionWakeBridge(
      * 调用点在"状态刚刚变化之后"（见 `ChatService.sendMessage`），
      * 所以不需要任何后台心跳 —— 没有状态变化就没有评估。
      */
-    suspend fun evaluate(now: Long = System.currentTimeMillis()): Outcome =
+    suspend fun evaluate(now: Long = System.currentTimeMillis(), assistantId: String? = null): Outcome =
         withContext(Dispatchers.IO) {
             // 先把上次留下的烂摊子收拾掉，再判断"队列里有没有活跃行"。
             //
@@ -265,6 +265,7 @@ class EmotionWakeBridge(
                 payloadJson = EmotionWakePayload.encode(payload),
                 dueAt = dueAt,
                 source = SOURCE_DRIVE_CROSSING,
+                assistantId = assistantId,
                 now = now,
             )
 

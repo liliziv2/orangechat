@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.service
 
 import android.content.Context
 import android.util.Log
-import androidx.core.content.edit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -11,7 +10,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.entity.MemoryBankEntity
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
@@ -118,29 +116,30 @@ class ClosedLoopService(
             )
         }
 
-        val assistantId = resolveAssistantId()
-
-        // ── 腿一：State → Memory（情绪回声）──
         val rows = driveStateService.ledgerAfter(checkpoint.lastLedgerId, limit = LEDGER_BATCH)
         var emotionMemories = 0
         var cursor = checkpoint.lastLedgerId
-        rows.forEach { row ->
-            if (qualifies(row)) {
-                runCatching { writeEmotionMemory(row, assistantId) }
-                    .onSuccess { emotionMemories++ }
-                    .onFailure { Log.w(TAG, "回写情绪回声失败 ledger=#${row.id}", it) }
+        for (row in rows) {
+            // Historical events without an owner remain in the ledger; never assign them to
+            // whichever assistant happens to be selected at replay time.
+            val owner = row.memoryOwnerId
+            if (qualifies(row) && owner != null) {
+                val result = catching { writeEmotionMemory(row, owner) }
+                if (result.isFailure) {
+                    Log.w(TAG, "emotion write failed; retry ledger=#${row.id}", result.exceptionOrNull())
+                    break
+                }
+                emotionMemories++
             }
-            // 游标无论如何都往前推：失败的行重试一次还是失败，
-            // 卡在它上面会让后面的行永远轮不到（`closed_loop.py` 也是这么推的）。
             cursor = max(cursor, row.id)
         }
-
         // ── 腿二：Behavior → Memory（行动回声）──
         val doneImpulses = impulseQueueService.doneWithoutMemory(limit = MAX_MEMORY_PER_RUN)
         var behaviorMemories = 0
         doneImpulses.forEach { impulse ->
+            val owner = impulse.assistantId ?: return@forEach
             catching {
-                val memory = writeBehaviorMemory(impulse, assistantId)
+                val memory = writeBehaviorMemory(impulse, owner)
                 // 挂上 id 才算回写完成 —— 幂等就靠这个字段。
                 impulseQueueService.attachMemory(impulse.id, memory.id)
             }.onSuccess { behaviorMemories++ }
@@ -261,22 +260,6 @@ class ClosedLoopService(
         )
     }
 
-    /**
-     * 记忆写到哪个 assistant 名下。
-     *
-     * **必须跟读取侧（`MemoryBankService.recallForPrompt`）同一个口径**，
-     * 否则会出现"存进去了但下次读不到" —— 那是这个项目已经踩过一次的坑。
-     */
-    private suspend fun resolveAssistantId(): String {
-        val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getCurrentAssistant()
-        return if (assistant.useGlobalMemory) {
-            MemoryBankService.GLOBAL_MEMORY_ID
-        } else {
-            assistant.id.toString()
-        }
-    }
-
     private fun formatTs(ts: Long): String = if (ts <= 0L) {
         "unknown"
     } else {
@@ -327,7 +310,7 @@ class ClosedLoopService(
         }
 
         fun write(checkpoint: Checkpoint) {
-            prefs.edit { putString(KEY, JsonInstant.encodeToString(checkpoint)) }
+            check(prefs.edit().putString(KEY, JsonInstant.encodeToString(checkpoint)).commit()) { "checkpoint persistence failed" }
         }
 
         private companion object {

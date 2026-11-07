@@ -176,41 +176,12 @@ interface MemoryBankDAO {
     @Query("SELECT * FROM memory_bank WHERE archived = 0 AND assistant_id = :assistantId ORDER BY decay_score DESC, created_at DESC LIMIT :limit")
     suspend fun getMemoriesByAssistantRanked(assistantId: String, limit: Int): List<MemoryBankEntity>
 
-    /**
-     * 全库关键词探测：**不受衰减排序的候选池限制**，直接按正文命中查。
-     *
-     * [getMemoriesRanked] 只能拿到"最近最鲜活的 200 条"。库攒到几千条之后，
-     * 一条半年前的关键记忆即使和当前这句话强相关，也永远进不了那个池子 ——
-     * 相关性闸门再准也没用，它连候选都没见过。所以召回要另开一条只按命中查的路。
-     *
-     * 分「指定助手」和「全库」两个方法而不是在 SQL 里写 `:assistantId IS NULL`：
-     * 那种写法把两个不同的查询计划混成一个，读起来也容易以为漏了过滤。
-     */
-    @Query(
-        """
-        SELECT * FROM memory_bank
-        WHERE archived = 0
-          AND assistant_id = :assistantId
-          AND (content LIKE '%' || :token || '%'
-               OR fact_track LIKE '%' || :token || '%'
-               OR feel_track LIKE '%' || :token || '%')
-        ORDER BY decay_score DESC, created_at DESC
-        LIMIT :limit
-        """
-    )
-    suspend fun probeByTokenRanked(token: String, assistantId: String, limit: Int): List<MemoryBankEntity>
+    @Query("SELECT * FROM memory_bank WHERE archived = 0 AND assistant_id = :assistantId AND id > :afterId ORDER BY id ASC LIMIT :limit")
+    suspend fun recallPage(assistantId: String, afterId: Int, limit: Int): List<MemoryBankEntity>
 
-    /** 同 [probeByTokenRanked]，不限助手。用于没有指定助手的召回路径。 */
-    @Query(
-        """
-        SELECT * FROM memory_bank
-        WHERE archived = 0
-          AND (content LIKE '%' || :token || '%'
-               OR fact_track LIKE '%' || :token || '%'
-               OR feel_track LIKE '%' || :token || '%')
-        ORDER BY decay_score DESC, created_at DESC
-        LIMIT :limit
-        """
-    )
-    suspend fun probeByTokenRankedAllAssistants(token: String, limit: Int): List<MemoryBankEntity>
+    @Query("SELECT * FROM memory_bank WHERE archived = 0 AND id > :afterId ORDER BY id ASC LIMIT :limit")
+    suspend fun recallPageAll(afterId: Int, limit: Int): List<MemoryBankEntity>
+
+    @Query("SELECT * FROM memory_bank WHERE source_type = :sourceType AND source_id = :sourceId ORDER BY id ASC LIMIT 1")
+    suspend fun getBySource(sourceType: String, sourceId: String): MemoryBankEntity?
 }

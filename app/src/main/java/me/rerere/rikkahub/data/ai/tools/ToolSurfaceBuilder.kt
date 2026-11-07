@@ -62,6 +62,7 @@ class ToolSurfaceBuilder(
                 onUpdate = { id, draft ->
                     memoryBankService.updateMemory(
                         id = id,
+                        expectedAssistantId = memoryAssistantId,
                         content = draft.content,
                         factTrack = draft.factTrack,
                         feelTrack = draft.feelTrack,
@@ -70,7 +71,7 @@ class ToolSurfaceBuilder(
                     )?.toAssistantMemory()
                         ?: error("memory #$id not found")
                 },
-                onDelete = { id -> memoryBankService.deleteMemory(id) },
+                onDelete = { id -> memoryBankService.deleteMemory(id, expectedAssistantId = memoryAssistantId) },
                 onOverlay = { id, draft ->
                     memoryBankService.writeMemory(
                         draft.toWriteRequest(assistantId = memoryAssistantId, overlayOf = id)

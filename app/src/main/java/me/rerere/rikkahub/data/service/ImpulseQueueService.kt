@@ -141,6 +141,7 @@ class ImpulseQueueService(
         val note: String?,
         val resultMemoryId: Int?,
         val finishedAt: Long,
+        val assistantId: String? = null,
     )
 
     /** 入队结果。 */
@@ -463,6 +464,7 @@ class ImpulseQueueService(
         note = note,
         resultMemoryId = resultMemoryId,
         finishedAt = finishedAt,
+        assistantId = assistantId,
     )
 
     private companion object {

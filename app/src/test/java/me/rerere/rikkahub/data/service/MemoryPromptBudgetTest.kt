@@ -39,10 +39,10 @@ class MemoryPromptBudgetTest {
     }
 
     @Test
-    fun `the first record is always kept even when it alone exceeds the budget`() {
-        // 空记忆区比超预算更糟：模型会以为"没有任何记忆"。
+    fun `oversized first record is omitted without exceeding the budget`() {
+        // Oversized records never bypass the hard record budget.
         val selected = MemoryPromptBudget.select(rows(9_999), budget = 100) { it.size + 64 }
-        assertEquals(1, selected.size)
+        assertEquals(0, selected.size)
     }
 
     @Test

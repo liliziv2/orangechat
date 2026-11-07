@@ -143,6 +143,7 @@ class GenerationHandler(
                         onUpdate = { id, draft ->
                             memoryBankService.updateMemory(
                                 id = id,
+                                expectedAssistantId = memoryAssistantId,
                                 content = draft.content,
                                 factTrack = draft.factTrack,
                                 feelTrack = draft.feelTrack,
@@ -152,7 +153,7 @@ class GenerationHandler(
                                 ?: error("memory #$id not found")
                         },
                         onDelete = { id ->
-                            memoryBankService.deleteMemory(id)
+                            memoryBankService.deleteMemory(id, expectedAssistantId = memoryAssistantId)
                         },
                         // 新理解：追加一行 overlay，旧行不动。读取侧在注入 prompt 前会收敛到
                         // 最新那条（MemoryBankService.resolveOverlays）。

@@ -685,6 +685,7 @@ object DriveEngine {
         val agency: Double = 0.75,
         val brain: Map<String, Double> = emptyMap(),
         val evidence: List<String> = emptyList(),
+        val memoryOwnerId: String? = null,
     )
 
     /** 事件算出来的计划：要打哪些维、各打多少，以及是否被压制。 */

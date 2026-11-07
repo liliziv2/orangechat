@@ -85,4 +85,6 @@ data class DriveEventEntity(
     /** 原始证据（JSON 字符串数组）：消息片段等。 */
     @ColumnInfo("evidence_json")
     val evidenceJson: String?,
+    @ColumnInfo("memory_owner_id")
+    val memoryOwnerId: String? = null,
 )
