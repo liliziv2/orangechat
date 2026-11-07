@@ -64,8 +64,12 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
         append("record predates the two-track rule or came from a plugin — do not invent it back.")
         appendLine()
         val sorted = memories.sortedWith(
-            compareByDescending<AssistantMemory> { it.priority }
-                .thenBy { it.id }
+            // 与召回侧同一个排序函数：两边顺序不一致时，那边裁掉的和这边再裁掉的
+            // 不是同一批，被这边砍掉的记忆会白记一次 activation。
+            MemoryPromptBudget.promptOrder<AssistantMemory>(
+                priorityOf = { it.priority },
+                idOf = { it.id },
+            )
         )
         // 按优先级从高到低填进预算，超出即停。预算值、单条开销和选取规则都在
         // [MemoryPromptBudget]：读取侧已经按同一套规则裁过一次，这里兜底且幂等。

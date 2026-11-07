@@ -69,4 +69,22 @@ class MemoryPromptBudgetTest {
         val twice = MemoryPromptBudget.select(once, budget = 700) { cost(it) }
         assertEquals(once, twice)
     }
+
+    @Test
+    fun `prompt order sorts by priority descending then id ascending`() {
+        // 两个类型不同的记录（实体 / 领域模型）都走这一个函数，
+        // 所以这里锁的是函数本身的行为，不依赖任何一方的字段名。
+        data class Item(val id: Int, val priority: Int)
+
+        val items = listOf(
+            Item(3, 0),
+            Item(1, 2),
+            Item(2, 2),
+            Item(4, 1),
+        )
+        val ordered = items.sortedWith(
+            MemoryPromptBudget.promptOrder<Item>(priorityOf = { it.priority }, idOf = { it.id })
+        )
+        assertEquals(listOf(1, 2, 4, 3), ordered.map { it.id })
+    }
 }

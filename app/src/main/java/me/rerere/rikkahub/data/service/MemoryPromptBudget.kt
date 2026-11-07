@@ -58,4 +58,17 @@ internal object MemoryPromptBudget {
         }
         return included
     }
+
+    /**
+     * 注入顺序：priority 降序、id 升序。
+     *
+     * 两侧（召回侧 `MemoryBankService` 与 prompt 侧 `buildMemoryPrompt`）**必须**
+     * 用这一个函数生成排序：顺序不一致时，召回侧裁掉的和 prompt 侧再裁掉的不是同一批，
+     * 被 prompt 侧砍掉的记忆会白记一次 activation，前面那次裁剪也就白做了。
+     *
+     * 泛型而不是各自写 comparator，就是因为这两处的记录类型不同（实体 / 领域模型），
+     * 各自手写一份迟早会漂移。
+     */
+    fun <T> promptOrder(priorityOf: (T) -> Int, idOf: (T) -> Int): Comparator<T> =
+        compareByDescending<T> { priorityOf(it) }.thenBy { idOf(it) }
 }

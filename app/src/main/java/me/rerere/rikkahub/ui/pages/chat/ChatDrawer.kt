@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import dev.chrisbanes.haze.HazeTint
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -114,7 +113,6 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
-import me.rerere.rikkahub.ui.components.ui.Greeting
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.message.ChatMessageSideAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
@@ -132,8 +130,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
-/** 纪念卡圆角：比会话行(12dp) 大一档的对话面板圆角。 */
-private val MemorialCardShape = RoundedCornerShape(22.dp)
 
 @Composable
 fun ChatDrawerContent(
@@ -286,9 +282,9 @@ fun ChatDrawerContent(
             )
 
             // ============ 纪念卡（侧栏顶部唯一身份区）============
-            // 只重做这一块：柔和水纹底 + 半透明面板 + 细边框圆角。
+            // 只重做这一块：去掉原来的面板底与边框，只留双头像、四瓣花和设置入口。
             // 材质完全跟主题（不新增配色体系），卡片内部收拢：
-            // 双头像(渺渺左/栖右) + 装饰数字 + 动态问候 + 右上设置 + 卡片内搜索。
+            // 双头像(渺渺左/栖右) + 四瓣花 + 右上设置。没有外框，只占顶部一条。
             // 卡片以下（分隔线/文件夹/会话列表/底部栏）保持回退版本原样。
             DrawerMemorialCard(
                 settings = settings,
@@ -753,79 +749,66 @@ private fun DrawerMemorialCard(
     val userName = settings.displaySetting.userNickname.ifBlank {
         stringResource(R.string.user_default_name)
     }
-    Surface(
-        shape = MemorialCardShape,
-        color = scheme.primaryContainer.copy(alpha = 0.24f),
-        border = BorderStroke(1.dp, scheme.onSurface.copy(alpha = 0.08f)),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            // 底部留白比顶部大：名字是这一组的落脚点，贴到卡片边缘会显得被压住。
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // 不再有外框：一块纯内容，只留双头像、四瓣花和设置入口。
+        // 名字跟着头像走 —— 没有边框之后，光秃秃的两个圆片认不出谁是谁。
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.Center,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Greeting(
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
+                UIAvatar(
+                    name = settings.displaySetting.userNickname,
+                    value = settings.displaySetting.userAvatar,
+                    modifier = Modifier.size(48.dp),
+                    onUpdate = onUpdateUserAvatar,
                 )
-                // 热区仍是 40dp，图标收到 18dp：这一排只是附注，不该和头像抢高度。
-                IconButton(onClick = onOpenSettings, modifier = Modifier.size(40.dp)) {
-                    Icon(
-                        imageVector = HugeIcons.Settings03,
-                        contentDescription = stringResource(R.string.settings),
-                        tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
+                Spacer(Modifier.height(6.dp))
+                Text(userName, style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            // 双头像 + 四瓣花是一组，顶部对齐；花按头像高度居中，不用固定 padding 猜位置。
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.Center,
+            Box(
+                modifier = Modifier
+                    .width(56.dp)
+                    // (48dp 头像 - 30dp 花) / 2 = 9dp，花心与头像圆心同高。
+                    .padding(top = 9.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
-                    UIAvatar(
-                        name = settings.displaySetting.userNickname,
-                        value = settings.displaySetting.userAvatar,
-                        modifier = Modifier.size(48.dp),
-                        onUpdate = onUpdateUserAvatar,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(userName, style = MaterialTheme.typography.labelMedium,
-                        color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.55f))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
+                // Keep the image and centered hit target; no outer ring.
                 Box(
-                    modifier = Modifier
-                        .width(56.dp)
-                        // (48dp 头像 - 30dp 花) / 2 = 9dp，花心与头像圆心同高。
-                        .padding(top = 9.dp),
+                    modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
                     contentAlignment = Alignment.Center,
                 ) {
-                    FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.55f))
+                    ChatMessageSideAvatar(
+                        role = MessageRole.ASSISTANT,
+                        model = settings.getCurrentChatModel(),
+                        assistant = currentAssistant,
+                        size = 48.dp,
+                    )
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
-                    // Keep the image and centered hit target; no outer ring.
-                    Box(
-                        modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        ChatMessageSideAvatar(
-                            role = MessageRole.ASSISTANT,
-                            model = settings.getCurrentChatModel(),
-                            assistant = currentAssistant,
-                            size = 48.dp,
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text(assistantName, style = MaterialTheme.typography.labelMedium,
-                        color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                Spacer(Modifier.height(6.dp))
+                Text(assistantName, style = MaterialTheme.typography.labelMedium,
+                    color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+        }
+        // 设置留在右上角，但不占一整行：没有卡片之后，横着再排一行问候
+        // 会变成一条孤零零的文字条，比现在更散。
+        IconButton(
+            onClick = onOpenSettings,
+            modifier = Modifier.align(Alignment.TopEnd).size(40.dp),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Settings03,
+                contentDescription = stringResource(R.string.settings),
+                tint = scheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

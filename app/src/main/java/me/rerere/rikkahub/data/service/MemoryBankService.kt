@@ -50,16 +50,47 @@ private const val PROMPT_CANDIDATE_POOL = 200
 private const val PROMPT_PROBE_TOKENS = 8
 
 /**
- * 过闸之后、进预算之前保留多少条。
+ * 单个 token 探测时最多取多少行。
  *
- * 不能直接用 [PROMPT_RECALL_COUNT]：排序口径在这里换过一次（过闸按 decay，
+ * LIKE 带前导通配符用不上索引，每个 token 都是一次全表扫描，扫出来的行还要逐条
+ * 算 [MemoryRelevance.overlap]（要把正文 + 双轨拼起来转小写）。按
+ * [PROMPT_CANDIDATE_POOL] 取等于一次召回最多评估 8×200 行 —— 这跟"召回变准了"
+ * 没有关系，纯粹是白烧 CPU。每 token 40 条已经足够覆盖强相关的那些，
+ * 因为排序本来就是 decay_score DESC。
+ */
+private const val PROMPT_PROBE_ROWS_PER_TOKEN = 40
+
+/**
+ * 合并后参与闸门评估的总行数上限。
+ *
+ * 8 个 token 的结果并起来最坏 320 行，正常远小于此。设这个上限是防止某个常见片段
+ * 命中太多时把评估量拖长 —— 到顶就不再探测剩下的 token。
+ */
+private const val PROMPT_PROBE_MAX_ROWS = 160
+
+/**
+ * 相关性闸门放行之后、进入 overlay 收敛与预算裁剪前的窗口大小。
+ *
+ * 不能直接用 [PROMPT_RECALL_COUNT]：排序口径在闸门之后换过一次（过闸按 decay，
  * 进预算按 priority），窗口只留 8 条的话按 priority 重排等于没排 ——
  * 真正该优先的那条可能压根没进这 8 个。留三倍余量给预算裁。
+ *
+ * 这个窗口同时是 [MemoryBankService.resolveOverlays] 的输入上限：那边的每一步
+ * 都要按 id 查一次 overlay 链，200 行的池子直接喂进去就是两百次查询。
  */
 private const val PROMPT_AFTER_GATE = PROMPT_RECALL_COUNT * 3
 
 /** `source_type` 里表示"助手在对话中自行沉淀、未经用户确认"的取值。 */
 private const val SOURCE_TYPE_AUTO = "auto"
+
+/**
+ * 注入顺序：priority 降序、id 升序。定义见 [MemoryPromptBudget.promptOrder]，
+ * prompt 侧用的是同一个函数，两边不会漂移。
+ */
+private val PROMPT_ORDER = MemoryPromptBudget.promptOrder<MemoryBankEntity>(
+    priorityOf = { memoryImportanceToPriority(it.importance) },
+    idOf = { it.id },
+)
 
 class MemoryBankService(
     private val memoryBankDAO: MemoryBankDAO,
@@ -572,22 +603,24 @@ class MemoryBankService(
     ): List<AssistantMemory> = withContext(Dispatchers.IO) {
         refreshDecayScoresIfStale()
         val selected = selectForPrompt(assistantId, query)
-        // overlay 收敛要排在预算与 touch 之前：收敛会合并掉重复话题，
+        // 排序口径必须和 buildMemoryPrompt **逐字一致**：那边排的是 priority 降序、
+        // 再按 id 升序，所以这里用 memoryImportanceToPriority(importance) 而不是
+        // 直接比 importance —— importance 是 1..10 的连续值，priority 只有三档，
+        // 两者排出来的顺序不同，两侧裁剪就不幂等。
+        //
+        // 这段排序先做、而且要先收窗口：overlay 收敛对每一行都要查一次库，
+        // 把 200 行的池子直接喂进去就是两百次查询。
+        val promptOrder = selected.sortedWith(PROMPT_ORDER)
+        val window = promptOrder.take(PROMPT_AFTER_GATE)
+        // overlay 收敛排在预算与 touch 之前：收敛会合并掉重复话题，
         // 按未收敛的行数算预算等于给同一件事留两份额度。
-        val resolved = resolveOverlays(selected)
+        val resolved = resolveOverlays(window)
         // 预算必须在这里裁，不能在 prompt 组装时才裁：只有真正塞得进上下文的才算
         // 被想起来一次。放在后面会让被砍掉的条目照样 +1 activation，
         // 长记忆比短记忆更容易被砍，于是激活度整体偏向"内容短"的那些。
         //
-        // 排序口径必须和 buildMemoryPrompt **逐字一致**：那边排的是 priority 降序、
-        // 再按 id 升序，所以这边用 memoryImportanceToPriority(importance) 而不是
-        // 直接比 importance —— importance 是 1..10 的连续值，priority 只有三档，
-        // 两者排出来的顺序不同，两侧裁剪就不幂等，前面那次裁剪等于白做。
-        val promptOrder = resolved.sortedWith(
-            compareByDescending<MemoryBankEntity> { memoryImportanceToPriority(it.importance) }
-                .thenBy { it.id }
-        )
-        val injected = MemoryPromptBudget.select(promptOrder) { row ->
+        // 收敛后的行优先级可能变了（新理解不一定和旧行同档），所以再排一次。
+        val injected = MemoryPromptBudget.select(resolved.sortedWith(PROMPT_ORDER)) { row ->
             MemoryPromptBudget.cost(row.content, row.factTrack.orEmpty(), row.feelTrack.orEmpty())
         }.take(count)
         // 进 prompt 才算「被想起来一次」：last_active 前移、activation_count +1、decay 重算。
@@ -618,26 +651,26 @@ class MemoryBankService(
         } else {
             memoryBankDAO.getMemoriesByAssistantRanked(assistantId, PROMPT_CANDIDATE_POOL)
         }
-        // 没有当前消息可看时保持旧行为：只按 decay 取一批。
-        // 同样返回 [PROMPT_AFTER_GATE] 宽度，理由见函数末尾。
-        if (query.isBlank()) return pool.take(PROMPT_AFTER_GATE)
+        // 没有当前消息可看时保持旧行为：只按 decay 取一批候选。
+        // 注意这里**不截断** —— 截断和排序都交给 recallForPrompt 那一段统一做，
+        // 否则"有没有 query"会走出两条排序口径，预算裁剪就不再幂等。
+        if (query.isBlank()) return pool
         val queryTokens = MemoryRelevance.tokenize(query)
-        if (queryTokens.isEmpty()) return pool.take(PROMPT_AFTER_GATE)
+        if (queryTokens.isEmpty()) return pool
 
         // 全库探测：并进池子，按 id 去重（池子里的行也会被探到）。
+        // 到上限就停 —— 常见 2-gram 能把半库捞回来，继续探只是让闸门更慢。
         val merged = LinkedHashMap<Int, MemoryBankEntity>()
         pool.forEach { merged[it.id] = it }
-        queryTokens
-            .sortedByDescending { it.length }
-            .take(PROMPT_PROBE_TOKENS)
-            .forEach { token ->
-                val probed = if (assistantId == null) {
-                    memoryBankDAO.probeByTokenRankedAllAssistants(token, PROMPT_CANDIDATE_POOL)
-                } else {
-                    memoryBankDAO.probeByTokenRanked(token, assistantId, PROMPT_CANDIDATE_POOL)
-                }
-                probed.forEach { row -> if (!merged.containsKey(row.id)) merged[row.id] = row }
+        for (token in queryTokens.sortedByDescending { it.length }.take(PROMPT_PROBE_TOKENS)) {
+            if (merged.size >= PROMPT_PROBE_MAX_ROWS) break
+            val probed = if (assistantId == null) {
+                memoryBankDAO.probeByTokenRankedAllAssistants(token, PROMPT_PROBE_ROWS_PER_TOKEN)
+            } else {
+                memoryBankDAO.probeByTokenRanked(token, assistantId, PROMPT_PROBE_ROWS_PER_TOKEN)
             }
+            probed.forEach { row -> if (!merged.containsKey(row.id)) merged[row.id] = row }
+        }
 
         // 闸门：这里必须用完整的 query token 集合重新算一遍 overlap。
         // 探测是按单 token 查的，一行可能只是因为命中一个常见的 2-gram 被捞回来；
