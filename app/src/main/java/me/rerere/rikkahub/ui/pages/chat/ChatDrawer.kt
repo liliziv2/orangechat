@@ -737,12 +737,11 @@ private fun DrawerMemorialCard(
         stringResource(R.string.user_default_name)
     }
     Box(modifier = Modifier.fillMaxWidth()) {
-        // 不再有外框：一块纯内容，只留双头像、四瓣花和设置入口。
-        // 名字跟着头像走 —— 没有边框之后，光秃秃的两个圆片认不出谁是谁。
+        // Center the complete identity/action group, including the settings hit target.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 48.dp, end = 48.dp, top = 16.dp, bottom = 16.dp),
+                .padding(horizontal = 8.dp, vertical = 16.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -783,23 +782,23 @@ private fun DrawerMemorialCard(
                 Text(assistantName, style = MaterialTheme.typography.labelMedium,
                     color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-        }
-        // 设置留在右上角，但不占一整行：没有卡片之后，横着再排一行问候
-        // 会变成一条孤零零的文字条，比现在更散。
-        IconButton(
-            onClick = onOpenSettings,
-            modifier = Modifier.align(Alignment.TopEnd).padding(top = 16.dp).size(48.dp),
-        ) {
-            Icon(
-                imageVector = HugeIcons.Settings03,
-                contentDescription = stringResource(R.string.settings),
-                tint = scheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
+            Spacer(Modifier.width(8.dp))
+            Box(modifier = Modifier.height(48.dp), contentAlignment = Alignment.Center) {
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Settings03,
+                        contentDescription = stringResource(R.string.settings),
+                        tint = scheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
     }
 }
-
 /** Four identical round oval petals without pointed tails. */
 @Composable
 private fun FourPetalFlower(
