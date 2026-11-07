@@ -52,11 +52,10 @@ class MemoryPromptBudgetTest {
 
     @Test
     fun `cost counts both tracks and the json shell`() {
-        // 只算 content 的话，双轨一进 prompt 预算就会静默超出一大截。
-        val onlyContent = MemoryPromptBudget.cost("abc", "", "")
-        val withTracks = MemoryPromptBudget.cost("abc", "de", "fghi")
-        assertEquals(3 + 64, onlyContent)
-        assertEquals(withTracks - onlyContent, 6)
+        val plain = me.rerere.rikkahub.data.model.AssistantMemory(id = 1, content = "abc")
+        val tracked = plain.copy(factTrack = "事实", feelTrack = "感受\n\"约定\"")
+        assertTrue(MemoryPromptBudget.cost(tracked) > MemoryPromptBudget.cost(plain))
+
     }
 
     @Test

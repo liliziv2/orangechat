@@ -171,19 +171,8 @@ class MemoryBankService(
         limit: Int = 100,
         assistantId: String? = null
     ): List<MemoryBankEntity> = withContext(Dispatchers.IO) {
-        if (keyword.isNotBlank() && type.isNotBlank()) {
-            memoryBankDAO.searchMemoriesByKeywordAndType(keyword, type, limit)
-        } else if (keyword.isNotBlank()) {
-            memoryBankDAO.searchMemoriesByKeyword(keyword, limit)
-        } else if (type.isNotBlank() && assistantId != null) {
-            memoryBankDAO.getMemoriesByAssistantAndTypeLimit(assistantId, type, limit)
-        } else if (type.isNotBlank()) {
-            memoryBankDAO.getMemoriesByTypeLimit(type, limit)
-        } else {
-            memoryBankDAO.getRecentMemories(limit)
-        }
+        memoryBankDAO.searchScoped(keyword, type, assistantId, limit.coerceIn(1, 1000))
     }
-
     suspend fun deleteMemory(id: Int, expectedAssistantId: String? = null) = withContext(Dispatchers.IO) {
         database.withTransaction {
             val old = memoryBankDAO.getMemoryById(id) ?: return@withTransaction
@@ -576,7 +565,7 @@ class MemoryBankService(
      *
      * 现在分四步：
      * 1. 取一个 decay 排序的候选池（[PROMPT_CANDIDATE_POOL] 条）；
-     * 2. query 非空时按 token 直接探测全库，把命中行并进候选（[MemoryBankDAO.recallPage]）
+     * 2. query 非空时分页扫描所属库的活跃记录，使用完整查询匹配（[MemoryBankDAO.recallPage]）
      *    —— 只靠池子等于给召回设了时间墙，库一大，池子外的强相关记忆永远没机会；
      * 3. 用 [MemoryRelevance] 做相关性**闸门** —— 沾边的才留下，留下的按 `decay_score` 排；
      * 4. 收敛 overlay 链，按 [MemoryPromptBudget] 裁到预算内，再取前 [count] 条并记一次召回。
@@ -600,6 +589,7 @@ class MemoryBankService(
         query: String = "",
         count: Int = PROMPT_RECALL_COUNT,
     ): List<AssistantMemory> = withContext(Dispatchers.IO) {
+        if (count <= 0) return@withContext emptyList()
         refreshDecayScoresIfStale()
         val selected = selectForPrompt(assistantId, query)
         // 排序口径必须和 buildMemoryPrompt **逐字一致**：那边排的是 priority 降序、

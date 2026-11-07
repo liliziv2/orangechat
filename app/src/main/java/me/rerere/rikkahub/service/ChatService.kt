@@ -592,7 +592,7 @@ class ChatService(
                             ))
 
                             // 状态刚变过 → 评估越线。没有越线就没有唤醒，这一步不需要心跳。
-                            val wakeOutcome = emotionWakeBridge.evaluate(assistantId = if (assistant.useGlobalMemory) MemoryBankService.GLOBAL_MEMORY_ID else assistant.id.toString())
+                            val wakeOutcome = emotionWakeBridge.evaluate(assistantId = if (!assistant.enableMemory) null else if (assistant.useGlobalMemory) MemoryBankService.GLOBAL_MEMORY_ID else assistant.id.toString())
                             if (wakeOutcome is EmotionWakeBridge.Outcome.Enqueued) {
                                 Log.d(
                                     TAG,

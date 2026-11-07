@@ -133,7 +133,7 @@ jobs:
         id: unit_tests
         run: |
           chmod +x gradlew
-          ./gradlew :app:testDebugUnitTest --no-daemon
+          ./gradlew :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin --no-daemon
 
       # 不管上一步成败都打一份汇总，方便直接从日志里读结果。
       - name: Summarise unit test results

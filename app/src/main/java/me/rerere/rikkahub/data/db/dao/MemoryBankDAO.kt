@@ -184,4 +184,6 @@ interface MemoryBankDAO {
 
     @Query("SELECT * FROM memory_bank WHERE source_type = :sourceType AND source_id = :sourceId ORDER BY id ASC LIMIT 1")
     suspend fun getBySource(sourceType: String, sourceId: String): MemoryBankEntity?
+    @Query("SELECT * FROM memory_bank WHERE (:assistantId IS NULL OR assistant_id = :assistantId) AND (:type = '' OR type = :type) AND (:keyword = '' OR instr(lower(content), lower(:keyword)) > 0 OR instr(lower(coalesce(fact_track, '')), lower(:keyword)) > 0 OR instr(lower(coalesce(feel_track, '')), lower(:keyword)) > 0) ORDER BY created_at DESC LIMIT :limit")
+    suspend fun searchScoped(keyword: String, type: String, assistantId: String?, limit: Int): List<MemoryBankEntity>
 }

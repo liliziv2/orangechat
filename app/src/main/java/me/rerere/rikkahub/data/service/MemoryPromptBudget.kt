@@ -7,7 +7,6 @@ import me.rerere.rikkahub.utils.JsonInstantPretty
 
 /** Shared hard record budget. UTF-8 bytes conservatively estimate token cost; not a model tokenizer. */
 internal object MemoryPromptBudget {
-    const val BUDGET_CHARS = 6000
     const val BUDGET_TOKEN_ESTIMATE = 6000
 
     fun record(memory: AssistantMemory) = buildJsonObject {
@@ -24,9 +23,6 @@ internal object MemoryPromptBudget {
         // Byte cost covers CJK, escaping and JSON fields. Reserve array/indent overhead per record.
         return maxOf(encoded.length, encoded.toByteArray(Charsets.UTF_8).size) + 32
     }
-
-    fun cost(content: String, factTrack: String, feelTrack: String): Int =
-        content.length + factTrack.length + feelTrack.length + 64
 
     fun <T> select(items: List<T>, budget: Int = BUDGET_TOKEN_ESTIMATE, costOf: (T) -> Int): List<T> {
         require(budget >= 0)

@@ -32,3 +32,16 @@ No APK size changes, theme redesign, input layout changes, dependency upgrades, 
 ## Build status
 
 Local Gradle did not reach compilation in the Android/proot environment. No local compilation success is claimed. CI and device results must be recorded separately.
+
+## Follow-up: sidebar and memory repair
+- Restored visible folder creation even with zero existing folders; kept existing folder navigation/rename/delete.
+- Removed only the upper new-chat entry; the bottom action stays.
+- Replaced the broken 160/200-row probe guard with keyset paging across every active row in the selected memory library.
+- Query matching uses all tokens; results still use decay ranking. This is lexical retrieval, not embedding-based semantic search.
+- Shared serialization and bounded conservative UTF-8 token-cost estimate; oversized rows do not bypass the budget. Exact model-token counts and total context budgeting are not claimed.
+- Memory-disabled chat no longer recalls/touches local records. Mutation and overlays enforce owner boundaries.
+- Event memory owner persists in ledger (v34→35 nullable column); historical unknown owners are not guessed.
+- Closed-loop source dedupe and writes are transactional; failed emotion writes stop checkpoint advancement for retry.
+- Decay refresh updates only scores and does not overwrite content/counters.
+- JVM recall/owner/budget regression tests added. Device migration/reopen tests added and compiled in CI; not executed without an emulator/device.
+- Drive-state itself remains a global singleton; per-assistant state isolation is a separate schema/behavior change, not claimed by memory-owner fixes.

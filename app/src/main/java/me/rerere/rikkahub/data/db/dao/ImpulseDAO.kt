@@ -116,7 +116,7 @@ interface ImpulseDAO {
      * 老的在前：先做的先回写，记忆的顺序跟行为发生的顺序一致。
      */
     @Query(
-        "SELECT * FROM impulse_queue WHERE status = 'done' AND result_memory_id IS NULL AND assistant_id IS NOT NULL AND assistant_id IS NOT NULL " +
+        "SELECT * FROM impulse_queue WHERE status = 'done' AND result_memory_id IS NULL AND assistant_id IS NOT NULL " +
             "ORDER BY id ASC LIMIT :limit"
     )
     suspend fun doneWithoutMemory(limit: Int): List<ImpulseEntity>
