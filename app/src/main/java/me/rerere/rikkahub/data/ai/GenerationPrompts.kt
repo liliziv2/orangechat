@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.service.MemoryPromptBudget
 import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.toLocalDate
 
@@ -43,19 +44,6 @@ internal fun buildUserProfilePrompt(display: DisplaySetting): String {
     }
 }
 
-/**
- * 记忆注入的字符预算上限。
- *
- * 记忆是只增不减的：助手每聊几轮就可能记一条，半年后攒到几百条，
- * 而它们每一轮都要整份塞进 system prompt。没有上限的话既白烧 token，
- * 又会把真正的对话历史挤出上下文窗口 —— 而且挤掉的总是最近的对话，
- * 因为 system prompt 在最前面，不会被上游截断。
- *
- * 所以按优先级从高到低填，填不下就停，并在末尾如实说明省略了多少条。
- * 宁可让模型知道"还有一些记忆没给你"，也不要静默丢弃。
- */
-private const val MEMORY_PROMPT_BUDGET_CHARS = 6000
-
 internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
     buildString {
         appendLine()
@@ -79,19 +67,10 @@ internal fun buildMemoryPrompt(memories: List<AssistantMemory>) =
             compareByDescending<AssistantMemory> { it.priority }
                 .thenBy { it.id }
         )
-        // 按优先级从高到低填进预算，超出即停：低优先级的记忆先被舍弃。
-        val included = mutableListOf<AssistantMemory>()
-        var usedChars = 0
-        for (memory in sorted) {
-            // +64 粗算这条记忆的 JSON 外壳（id / category / priority 三个字段与括号引号）
-            // 与双轨的键名；正文字符要按实际长度算，不能只算 content，
-            // 否则双轨一进 prompt，预算就会静默超出去一大截。
-            val cost = memory.content.length +
-                memory.factTrack.length +
-                memory.feelTrack.length + 64
-            if (usedChars + cost > MEMORY_PROMPT_BUDGET_CHARS && included.isNotEmpty()) break
-            included += memory
-            usedChars += cost
+        // 按优先级从高到低填进预算，超出即停。预算值、单条开销和选取规则都在
+        // [MemoryPromptBudget]：读取侧已经按同一套规则裁过一次，这里兜底且幂等。
+        val included = MemoryPromptBudget.select(sorted) { memory ->
+            MemoryPromptBudget.cost(memory.content, memory.factTrack, memory.feelTrack)
         }
         val json = buildJsonArray {
             included.forEach { memory ->

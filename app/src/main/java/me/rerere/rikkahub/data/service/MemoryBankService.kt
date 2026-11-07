@@ -40,6 +40,24 @@ private const val PROMPT_RECALL_COUNT = 8
  */
 private const val PROMPT_CANDIDATE_POOL = 200
 
+/**
+ * 召回时最多拿几个 token 去查全库。
+ *
+ * 一句话切 2-gram 能切出几十个片段，全拿去做 LIKE 就是几十次全表扫描，
+ * 而且"还是""什么"这种片段的命中率高得没意义 —— 捞回来的半库都要再过一遍闸门，
+ * 白白把真正有信息量的词按比例稀释掉。按长度取前若干个，等于优先用具体名词。
+ */
+private const val PROMPT_PROBE_TOKENS = 8
+
+/**
+ * 过闸之后、进预算之前保留多少条。
+ *
+ * 不能直接用 [PROMPT_RECALL_COUNT]：排序口径在这里换过一次（过闸按 decay，
+ * 进预算按 priority），窗口只留 8 条的话按 priority 重排等于没排 ——
+ * 真正该优先的那条可能压根没进这 8 个。留三倍余量给预算裁。
+ */
+private const val PROMPT_AFTER_GATE = PROMPT_RECALL_COUNT * 3
+
 /** `source_type` 里表示"助手在对话中自行沉淀、未经用户确认"的取值。 */
 private const val SOURCE_TYPE_AUTO = "auto"
 
@@ -526,15 +544,20 @@ class MemoryBankService(
      * 的排序，跟用户这句话在说什么无关。结果就是聊到具体事时，模型手里那 [count] 条全是
      * 「最近提过的事」，真正相关的那条可能排在两百名开外。
      *
-     * 现在分三步：
+     * 现在分四步：
      * 1. 取一个 decay 排序的候选池（[PROMPT_CANDIDATE_POOL] 条）；
-     * 2. query 非空时用 [MemoryRelevance] 做相关性**闸门** —— 沾边的才留下，
-     *    留下的仍然按 `decay_score` 的顺序（池子本身就是 `decay_score DESC` 出来的）；
-     * 3. 取前 [count] 条，并对它们记一次召回（[touchMemory]）。
+     * 2. query 非空时按 token 直接探测全库，把命中行并进候选（[MemoryBankDAO.probeByTokenRanked]）
+     *    —— 只靠池子等于给召回设了时间墙，库一大，池子外的强相关记忆永远没机会；
+     * 3. 用 [MemoryRelevance] 做相关性**闸门** —— 沾边的才留下，留下的按 `decay_score` 排；
+     * 4. 收敛 overlay 链，按 [MemoryPromptBudget] 裁到预算内，再取前 [count] 条并记一次召回。
      *
      * 排序权重只有一个来源：[MemoryDecayEngine] 的 `decay_score`
      * （importance × activation^0.3 × 时间 × 情绪 × …）。相关性只做闸门、不加权，
      * 是为了不引入第二套并行排序框架。
+     *
+     * 预算裁在**这一步**而不是 prompt 组装时：`touchMemory` 把被召回算作"被想起来一次"，
+     * 一条记忆如果最终塞不进上下文，就不该拿到这次加分 —— 否则越长越容易被砍、
+     * 越短越容易被算作被想起，activation 会系统性偏向短条目。
      *
      * 闸门为空时回退到池子前 [count] 条：宁可给「最近最鲜活的」，也不要让模型突然
      * 一条记忆都没有 —— 那比给错更伤。
@@ -548,9 +571,25 @@ class MemoryBankService(
         count: Int = PROMPT_RECALL_COUNT,
     ): List<AssistantMemory> = withContext(Dispatchers.IO) {
         refreshDecayScoresIfStale()
-        val selected = selectForPrompt(assistantId, query, count)
-        // overlay 收敛要排在 touch 之前：**注入的是哪一条，才算哪一条被想起来**。
-        val injected = resolveOverlays(selected)
+        val selected = selectForPrompt(assistantId, query)
+        // overlay 收敛要排在预算与 touch 之前：收敛会合并掉重复话题，
+        // 按未收敛的行数算预算等于给同一件事留两份额度。
+        val resolved = resolveOverlays(selected)
+        // 预算必须在这里裁，不能在 prompt 组装时才裁：只有真正塞得进上下文的才算
+        // 被想起来一次。放在后面会让被砍掉的条目照样 +1 activation，
+        // 长记忆比短记忆更容易被砍，于是激活度整体偏向"内容短"的那些。
+        //
+        // 排序口径必须和 buildMemoryPrompt **逐字一致**：那边排的是 priority 降序、
+        // 再按 id 升序，所以这边用 memoryImportanceToPriority(importance) 而不是
+        // 直接比 importance —— importance 是 1..10 的连续值，priority 只有三档，
+        // 两者排出来的顺序不同，两侧裁剪就不幂等，前面那次裁剪等于白做。
+        val promptOrder = resolved.sortedWith(
+            compareByDescending<MemoryBankEntity> { memoryImportanceToPriority(it.importance) }
+                .thenBy { it.id }
+        )
+        val injected = MemoryPromptBudget.select(promptOrder) { row ->
+            MemoryPromptBudget.cost(row.content, row.factTrack.orEmpty(), row.feelTrack.orEmpty())
+        }.take(count)
         // 进 prompt 才算「被想起来一次」：last_active 前移、activation_count +1、decay 重算。
         // 只记入选的 —— 池子里落选的那些不记，否则池子一放大，全库的 activation 都会被平白抬高。
         val now = System.currentTimeMillis()
@@ -559,24 +598,66 @@ class MemoryBankService(
     }
 
     /**
-     * 候选池 → 相关性闸门 → 取前 [count] 条。分步理由见 [recallForPrompt]。
+     * 候选池 → 全库探测 → 相关性闸门 → 取前 [count] 条。分步理由见 [recallForPrompt]。
+     *
+     * 池子只有 [PROMPT_CANDIDATE_POOL] 条，是"最近最鲜活的"。库大了以后，
+     * 只靠池子等于给召回设了一道时间墙：半年前那条决定性的事永远不在候选里。
+     * 所以查询非空时额外按 token 直接查全库（[MemoryBankDAO.probeByTokenRanked]），
+     * 把命中的行并进候选再一起过闸门。
+     *
+     * 探测用的 token 数量有上限（[PROMPT_PROBE_TOKENS]），且优先取长的：
+     * 2-gram 里"还是""什么"这类片段命中率极高，拿来查全库等于把半库都捞回来，
+     * 反而把真正有信息量的词淹掉。
      */
     private suspend fun selectForPrompt(
         assistantId: String?,
         query: String,
-        count: Int,
     ): List<MemoryBankEntity> {
         val pool = if (assistantId == null) {
             memoryBankDAO.getMemoriesRanked(PROMPT_CANDIDATE_POOL)
         } else {
             memoryBankDAO.getMemoriesByAssistantRanked(assistantId, PROMPT_CANDIDATE_POOL)
         }
-        if (query.isBlank()) return pool.take(count)
+        // 没有当前消息可看时保持旧行为：只按 decay 取一批。
+        // 同样返回 [PROMPT_AFTER_GATE] 宽度，理由见函数末尾。
+        if (query.isBlank()) return pool.take(PROMPT_AFTER_GATE)
         val queryTokens = MemoryRelevance.tokenize(query)
-        if (queryTokens.isEmpty()) return pool.take(count)
-        // 池子已经是 decay_score DESC，filter 保持原序 —— 于是「沾边的里面按 decay 排」。
-        val hits = pool.filter { MemoryRelevance.overlap(queryTokens, it) > 0.0 }
-        return (hits.ifEmpty { pool }).take(count)
+        if (queryTokens.isEmpty()) return pool.take(PROMPT_AFTER_GATE)
+
+        // 全库探测：并进池子，按 id 去重（池子里的行也会被探到）。
+        val merged = LinkedHashMap<Int, MemoryBankEntity>()
+        pool.forEach { merged[it.id] = it }
+        queryTokens
+            .sortedByDescending { it.length }
+            .take(PROMPT_PROBE_TOKENS)
+            .forEach { token ->
+                val probed = if (assistantId == null) {
+                    memoryBankDAO.probeByTokenRankedAllAssistants(token, PROMPT_CANDIDATE_POOL)
+                } else {
+                    memoryBankDAO.probeByTokenRanked(token, assistantId, PROMPT_CANDIDATE_POOL)
+                }
+                probed.forEach { row -> if (!merged.containsKey(row.id)) merged[row.id] = row }
+            }
+
+        // 闸门：这里必须用完整的 query token 集合重新算一遍 overlap。
+        // 探测是按单 token 查的，一行可能只是因为命中一个常见的 2-gram 被捞回来；
+        // 直接信探测结果等于把闸门关了。
+        //
+        // 过闸之后**按 decay_score 重新排一次**：合并进来的行来自多次查询，
+        // 各自有序、拼起来整体无序。相关性在这里仍然只当闸门、不加权 ——
+        // 那是既有约定，排序权重只有一个来源（MemoryDecayEngine.decay_score）。
+        val hits = merged.values
+            .filter { MemoryRelevance.overlap(queryTokens, it) > 0.0 }
+            .sortedWith(
+                compareByDescending<MemoryBankEntity> { it.decayScore }
+                    .thenByDescending { it.createdAt }
+            )
+        // 一条都不沾边时回退到池子前若干条：宁可给"最近最鲜活的"，
+        // 也不要让模型突然一条记忆都没有。
+        //
+        // 返回窗口取 [PROMPT_AFTER_GATE] 而不是 [count]：下一段按 priority 重排，
+        // 这里只截 8 条的话重排就失去意义了。
+        return (hits.ifEmpty { pool }).take(PROMPT_AFTER_GATE)
     }
 
     /**

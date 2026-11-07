@@ -1216,6 +1216,10 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
 
             // 记忆（设备事件上下文移到最后面，避免被网关注入的内容淹没）
             if (assistant.enableMemory) {
+                // 这里的记忆直接拼成纯文本，不走 buildMemoryPrompt，所以没有那边
+                // 的第二道预算兜底 —— 预算必须由 recallForPrompt 自己保证。
+                // 它现在确实在返回前就裁过（见 MemoryPromptBudget），这条注释是防止
+                // 以后有人把裁剪挪回 prompt 侧时漏掉这里。
                 val memories = memoryBankService.recallForPrompt(
                     assistantId = if (assistant.useGlobalMemory) {
                         MemoryBankService.GLOBAL_MEMORY_ID

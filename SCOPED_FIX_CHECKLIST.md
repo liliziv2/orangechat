@@ -21,7 +21,9 @@ Branch: feat/sidebar-memorial-card-and-input
 
 - [ ] Complete session lifecycle/deletion/external-update consistency; the current patch only addresses auxiliary title/suggestion writes.
 - [ ] Elektron end-to-end persistence/restart validation, assistant state ownership and failure recovery.
-- [ ] Memory full-library retrieval/token budgeting and observability.
+- [x] Memory retrieval: probe the whole library per query token instead of only the decay-ranked 200-row pool, so older but relevant rows can be recalled.
+- [x] Memory token budgeting: apply the shared char budget inside recall, so a row that never reaches the prompt does not count as recalled (+1 activation).
+- [ ] Memory end-to-end validation on device: write, recall, restart, and confirm the injected set matches the touched set.
 
 ## Excluded from this patch
 

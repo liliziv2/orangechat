@@ -100,7 +100,6 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.Sun03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.theme.GLASS_BACKGROUND_THEMES
 import me.rerere.rikkahub.Screen
@@ -761,50 +760,55 @@ private fun DrawerMemorialCard(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            // 底部留白比顶部大：名字是这一组的落脚点，贴到卡片边缘会显得被压住。
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
+                Greeting(
                     modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Greeting(modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyMedium)
-
-                }
-                IconButton(onClick = onOpenSettings, modifier = Modifier.size(48.dp)) {
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                // 热区仍是 40dp，图标收到 18dp：这一排只是附注，不该和头像抢高度。
+                IconButton(onClick = onOpenSettings, modifier = Modifier.size(40.dp)) {
                     Icon(
                         imageVector = HugeIcons.Settings03,
                         contentDescription = stringResource(R.string.settings),
                         tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
+            // 双头像 + 四瓣花是一组，顶部对齐；花按头像高度居中，不用固定 padding 猜位置。
             Row(
-                modifier = Modifier.padding(bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
                     UIAvatar(
                         name = settings.displaySetting.userNickname,
                         value = settings.displaySetting.userAvatar,
                         modifier = Modifier.size(48.dp),
                         onUpdate = onUpdateUserAvatar,
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(userName, style = MaterialTheme.typography.labelMedium,
                         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Box(modifier = Modifier.width(64.dp).padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
-                    FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.42f))
+                Box(
+                    modifier = Modifier
+                        .width(56.dp)
+                        // (48dp 头像 - 30dp 花) / 2 = 9dp，花心与头像圆心同高。
+                        .padding(top = 9.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    FourPetalFlower(size = 30.dp, color = scheme.primary.copy(alpha = 0.55f))
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(64.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
                     // Keep the image and centered hit target; no outer ring.
                     Box(
                         modifier = Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onAssistantClick),
@@ -817,7 +821,7 @@ private fun DrawerMemorialCard(
                             size = 48.dp,
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(assistantName, style = MaterialTheme.typography.labelMedium,
                         color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
