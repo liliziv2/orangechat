@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.ui.pages.extensions
+﻿package me.rerere.rikkahub.ui.pages.extensions
 
 import me.rerere.rikkahub.ui.theme.popupContainerColor
 
@@ -59,6 +59,13 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
     val settings = vm.settings.collectAsStateWithLifecycle().value
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val pendingUploads by androidx.compose.runtime.produceState(initialValue = 0, context) {
+        while (true) {
+            value = me.rerere.rikkahub.data.service.ExternalMessageOutbox.pendingCount(context)
+            kotlinx.coroutines.delay(3000)
+        }
+    }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<ExternalMemory?>(null) }
@@ -87,6 +94,18 @@ fun ExternalMemoriesPage(vm: ExternalMemoriesVM = koinViewModel()) {
             // 行与行之间不再留 12dp 空档：分界交给那根发丝线，列表才是连续的。
             contentPadding = innerPadding + PaddingValues(vertical = 8.dp),
         ) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text("待上传消息：$pendingUploads", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "联网后自动重试；若长期不减少，请检查外置记忆库的启用状态、地址、密钥及写入权限。",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    androidx.compose.material3.TextButton(onClick = {
+                        me.rerere.rikkahub.data.service.ExternalMessageOutbox.kick(context)
+                    }) { Text("重试上传") }
+                }
+            }
             if (settings.externalMemories.isEmpty()) {
                 item {
                     Column(

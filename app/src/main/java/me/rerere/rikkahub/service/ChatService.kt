@@ -469,7 +469,7 @@ class ChatService(
 
                 // 读取最新状态 -> 追加用户消息 -> 落库，整体加锁。
                 // 防止跟同一时刻可能在跑的标题生成/建议生成/语音通话挂断反馈互相覆盖对方刚写入的消息。
-                val (assistant, processedContent) = session.saveMutex.withLock {
+                val (assistant, processedContent, savedUserMessage) = session.saveMutex.withLock {
                     val latestConversation = session.state.value
                     val assistant = settings.getAssistantById(latestConversation.assistantId)
                         ?: settings.getCurrentAssistant()
@@ -484,16 +484,27 @@ class ChatService(
                         node.messages.getOrNull(node.selectIndex)?.hasNoVisibleReply() == true
                     }
 
+                    val savedUserMessage = UIMessage(role = MessageRole.USER, parts = processedContent)
                     val newConversation = latestConversation.copy(
-                        messageNodes = trimmedNodes + UIMessage(
-                            role = MessageRole.USER,
-                            parts = processedContent,
-                        ).toMessageNode(),
+                        messageNodes = trimmedNodes + savedUserMessage.toMessageNode(),
                     )
                     saveConversation(conversationId, newConversation)
-                    assistant to processedContent
+                    Triple(assistant, processedContent, savedUserMessage)
                 }
 
+                // Persist upload intent before any cancellable event/plugin work.
+                try {
+                    me.rerere.rikkahub.data.service.ExternalMessageOutbox.enqueue(
+                        context = context,
+                        configs = settings.externalMemories.filter {
+                            it.enabled && it.id in assistant.externalMemoryIds && it.autoSaveMessages
+                        },
+                        assistantId = assistant.id.toString(), conversationId = conversationId.toString(),
+                        message = savedUserMessage, role = "user", content = savedUserMessage.toText(),
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to persist external upload intent", e)
+                }
                 // 触发 message_sent 事件钩子
                 // 关键: 这里用 appScope.launch 提交独立协程, 而不是直接 await callEvent。
                 // 原因: callEvent 内部对订阅插件的 handler 在单线程 pluginDispatcher 上串行执行,
@@ -523,36 +534,6 @@ class ChatService(
                     }
                 }.onFailure { e ->
                     Log.w(TAG, "Failed to trigger message_sent event", e)
-                }
-
-                // 保存用户消息到外置记忆库（fire-and-forget，不阻塞后续生成流程）
-                try {
-                    val settingsRaw = settingsStore.settingsFlowRaw.first()
-                    val externalMemoryConfigs = settingsRaw.externalMemories.filter {
-                        it.enabled && it.id in assistant.externalMemoryIds && it.autoSaveMessages
-                    }
-                    if (externalMemoryConfigs.isNotEmpty()) {
-                        val messageText = processedContent.mapNotNull { part ->
-                            if (part is UIMessagePart.Text) part.text else null
-                        }.joinToString("\n")
-                        externalMemoryConfigs.forEach { config ->
-                            appScope.launch {
-                                runCatching {
-                                    val service = me.rerere.rikkahub.data.service.ExternalMemoryService(config)
-                                    service.saveMessage(
-                                        assistantId = assistant.id.toString(),
-                                        conversationId = conversationId.toString(),
-                                        role = "user",
-                                        content = messageText,
-                                    )
-                                }.onFailure {
-                                    Log.w(TAG, "Failed to save user message to external memory ${config.name}", it)
-                                }
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to save user message to external memory", e)
                 }
 
                 // ==================== Elektron State / Behavior 层 ====================
@@ -1206,6 +1187,21 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                 latest
             }
 
+            // Durable outbox: network upload must not be a child of generation.
+            finalConversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let { message ->
+                try {
+                    me.rerere.rikkahub.data.service.ExternalMessageOutbox.enqueue(
+                        context = context,
+                        configs = settings.externalMemories.filter {
+                            it.enabled && it.id in assistant.externalMemoryIds && it.autoSaveMessages
+                        },
+                        assistantId = assistant.id.toString(), conversationId = conversationId.toString(),
+                        message = message, role = "assistant", content = message.toText(),
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to persist external upload intent", e)
+                }
+            }
             // 语音条混排：把 【语音条】 段合成成真正的语音条 part。
             // 必须放在下面 [JUMP]／网易云等文本后处理之前 —— 那些逻辑读的是消息文本，
             // 而这一步会重写 parts、去掉标记，先跑才能让它们看到干净的文本。
@@ -1299,37 +1295,7 @@ addAll(localTools.getTools(assistant.localTools, me.rerere.rikkahub.data.ai.tool
                 generateSuggestion(conversationId, finalConversation)
             }
 
-            // 保存 AI 回复到外置记忆库
-            try {
-                val externalMemoryConfigs = settings.externalMemories.filter {
-                    it.enabled && it.id in assistant.externalMemoryIds && it.autoSaveMessages
-                }
-                if (externalMemoryConfigs.isNotEmpty()) {
-                    val lastAssistantMessage = finalConversation.currentMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
-                    val messageText = lastAssistantMessage?.toText() ?: ""
-                    if (messageText.isNotBlank()) {
-                        kotlinx.coroutines.coroutineScope {
-                            externalMemoryConfigs.forEach { config ->
-                                launch {
-                                    runCatching {
-                                        val service = me.rerere.rikkahub.data.service.ExternalMemoryService(config)
-                                        service.saveMessage(
-                                            assistantId = assistant.id.toString(),
-                                            conversationId = conversationId.toString(),
-                                            role = "assistant",
-                                            content = messageText,
-                                        )
-                                    }.onFailure {
-                                        Log.w(TAG, "Failed to save assistant message to external memory ${config.name}", it)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to save assistant message to external memory", e)
-            }
+
         }
     }
 

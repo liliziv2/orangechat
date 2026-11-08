@@ -76,6 +76,8 @@ class RikkaHubApp : Application() {
                 pluginModule,
             )
         }
+        runCatching { me.rerere.rikkahub.data.service.ExternalMessageOutbox.recover(this) }
+            .onFailure { Log.e(TAG, "Failed to schedule external message recovery", it) }
         this.createNotificationChannel()
 
         // 预热 ChatService 单例: 强制在主线程(Application.onCreate 由 Android 保证

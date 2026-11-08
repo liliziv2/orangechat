@@ -33,18 +33,20 @@ class ExternalMemoryService(
         conversationId: String,
         role: String,
         content: String,
+        messageId: String,
+        createdAt: String,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.supabaseUrl.trimEnd('/')
-            val endpoint = URL("$url/rest/v1/${config.tableName}")
+            val endpoint = URL("$url/rest/v1/${config.tableName}?on_conflict=id")
 
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
             val jsonString = buildJsonObject {
+                put("id", JsonPrimitive(messageId))
                 put("assistant_id", JsonPrimitive(assistantId))
                 put("conversation_id", JsonPrimitive(conversationId))
                 put("role", JsonPrimitive(role))
                 put("content", JsonPrimitive(content))
-                put("created_at", JsonPrimitive(sdf.format(java.util.Date())))
+                put("created_at", JsonPrimitive(createdAt))
             }.toString()
 
             val connection = (endpoint.openConnection() as HttpURLConnection).apply {
@@ -52,25 +54,29 @@ class ExternalMemoryService(
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("apikey", config.supabaseKey)
                 setRequestProperty("Authorization", "Bearer ${config.supabaseKey}")
-                setRequestProperty("Prefer", "return=minimal")
+                setRequestProperty("Prefer", "resolution=ignore-duplicates,return=minimal")
                 doOutput = true
                 connectTimeout = 15000
                 readTimeout = 15000
             }
 
-            connection.outputStream.bufferedWriter().use { writer ->
-                writer.write(jsonString)
-                writer.flush()
-            }
+            try {
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                    writer.write(jsonString)
+                    writer.flush()
+                }
 
-            val responseCode = connection.responseCode
-            if (responseCode !in 200..299) {
-                val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-                Log.e(TAG, "saveMessage HTTP $responseCode body=$errorBody")
-                throw Exception("Supabase API error ($responseCode): $errorBody")
-            }
+                val responseCode = connection.responseCode
+                if (responseCode !in 200..299) {
+                    val errorBody = connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
+                    Log.e(TAG, "saveMessage HTTP $responseCode")
+                    throw Exception("Supabase API error ($responseCode): $errorBody")
+                }
 
-            Log.d(TAG, "Saved message to ${config.tableName} for assistant $assistantId")
+                Log.d(TAG, "Saved message to ${config.tableName} for assistant $assistantId")
+            } finally {
+                connection.disconnect()
+            }
         }.map { }
     }
 

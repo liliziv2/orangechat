@@ -913,37 +913,17 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     saveProactiveMessage(
                         settings, assistant, conversationId, conversation
                     )
-                    // 同步保存 AI 主动消息 / 激进模式回复到外置记忆库（Supabase）
-                    // 保证日记总结（DiarySummaryService 只读 Supabase chat_messages 表）和记忆召回能看到这部分内容
                     try {
-                        val externalMemoryConfigs = settings.externalMemories.filter {
-                            it.enabled && it.id in assistant.externalMemoryIds && it.autoSaveMessages
-                        }
-                        if (externalMemoryConfigs.isNotEmpty() && replyText.isNotBlank()) {
-                            kotlinx.coroutines.coroutineScope {
-                                externalMemoryConfigs.forEach { config ->
-                                    launch {
-                                        runCatching {
-                                            val service = ExternalMemoryService(config)
-                                            service.saveMessage(
-                                                assistantId = assistant.id.toString(),
-                                                conversationId = conversationId.toString(),
-                                                role = "assistant",
-                                                content = replyText,
-                                            )
-                                        }.onFailure {
-                                            Log.w(
-                                                ProactiveMessageService.TAG,
-                                                "Failed to save proactive message to external memory ${config.name}",
-                                                it
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        ExternalMessageOutbox.enqueue(
+                            context = this@ProactiveMessageTriggerService,
+                            configs = settings.externalMemories.filter {
+                                it.enabled && it.id in assistant.externalMemoryIds && it.autoSaveMessages
+                            },
+                            assistantId = assistant.id.toString(), conversationId = conversationId.toString(),
+                            message = aiMessage, role = "assistant", content = replyText,
+                        )
                     } catch (e: Exception) {
-                        Log.w(ProactiveMessageService.TAG, "Failed to save proactive message to external memory", e)
+                        Log.e(ProactiveMessageService.TAG, "Failed to persist external upload intent", e)
                     }
                     showProactiveNotification(conversationId, assistant.name.ifBlank { "AI" }, replyText)
                     // 悬浮球提醒（作为通知之上的增强层；无 overlay 权限时由 FloatingBubbleService 兜底跳过）
