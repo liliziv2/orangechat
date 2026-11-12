@@ -769,7 +769,7 @@ private fun QwenTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = languageExpanded,
-                onDismissRequest = { languageExpanded = false }
+                onDismissRequest = { languageExpanded = false },
                 containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 languageTypes.forEach { languageType ->
@@ -1007,7 +1007,7 @@ private fun XAITTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = languageExpanded,
-                onDismissRequest = { languageExpanded = false }
+                onDismissRequest = { languageExpanded = false },
                 containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 languages.forEach { (code, displayName) ->
