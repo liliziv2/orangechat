@@ -9,6 +9,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import me.rerere.tts.provider.TTSProviderSetting
 
 @Composable
@@ -69,7 +71,8 @@ fun TTSProviderConfigure(
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     providers.forEach { providerClass ->
                         DropdownMenuItem(
@@ -253,7 +256,8 @@ private fun OpenAITTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = voiceExpanded,
-                onDismissRequest = { voiceExpanded = false }
+                onDismissRequest = { voiceExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 voices.forEach { voice ->
                     DropdownMenuItem(
@@ -395,7 +399,8 @@ private fun MiniMaxTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = modelExpanded,
-                onDismissRequest = { modelExpanded = false }
+                onDismissRequest = { modelExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 TTSProviderSetting.MiniMax.MODEL_OPTIONS.forEach { model ->
                     DropdownMenuItem(
@@ -448,7 +453,8 @@ private fun MiniMaxTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = voiceIdExpanded,
-                onDismissRequest = { voiceIdExpanded = false }
+                onDismissRequest = { voiceIdExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 voiceIds.forEach { voiceId ->
                     DropdownMenuItem(
@@ -498,7 +504,8 @@ private fun MiniMaxTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = emotionExpanded,
-                onDismissRequest = { emotionExpanded = false }
+                onDismissRequest = { emotionExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 emotions.forEach { emotion ->
                     DropdownMenuItem(
@@ -720,7 +727,8 @@ private fun QwenTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = voiceExpanded,
-                onDismissRequest = { voiceExpanded = false }
+                onDismissRequest = { voiceExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 voices.forEach { voice ->
                     DropdownMenuItem(
@@ -762,6 +770,7 @@ private fun QwenTTSConfiguration(
             ExposedDropdownMenu(
                 expanded = languageExpanded,
                 onDismissRequest = { languageExpanded = false }
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 languageTypes.forEach { languageType ->
                     DropdownMenuItem(
@@ -853,7 +862,8 @@ private fun GroqTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = voiceExpanded,
-                onDismissRequest = { voiceExpanded = false }
+                onDismissRequest = { voiceExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 voices.forEach { voice ->
                     DropdownMenuItem(
@@ -936,7 +946,8 @@ private fun XAITTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = voiceExpanded,
-                onDismissRequest = { voiceExpanded = false }
+                onDismissRequest = { voiceExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 voices.forEach { (voiceId, description) ->
                     DropdownMenuItem(
@@ -997,6 +1008,7 @@ private fun XAITTSConfiguration(
             ExposedDropdownMenu(
                 expanded = languageExpanded,
                 onDismissRequest = { languageExpanded = false }
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 languages.forEach { (code, displayName) ->
                     DropdownMenuItem(
@@ -1084,7 +1096,8 @@ private fun ElevenLabsTTSConfiguration(
             )
             ExposedDropdownMenu(
                 expanded = modelExpanded,
-                onDismissRequest = { modelExpanded = false }
+                onDismissRequest = { modelExpanded = false },
+                containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
                 models.forEach { model ->
                     DropdownMenuItem(
