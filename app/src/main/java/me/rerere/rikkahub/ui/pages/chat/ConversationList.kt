@@ -112,8 +112,8 @@ fun ColumnScope.ConversationList(
     LazyColumn(
         state = listState,
         modifier = modifier,
-        // 行距收到 4dp：条目本身已有内边距，8dp 读成散开的按钮堆，2dp 又贴太紧。
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        // 行距 8dp：条目已有内边距，行距再小就会读成挤在一起。
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (conversations.itemCount == 0) {
             item {
@@ -195,7 +195,8 @@ private fun DateHeaderItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            // 日期上留 12dp 与上一条拉开，下只留 2dp 贴近它统领的那一天。
+            .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 日期分组保留，但降级成安静的「小标题」：不再是 primary 色 + 加粗。
@@ -293,7 +294,7 @@ private fun ConversationItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 标题吃掉剩余宽度：右侧置顶/加载标记先占位，长标题在这里省略，

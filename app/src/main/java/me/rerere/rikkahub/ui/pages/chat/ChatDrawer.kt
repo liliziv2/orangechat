@@ -322,6 +322,9 @@ fun ChatDrawerContent(
                 onDelete = { folderToDelete = it },
             )
 
+            // 文件夹行属于导航层，会话列表是内容层：这里单独补一档间距把两层分开
+            // （Column 的 8dp 只管通用节奏，分不开层级）。
+            Spacer(Modifier.height(4.dp))
             ConversationList(
                 current = current,
                 conversations = conversations,

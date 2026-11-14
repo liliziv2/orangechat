@@ -55,7 +55,7 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.ui.theme.popupContainerColor
+import me.rerere.rikkahub.ui.theme.popupMenuContainerColor
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -149,11 +149,9 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                         ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
                                     }
                                 },
-                                // 只在这一处接入主题容器色与弹窗透明度拉杆；
+                                // 只在这一处接入：容器色随材质走，再乘弹窗透明度滑块。
                                 // 其它页面用 Select 时仍走 Material 默认容器色。
-                                menuContainerColor = popupContainerColor(
-                                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                                ),
+                                menuContainerColor = popupMenuContainerColor(),
                                 modifier = Modifier.width(150.dp)
                             )
                         },

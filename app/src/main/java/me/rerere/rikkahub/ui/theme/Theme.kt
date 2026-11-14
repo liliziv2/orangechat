@@ -44,6 +44,46 @@ fun popupContainerColor(baseContainerColor: Color): Color {
 }
 
 /**
+ * 弹窗容器用的**基色**，随当前材质模式变化。
+ *
+ * 与 [popupContainerColor] 的分工：那个函数决定「多不透明」（滑块 + 下限），
+ * 这个函数决定「用哪个色」。两者相乘，所以滑块在任何材质下都仍然有效。
+ *
+ * - 平面 / 跟随主题：surfaceContainerHigh，弹窗是一块安静的实色底，不描边。
+ * - 半透明：同色，但整体压薄一点，配合 [materialModeBorderStroke] 的那圈淡边。
+ * - 玻璃：降到 surfaceContainer 并且再压薄 —— 弹窗要能透出后面的内容，
+ *   读起来是一片薄片，而不是压在上面的一块板。
+ *
+ * 注意：DropdownMenu 不支持背景模糊，玻璃模式只能做到「半透明 + 淡描边」，
+ * 这是近似，不是真正的模糊玻璃。
+ */
+@Composable
+@ReadOnlyComposable
+fun popupMenuBaseColor(): Color {
+    val scheme = MaterialTheme.colorScheme
+    return when (LocalMaterialMode.current) {
+        DisplayMaterialMode.GLASS -> scheme.surfaceContainer.copy(alpha = 0.7f)
+        DisplayMaterialMode.TRANSLUCENT -> scheme.surfaceContainerHigh.copy(alpha = 0.9f)
+        DisplayMaterialMode.FLAT,
+        DisplayMaterialMode.FOLLOW_THEME -> scheme.surfaceContainerHigh
+    }
+}
+
+/**
+ * 弹窗容器的成品色：材质基色 × 弹窗不透明度滑块。
+ *
+ * 两个菜单（聊天页右上角「更多」、设置首页颜色模式下拉）共用这一处取值，
+ * 保证它们在四种材质下的表现一致，不再各写一份。
+ */
+@Composable
+@ReadOnlyComposable
+fun popupMenuContainerColor(): Color {
+    val base = popupMenuBaseColor()
+    val popupAlpha = (LocalPopupSurfaceOpacity.current / 100f).coerceIn(0.6f, 1f)
+    return base.copy(alpha = base.alpha * popupAlpha)
+}
+
+/**
  * 不透明基色 —— 用于**必须完全阻断下层内容**的区域（侧栏遮挡层等）。
  *
  * 为什么需要它：Theme 的 alpha 合成阶段会把 surface / surfaceBright / surfaceDim /
