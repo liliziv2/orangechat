@@ -26,6 +26,7 @@ import androidx.compose.ui.util.fastForEach
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 
 @Composable
 fun <T> Select(
@@ -76,7 +77,10 @@ fun <T> Select(
             expanded = expanded,
             onDismissRequest = {
                 expanded = false
-            }
+            },
+            // 弹窗容器跟主题走，并服从「弹窗透明度」拉杆：
+            // 不传时 Material 默认用 surfaceContainer 实色，拉杆对它无效。
+            containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
         ) {
             options.fastForEach { option ->
                 DropdownMenuItem(

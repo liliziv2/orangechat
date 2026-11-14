@@ -741,7 +741,7 @@ private fun DrawerMemorialCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 48.dp, bottom = 16.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 32.dp, bottom = 10.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -979,11 +979,13 @@ private fun FolderBar(
                 }
             }
         }
+        // 搜索仍是 48dp 触摸目标，只把图标收到与底部小图标同档（20dp）。
         IconButton(onClick = onSearch, modifier = Modifier.size(48.dp)) {
             Icon(
                 imageVector = HugeIcons.Search01,
                 contentDescription = stringResource(R.string.chat_page_search_chats),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
             )
         }
     }

@@ -2,6 +2,7 @@
 
 import androidx.compose.material3.BottomSheetDefaults
 import me.rerere.rikkahub.ui.theme.popupContainerColor
+import me.rerere.rikkahub.ui.theme.materialModeBorderStroke
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
@@ -394,8 +395,8 @@ private fun ChatPageContent(
                         onUpdateAssistant = onUpdateAssistant,
                         modifier = Modifier.padding(horizontal = 12.dp),
                     )
-                    // 助手选择胶囊与输入框拉开一档距离（+8dp，真机视觉再微调）。
-                    Spacer(Modifier.height(8.dp))
+                    // 助手选择胶囊与输入框之间只留一档呼吸距离。
+                    Spacer(Modifier.height(4.dp))
                     ChatInput(
                         state = inputState,
                     loading = loadingJob != null,
@@ -845,6 +846,10 @@ private fun TopBar(
                 DropdownMenu(
                     expanded = showOverflowMenu,
                     onDismissRequest = { showOverflowMenu = false },
+                    // 与页面内其它弹窗同源：主题 surfaceContainerHigh + 弹窗透明度拉杆，
+                    // 描边跟随当前材质模式，不再是一块压住正文的实色。
+                    containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    border = materialModeBorderStroke(),
                 ) {
                     DropdownMenuItem(
                         text = {

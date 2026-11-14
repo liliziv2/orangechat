@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,6 +60,9 @@ fun ReasoningButton(
     // 图标尺寸。默认 24dp 原样不动；聊天输入框的操作行显式传 20dp，
     // 与 + / 搜索 / 语音 / 发送 同一套图标尺寸。
     iconSize: Dp = 24.dp,
+    // 内容内边距。默认沿用原来的 8dp（其余调用点零影响）；
+    // 聊天输入框把图标放进固定 44dp 盒子时需要传 0，否则图标会被内边距推离中心。
+    contentPadding: PaddingValues = PaddingValues(8.dp),
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
@@ -76,7 +80,7 @@ fun ReasoningButton(
         modifier = modifier,
     ) {
         Row(
-            modifier = Modifier.padding(vertical = 8.dp, horizontal = 8.dp),
+            modifier = Modifier.padding(contentPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {

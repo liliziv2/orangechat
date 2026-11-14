@@ -69,8 +69,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
+                // 大标题从默认 36sp 收到 headlineSmall（24sp），
+                // 并压低展开区高度：设置首页是列表，不需要一整屏的标题留白。
+                expandedHeight = 104.dp,
                 title = {
-                    Text(text = stringResource(R.string.settings))
+                    Text(
+                        text = stringResource(R.string.settings),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
                 },
                 navigationIcon = {
                     BackButton()
@@ -86,8 +92,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = innerPadding + PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (settings.isNotConfigured()) {
                 item {

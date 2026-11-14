@@ -740,7 +740,8 @@ fun ChatInput(
                                 imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
                                 contentDescription = stringResource(R.string.more_options),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(CapsuleActionIconSize),
+                                // 与 thinking / 搜索同档 20dp，盒子仍是 44dp 触摸区。
+                                modifier = Modifier.size(ToolIconSize),
                             )
                         }
                     }
@@ -763,8 +764,11 @@ fun ChatInput(
                                 reasoningLevel = reasoningLevel,
                                 onUpdateReasoningLevel = onUpdateReasoningLevel,
                                 onlyIcon = true,
-                                iconSize = 20.dp,
-                                modifier = Modifier.size(40.dp),
+                                iconSize = ToolIconSize,
+                                // 触摸区域与 + / 发送同档 44dp（原来只有 40dp）。
+                                // 内边距归零，图标才会在盒子里居中而不是偏左上。
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.size(CapsuleActionSize),
                             )
                         }
                     }
@@ -775,7 +779,10 @@ fun ChatInput(
                         SearchPickerButton(
                             enableSearch = enableSearch,
                             settings = settings,
-                            iconSize = 20.dp,
+                            iconSize = ToolIconSize,
+                            // 显式给出 44dp 触摸区，与其余工具按钮同一条中心线。
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.size(CapsuleActionSize),
                             onToggleSearch = onToggleSearch,
                             onUpdateSearchService = onUpdateSearchService,
                             model = settings.getCurrentChatModel(),
@@ -1249,6 +1256,14 @@ private val CapsuleActionSize = 44.dp
  * 零影响），只有聊天输入框这一处显式传本值。
  */
 private val CapsuleActionIconSize = 24.dp
+/**
+ * 输入栏里 + / thinking / 搜索三个**工具**图标的尺寸。
+ *
+ * 比发送箭头（[CapsuleActionIconSize] 24dp）小一档：发送是这一行唯一的实心主操作，
+ * 保持它更突出；三个工具是次要入口，收到 20dp 后三者的墨迹尺寸一致。
+ * 只影响图标墨迹，不改触摸区域 —— 三者仍在 [CapsuleActionSize] 44dp 的盒子里。
+ */
+private val ToolIconSize = 20.dp
 
 /**
  * 正文输入区的行数上限与绝对高度上限（**只管多行态**）。
