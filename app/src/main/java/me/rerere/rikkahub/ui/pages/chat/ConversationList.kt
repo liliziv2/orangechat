@@ -112,8 +112,8 @@ fun ColumnScope.ConversationList(
     LazyColumn(
         state = listState,
         modifier = modifier,
-        // 行距从 8dp 收到 2dp：条目本身已有内边距，8dp 让列表读成散开的按钮堆。
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        // 行距收到 4dp：条目本身已有内边距，8dp 读成散开的按钮堆，2dp 又贴太紧。
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (conversations.itemCount == 0) {
             item {
@@ -262,8 +262,11 @@ private fun ConversationItem(
     val interactionSource = remember { MutableInteractionSource() }
     val itemShape = RoundedCornerShape(50f)
     // 选中态用主题已有的低对比色，而不是 elevation 提亮出来的厚底块。
+    // 透明度在主题色**原有 alpha 上相乘**，不覆盖它：主题自身的半透明设定
+    // 与侧栏元素透明度滑块都还要拿它当参照。
+    val selectedContainer = MaterialTheme.colorScheme.surfaceVariant
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        selectedContainer.copy(alpha = selectedContainer.alpha * 0.5f)
     } else {
         Color.Transparent
     }
@@ -290,17 +293,19 @@ private fun ConversationItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // 标题吃掉剩余宽度：右侧置顶/加载标记先占位，长标题在这里省略，
+            // 不会把标记挤出条目。整行点击与长按行为不变。
             Text(
                 text = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) },
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.weight(1f))
 
             // 置顶图标
             AnimatedVisibility(conversation.isPinned) {

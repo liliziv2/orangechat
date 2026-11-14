@@ -768,6 +768,7 @@ fun ChatInput(
                                 // 触摸区域与 + / 发送同档 44dp（原来只有 40dp）。
                                 // 内边距归零，图标才会在盒子里居中而不是偏左上。
                                 contentPadding = PaddingValues(0.dp),
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier.size(CapsuleActionSize),
                             )
                         }
@@ -782,6 +783,7 @@ fun ChatInput(
                             iconSize = ToolIconSize,
                             // 显式给出 44dp 触摸区，与其余工具按钮同一条中心线。
                             contentPadding = PaddingValues(0.dp),
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier.size(CapsuleActionSize),
                             onToggleSearch = onToggleSearch,
                             onUpdateSearchService = onUpdateSearchService,

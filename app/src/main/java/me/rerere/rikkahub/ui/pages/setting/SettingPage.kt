@@ -55,6 +55,7 @@ import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.popupContainerColor
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -116,6 +117,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -147,11 +149,21 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                         ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
                                     }
                                 },
+                                // 只在这一处接入主题容器色与弹窗透明度拉杆；
+                                // 其它页面用 Select 时仍走 Material 默认容器色。
+                                menuContainerColor = popupContainerColor(
+                                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                                ),
                                 modifier = Modifier.width(150.dp)
                             )
                         },
                         headlineContent = { Text(stringResource(R.string.setting_page_color_mode)) },
-                        supportingContent = { Text(selectedColorModeText) },
+                        supportingContent = {
+                            Text(
+                                text = selectedColorModeText,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
                     )
                     // 原「显示设置」这一层删除，其下条目直接归入「外观」。
                     item(
@@ -185,6 +197,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("chat") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -221,6 +234,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("modelServices") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -257,6 +271,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("extension") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -287,6 +302,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("security") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -313,6 +329,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("assistant") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -337,6 +354,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
                 CollapsibleCardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    groupedSurface = true,
                     title = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

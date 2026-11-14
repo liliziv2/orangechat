@@ -741,7 +741,7 @@ private fun DrawerMemorialCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 32.dp, bottom = 10.dp),
+                .padding(start = 8.dp, end = 8.dp, top = 48.dp, bottom = 10.dp),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.Center,
         ) {

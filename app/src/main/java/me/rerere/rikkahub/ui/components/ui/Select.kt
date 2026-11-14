@@ -26,7 +26,7 @@ import androidx.compose.ui.util.fastForEach
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
-import me.rerere.rikkahub.ui.theme.popupContainerColor
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun <T> Select(
@@ -37,7 +37,10 @@ fun <T> Select(
     optionToString: @Composable (T) -> String = { it.toString() },
     optionLeading: @Composable ((T) -> Unit)? = null,
     leading: @Composable () -> Unit = {},
-    trailing: @Composable () -> Unit = {}
+    trailing: @Composable () -> Unit = {},
+    // 弹窗容器色。默认 null 表示完全沿用 Material 默认，其它调用点零影响；
+    // 只有需要跟主题、跟「弹窗透明度」拉杆走的调用点才显式传入。
+    menuContainerColor: Color? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -78,9 +81,9 @@ fun <T> Select(
             onDismissRequest = {
                 expanded = false
             },
-            // 弹窗容器跟主题走，并服从「弹窗透明度」拉杆：
-            // 不传时 Material 默认用 surfaceContainer 实色，拉杆对它无效。
-            containerColor = popupContainerColor(MaterialTheme.colorScheme.surfaceContainerHigh),
+            // null 时走 Material 默认容器色，行为与本轮之前完全一致。
+            containerColor = menuContainerColor
+                ?: MaterialTheme.colorScheme.surfaceContainer,
         ) {
             options.fastForEach { option ->
                 DropdownMenuItem(

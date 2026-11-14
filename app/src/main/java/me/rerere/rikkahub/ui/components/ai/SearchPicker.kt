@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,7 +32,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -73,6 +73,8 @@ fun SearchPickerButton(
     // 内容内边距。默认沿用原来的 8dp（其余调用点零影响）；
     // 聊天输入框把图标放进固定 44dp 盒子时需要传 0，否则图标会被内边距推离中心。
     contentPadding: PaddingValues = PaddingValues(8.dp),
+    // 纯图标模式放进固定尺寸盒子时，内容要显式居中（见 ToggleSurface）。
+    contentAlignment: Alignment = Alignment.TopStart,
 ) {
     var showSearchPicker by remember { mutableStateOf(false) }
     val currentService = settings.searchServices.getOrNull(settings.searchServiceSelected)
@@ -82,7 +84,8 @@ fun SearchPickerButton(
         checked = enableSearch || model?.tools?.contains(BuiltInTools.Search) == true,
         onClick = {
             showSearchPicker = true
-        }
+        },
+        contentAlignment = contentAlignment,
     ) {
         Row(
             modifier = Modifier.padding(contentPadding),

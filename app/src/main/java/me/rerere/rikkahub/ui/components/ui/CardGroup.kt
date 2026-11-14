@@ -116,6 +116,8 @@ private fun CardGroupListItem(
     count: Int,
     index: Int,
     flat: Boolean,
+    // 行自身不画容器与描边，由外层的整组容器统一承担。
+    transparentSurface: Boolean = false,
 ) {
     val isFirst = index == 0
     val isLast = index == count - 1
@@ -169,7 +171,7 @@ private fun CardGroupListItem(
         Modifier
     }
     // 非 flat 的这条分支与批 53 之前**逐字节相同**，只是从内联挪进了 else。
-    val rowModifier = if (flat) {
+    val rowModifier = if (flat || transparentSurface) {
         item.modifier
             .fillMaxWidth()
             .then(clickModifier)
@@ -217,7 +219,11 @@ private fun CardGroupListItem(
         supportingContent = item.supportingContent,
         leadingContent = item.leadingContent,
         trailingContent = item.trailingContent,
-        colors = if (flat) baseColors.copy(containerColor = Color.Transparent) else colors,
+        colors = if (flat || transparentSurface) {
+            baseColors.copy(containerColor = Color.Transparent)
+        } else {
+            colors
+        },
     )
 }
 
@@ -305,17 +311,79 @@ private fun SettingsSectionTitleContainer(
 }
 
 /**
+ * 整组共用的外框。
+ *
+ * 与「每行各自一个盒子」相反：这里由外层铺一次底色、描一次边，
+ * 组内各行保持透明，只靠 [GroupedRowDivider] 区分。底色同样乘
+ * `interfaceSurfaceOpacity`，因此与界面轻透、玻璃、半透明三种模式一致；
+ * 不额外引入固定遮罩。
+ */
+@Composable
+private fun GroupedCardGroupSurface(
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    val shape = RoundedCornerShape(CardGroupCorner)
+    val interfaceSurfaceAlpha =
+        (LocalDisplaySettings.current.interfaceSurfaceOpacity / 100f).coerceIn(0f, 0.95f)
+    val materialMode = LocalMaterialMode.current
+    val isGlass = materialMode == DisplayMaterialMode.GLASS
+    val showOutline = materialMode == DisplayMaterialMode.TRANSLUCENT || isGlass
+    val containerColor = CustomColors.listItemColors.containerColor.copy(alpha = interfaceSurfaceAlpha)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(color = containerColor, shape = shape)
+            .then(
+                if (showOutline) {
+                    Modifier.border(
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f),
+                        ),
+                        shape = shape,
+                    )
+                } else {
+                    Modifier
+                }
+            ),
+        content = content,
+    )
+}
+
+/**
+ * 整组外框内的行分隔线。
+ *
+ * 与 [CardGroupDivider] 的区别：玻璃模式下**仍然画**。那里每一行已经透明，
+ * 外框内的层次只剩这根线，不画就分不清行边界。
+ */
+@Composable
+private fun GroupedRowDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = CardGroupDividerAlpha))
+    )
+}
+
+/**
  * 设置页的分组容器。
  *
  * @param flat **扁平密度**：不铺容器底色、不裁圆角、不描边，行直接落在页面背景上；
  *   行间改用 [SettingsRowDivider]（α0.5），组标题改用 [SettingsSectionTitle] 的几何。
  *   P2/P3 设置页用 `flat = true`；P1 设置首页保持默认（保留容器）。
+ * @param groupedSurface **整组一个外框**：组内各行不再各自描边，由
+ *   [GroupedCardGroupSurface] 统一承担底色与边框，行间改用 [GroupedRowDivider]。
+ *   P1 设置首页用 `groupedSurface = true`；默认 false，其它页面行为不变。
  */
 @Composable
 fun CardGroup(
     modifier: Modifier = Modifier,
     title: (@Composable () -> Unit)? = null,
     flat: Boolean = false,
+    groupedSurface: Boolean = false,
     content: @Composable CardGroupScope.() -> Unit,
 ) {
     val scope = CardGroupScope()
@@ -335,10 +403,27 @@ fun CardGroup(
             }
         }
         val count = scope.items.size
-        scope.items.fastForEachIndexed { index, item ->
-            CardGroupListItem(item = item, count = count, index = index, flat = flat)
-            if (index != count - 1) {
-                if (flat) SettingsRowDivider() else CardGroupDivider()
+        if (groupedSurface && !flat) {
+            GroupedCardGroupSurface {
+                scope.items.fastForEachIndexed { index, item ->
+                    CardGroupListItem(
+                        item = item,
+                        count = count,
+                        index = index,
+                        flat = false,
+                        transparentSurface = true,
+                    )
+                    if (index != count - 1) {
+                        GroupedRowDivider()
+                    }
+                }
+            }
+        } else {
+            scope.items.fastForEachIndexed { index, item ->
+                CardGroupListItem(item = item, count = count, index = index, flat = flat)
+                if (index != count - 1) {
+                    if (flat) SettingsRowDivider() else CardGroupDivider()
+                }
             }
         }
     }
@@ -353,6 +438,7 @@ fun CardGroup(
  * @param flat **扁平密度**：语义同 [CardGroup] 的 `flat` —— 标题行改用
  *   [SettingsSectionTitle] 的几何（16/16/20/4 + titleSmall + onSurfaceVariant），
  *   行间改用 [SettingsRowDivider]（α0.5）。P2/P3 设置页用 `flat = true`。
+ * @param groupedSurface 语义同 [CardGroup]：整组一个外框，组内用 [GroupedRowDivider]。
  * @param initiallyExpanded 首次组合时是否展开，默认收起。
  * @param summary 收起时显示在标题右侧的摘要，展开时隐藏。
  */
@@ -361,6 +447,7 @@ fun CollapsibleCardGroup(
     title: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     flat: Boolean = false,
+    groupedSurface: Boolean = false,
     initiallyExpanded: Boolean = false,
     summary: (@Composable () -> Unit)? = null,
     content: @Composable CardGroupScope.() -> Unit,
@@ -431,10 +518,27 @@ fun CollapsibleCardGroup(
         AnimatedVisibility(visible = expanded) {
             Column {
                 val count = scope.items.size
-                scope.items.fastForEachIndexed { index, item ->
-                    CardGroupListItem(item = item, count = count, index = index, flat = flat)
-                    if (index != count - 1) {
-                        if (flat) SettingsRowDivider() else CardGroupDivider()
+                if (groupedSurface && !flat) {
+                    GroupedCardGroupSurface {
+                        scope.items.fastForEachIndexed { index, item ->
+                            CardGroupListItem(
+                                item = item,
+                                count = count,
+                                index = index,
+                                flat = false,
+                                transparentSurface = true,
+                            )
+                            if (index != count - 1) {
+                                GroupedRowDivider()
+                            }
+                        }
+                    }
+                } else {
+                    scope.items.fastForEachIndexed { index, item ->
+                        CardGroupListItem(item = item, count = count, index = index, flat = flat)
+                        if (index != count - 1) {
+                            if (flat) SettingsRowDivider() else CardGroupDivider()
+                        }
                     }
                 }
             }

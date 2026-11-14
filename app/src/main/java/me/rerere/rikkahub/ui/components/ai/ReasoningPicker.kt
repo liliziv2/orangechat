@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +30,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -63,6 +63,8 @@ fun ReasoningButton(
     // 内容内边距。默认沿用原来的 8dp（其余调用点零影响）；
     // 聊天输入框把图标放进固定 44dp 盒子时需要传 0，否则图标会被内边距推离中心。
     contentPadding: PaddingValues = PaddingValues(8.dp),
+    // 纯图标模式放进固定尺寸盒子时，内容要显式居中（见 ToggleSurface）。
+    contentAlignment: Alignment = Alignment.TopStart,
 ) {
     var showPicker by remember { mutableStateOf(false) }
 
@@ -78,6 +80,7 @@ fun ReasoningButton(
         checked = reasoningLevel.isEnabled,
         onClick = { showPicker = true },
         modifier = modifier,
+        contentAlignment = contentAlignment,
     ) {
         Row(
             modifier = Modifier.padding(contentPadding),
