@@ -58,6 +58,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.theme.extendColors
+import androidx.compose.ui.text.TextStyle
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
 import java.time.ZoneId
@@ -75,6 +76,46 @@ sealed class ConversationListItem {
     data class Item(
         val conversation: Conversation
     ) : ConversationListItem()
+}
+
+/**
+ * 会话列表的字号放大系数。
+ *
+ * 会话标题与日期标签原本和侧栏其它文字同一档，读起来偏小；这两处各放大 15%，
+ * 日期仍然比标题小一级。
+ *
+ * **不是写死字号**：下面两个样式都以 `MaterialTheme.typography` 为基准再乘这个系数，
+ * 所以系统字体缩放、主题字体设置照样生效，只是整体放大一档。
+ */
+private const val ConversationListTextScale = 1.15f
+
+/**
+ * 会话标题样式：在当前计算字号的基准上放大约 15%，行高同比放大。
+ *
+ * 行高必须一起放大 —— 只放大字号会让行高小于字高，单行文本会被裁掉上下沿。
+ * 字重保持 bodyMedium 自带的那一档，不额外加粗（只有标题特别长时才靠省略号，
+ * 不靠字重区分层级）。
+ */
+@Composable
+private fun conversationTitleStyle(): TextStyle {
+    val base = MaterialTheme.typography.bodyMedium
+    return base.copy(
+        fontSize = base.fontSize * ConversationListTextScale,
+        lineHeight = base.lineHeight * ConversationListTextScale,
+    )
+}
+
+/**
+ * 日期标签样式：同样在当前基准上放大 15%，但基准取 labelMedium ——
+ * 比标题的 bodyMedium 小一级，放大之后这一级差仍然保留。
+ */
+@Composable
+private fun conversationDateStyle(): TextStyle {
+    val base = MaterialTheme.typography.labelMedium
+    return base.copy(
+        fontSize = base.fontSize * ConversationListTextScale,
+        lineHeight = base.lineHeight * ConversationListTextScale,
+    )
 }
 
 @Composable
@@ -199,13 +240,16 @@ private fun DateHeaderItem(
             .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 日期分组保留，但降级成安静的「小标题」：不再是 primary 色 + 加粗。
-        // 侧栏里主色应该只留给「当前会话」和新建入口，日期只是分隔信息。
-        // 比会话标题再小一档、再淡一档，读起来是分隔而不是标题。
+        // 日期分组保留，但仍然是安静的「小标题」：不再是 primary 色 + 加粗。
+        // 侧栏里主色应该只留给「当前会话」和新建入口。
+        //
+        // 字号放大 15%（基准 labelMedium，仍比标题小一级）。对比度同步提上来：
+        // 之前 0.72 的 alpha 在浅色主题下淡到快看不见，这里不再压 alpha，
+        // 直接用 onSurfaceVariant 本色 —— 它本身已经比标题弱一档，够区分了。
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+            style = conversationDateStyle(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -301,7 +345,8 @@ private fun ConversationItem(
             // 不会把标记挤出条目。整行点击与长按行为不变。
             Text(
                 text = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) },
-                style = MaterialTheme.typography.bodyMedium,
+                // 字号放大 15%，行高同比放大；单行省略与点击/长按行为都不变。
+                style = conversationTitleStyle(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface,
